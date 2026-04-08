@@ -282,7 +282,7 @@ function renderCompositionCharts(data) {
       },
       scales: {
         x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#eee' } },
-        y: { ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => (+v).toFixed(1) + '%' }, grid: { color: '#eee' } },
       },
     },
   });
@@ -306,11 +306,11 @@ function renderCompositionCharts(data) {
       plugins: {
         legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 16 } },
         tooltip: { backgroundColor: '#1a1f36', padding: 10, cornerRadius: 8,
-          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(2)}%` } },
+          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)}%` } },
       },
       scales: {
         x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#eee' } },
-        y: { ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#eee' } },
+        y: { ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => (+v).toFixed(1) + '%' }, grid: { color: '#eee' } },
       },
     },
   });
