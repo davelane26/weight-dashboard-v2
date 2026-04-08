@@ -129,6 +129,7 @@ function renderJourney(latest) {
   setText('journey-pct-stat', fmt(pct) + '%');
   el('journey-bar').style.width = pct + '%';
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
+}
 
 // ── Render streak ───────────────────────────────────────────────────────
 function renderStreak(data) {
