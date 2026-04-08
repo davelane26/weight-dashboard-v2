@@ -78,9 +78,25 @@ function delta(val, lowerIsBetter = true) {
 }
 
 // ── Set element text/html safely ────────────────────────────────────────
-const el   = id => document.getElementById(id);
+const el      = id => document.getElementById(id);
 const setText = (id, v) => { const e = el(id); if (e) e.textContent = v; };
 const setHTML = (id, v) => { const e = el(id); if (e) e.innerHTML   = v; };
+
+// ── Animated counter ────────────────────────────────────────────────────
+function countUp(id, target, decimals = 1, suffix = '', duration = 900) {
+  const e = el(id);
+  if (!e || target == null) return;
+  const start     = performance.now();
+  const startVal  = parseFloat(e.textContent) || 0;
+  function tick(now) {
+    const pct    = Math.min((now - start) / duration, 1);
+    const eased  = 1 - Math.pow(1 - pct, 3);          // ease-out cubic
+    const current = startVal + (target - startVal) * eased;
+    e.textContent = current.toFixed(decimals) + suffix;
+    if (pct < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
 
 // ── Destroy chart helper ────────────────────────────────────────────────
 function destroyChart(key) {
@@ -89,33 +105,32 @@ function destroyChart(key) {
 
 // ── Render KPI cards ────────────────────────────────────────────────────
 function renderKPIs(latest, prev) {
-  setText('kpi-weight', fmt(latest.weight));
+  countUp('kpi-weight', latest.weight, 1);
   const wd = prev ? latest.weight - prev.weight : null;
   setHTML('kpi-weight-sub', wd != null ? delta(wd) + ' lbs from last' : '');
 
-  setText('kpi-bmi', fmt(latest.bmi, 2));
+  countUp('kpi-bmi', latest.bmi, 2);
   if (latest.bmi) {
     const [cat, style] = bmiCategory(latest.bmi);
     const bd = prev?.bmi ? latest.bmi - prev.bmi : null;
     setHTML('kpi-bmi-sub', `<span class="badge" style="${style}">${cat}</span>${bd != null ? ' ' + delta(bd) : ''}`);
   }
 
-  setText('kpi-fat',    latest.bodyFat ? fmtPct(latest.bodyFat) : '—');
+  latest.bodyFat ? countUp('kpi-fat', latest.bodyFat, 1, '%') : setText('kpi-fat', '—');
   const fd = prev?.bodyFat ? latest.bodyFat - prev.bodyFat : null;
   setHTML('kpi-fat-sub', fd != null ? delta(fd) + '% from last' : '');
 
-  setText('kpi-muscle', latest.muscle ? fmtPct(latest.muscle) : '—');
+  latest.muscle ? countUp('kpi-muscle', latest.muscle, 1, '%') : setText('kpi-muscle', '—');
   const md = prev?.muscle ? latest.muscle - prev.muscle : null;
   setHTML('kpi-muscle-sub', md != null ? delta(md, false) + '% from last' : '');
 
-  setText('kpi-water',  latest.water  ? fmtPct(latest.water)  : '—');
+  latest.water ? countUp('kpi-water', latest.water, 1, '%') : setText('kpi-water', '—');
   const wad = prev?.water ? latest.water - prev.water : null;
   setHTML('kpi-water-sub', wad != null ? delta(wad, false) + '% from last' : '');
 
-  setText('kpi-bone',   latest.bone   ? fmt(latest.bone, 2)   : '—');
-
-  setText('kpi-bmr',    latest.bmr    ? fmtK(latest.bmr)      : '—');
-  setText('kpi-tdee',   latest.tdee   ? fmtK(latest.tdee)     : '—');
+  latest.bone ? countUp('kpi-bone', latest.bone, 2) : setText('kpi-bone', '—');
+  latest.bmr  ? countUp('kpi-bmr',  latest.bmr,  0) : setText('kpi-bmr',  '—');
+  latest.tdee ? countUp('kpi-tdee', latest.tdee, 0) : setText('kpi-tdee', '—');
 }
 
 // ── Render journey ──────────────────────────────────────────────────────
@@ -123,10 +138,10 @@ function renderJourney(latest) {
   const lost      = Math.max(0, START_WEIGHT - latest.weight);
   const pct       = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
 
-  setText('journey-current',  fmt(latest.weight));
+  countUp('journey-current',  latest.weight, 1);
   setText('journey-date',     fmtDate(latest.date));
-  setText('journey-lost',     fmt(lost));
-  setText('journey-pct-stat', fmt(pct) + '%');
+  countUp('journey-lost',     Math.max(0, START_WEIGHT - latest.weight), 1);
+  countUp('journey-pct-stat', Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100)), 1, '%');
   el('journey-bar').style.width = pct + '%';
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 }
@@ -142,9 +157,9 @@ function renderStreak(data) {
 // ── Render calorie insights ─────────────────────────────────────────────
 function renderCalories(latest) {
   if (!latest.tdee) return;
-  setText('cal-maintain', fmtK(latest.tdee));
-  setText('cal-lose1',    fmtK(latest.tdee - 500));
-  setText('cal-lose2',    fmtK(latest.tdee - 1000));
+  countUp('cal-maintain', latest.tdee,        0);
+  countUp('cal-lose1',    latest.tdee - 500,  0);
+  countUp('cal-lose2',    latest.tdee - 1000, 0);
 }
 
 // ── Render weight chart ─────────────────────────────────────────────────
