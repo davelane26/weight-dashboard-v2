@@ -19,8 +19,13 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
       .then(c => c.addAll(SHELL))
-      .then(() => self.skipWaiting())
+    // No skipWaiting — let the page decide when to activate
   );
+});
+
+// ── Message: page tells us to take over ──────────────────────────────────
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ── Activate: remove old caches ──────────────────────────────────────────

@@ -318,12 +318,47 @@
   Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s
 </footer>
 
+<!-- Update toast -->
+<div id="update-toast" class="update-toast" style="display:none" role="alert">
+  <span>🔄 New version available</span>
+  <button onclick="applyUpdate()">Update now</button>
+</div>
+
 <script>
+  let _waitingSW = null;
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/weight-dashboard-v2/sw.js')
+        .then(reg => {
+          // Already waiting on first load?
+          if (reg.waiting) showUpdateToast(reg.waiting);
+
+          // New SW found during this session
+          reg.addEventListener('updatefound', () => {
+            const newSW = reg.installing;
+            newSW.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                showUpdateToast(newSW);
+              }
+            });
+          });
+        })
         .catch(err => console.warn('SW registration failed:', err));
+
+      // When SW takes over, reload to get fresh assets
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
     });
+  }
+
+  function showUpdateToast(sw) {
+    _waitingSW = sw;
+    const toast = document.getElementById('update-toast');
+    if (toast) toast.style.display = 'flex';
+  }
+
+  function applyUpdate() {
+    if (_waitingSW) _waitingSW.postMessage({ type: 'SKIP_WAITING' });
   }
 </script>
 </body>
