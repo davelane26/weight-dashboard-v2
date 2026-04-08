@@ -5,10 +5,11 @@ const START_DATE   = 'Jan 23, 2026';
 const REFRESH_MS   = 30_000;
 
 // ── State ───────────────────────────────────────────────────────────
-let allData    = [];
-let goalWeight = null;
-let charts     = {};
-let chartRange = 'all';
+let allData       = [];
+let goalWeight    = null;
+let dailyCalories = null;
+let charts        = {};
+let chartRange    = 'all';
 
 // ── Formatters ─────────────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
@@ -461,7 +462,23 @@ function renderGoal(latest, data = []) {
     return;
   }
 
-  // Use linear regression on last 30 days for projected date
+  // Calorie-based projection (overrides regression when calories are entered)
+  if (dailyCalories && latest.tdee) {
+    const deficit    = latest.tdee - dailyCalories;
+    if (deficit > 0) {
+      const lbsPerWeek = (deficit * 7) / 3500;
+      const daysLeft   = remaining / (lbsPerWeek / 7);
+      const projDate   = new Date(latest.date.getTime() + daysLeft * 86400000);
+      setText('goal-eta',
+        `${Math.round(dailyCalories).toLocaleString()} kcal · ${Math.round(deficit).toLocaleString()} deficit · ~${lbsPerWeek.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+      return;
+    } else {
+      setText('goal-eta', '⚠️ Eating at or above TDEE — no deficit to project from');
+      return;
+    }
+  }
+
+  // Fallback: linear regression on last 30 days
   const slopePerDay = weightTrendSlope(data);
   if (slopePerDay !== null && slopePerDay < 0) {
     const daysLeft    = remaining / Math.abs(slopePerDay);
@@ -470,7 +487,6 @@ function renderGoal(latest, data = []) {
     setText('goal-eta',
       `losing ~${weeklyRate.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
   } else {
-    // Fallback if trend is flat or gaining
     const weeksLeft = Math.ceil(remaining / 1.5);
     const estDate   = new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
     setText('goal-eta', `~${weeksLeft} wk${weeksLeft !== 1 ? 's' : ''} at 1.5 lbs/wk · est. ${fmtDate(estDate)}`);
@@ -502,6 +518,27 @@ function clearGoal() {
     renderGoal(allData[allData.length - 1], allData);
     renderWeightChart(allData);
   }
+}
+
+// ── Calorie persistence ───────────────────────────────────────────────
+function loadCalories() {
+  try {
+    const c = localStorage.getItem('wt_v2_calories');
+    if (c) { dailyCalories = parseFloat(c); el('cal-input').value = dailyCalories; }
+  } catch {}
+}
+function setCalories() {
+  const v = parseFloat(el('cal-input').value);
+  if (isNaN(v) || v <= 0) return;
+  dailyCalories = v;
+  localStorage.setItem('wt_v2_calories', dailyCalories);
+  if (allData.length) renderGoal(allData[allData.length - 1], allData);
+}
+function clearCalories() {
+  dailyCalories = null;
+  el('cal-input').value = '';
+  localStorage.removeItem('wt_v2_calories');
+  if (allData.length) renderGoal(allData[allData.length - 1], allData);
 }
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
@@ -552,6 +589,7 @@ async function loadData() {
 
 async function init() {
   loadGoal();
+  loadCalories();
   const ok = await loadData();
   if (!ok) {
     // Fall back to cached localStorage data
