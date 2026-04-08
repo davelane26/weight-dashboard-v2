@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#0053e2"/>
+  <!-- Scale platform -->
+  <rect x="96" y="340" width="320" height="36" rx="18" fill="white"/>
+  <!-- Scale pole -->
+  <rect x="238" y="180" width="36" height="172" rx="10" fill="white"/>
+  <!-- Scale beam -->
+  <rect x="110" y="168" width="292" height="28" rx="14" fill="white"/>
+  <!-- Left pan -->
+  <ellipse cx="160" cy="260" rx="58" ry="16" fill="white" opacity="0.85"/>
+  <rect x="154" y="196" width="12" height="68" rx="6" fill="white" opacity="0.85"/>
+  <!-- Right pan -->
+  <ellipse cx="352" cy="260" rx="58" ry="16" fill="white" opacity="0.85"/>
+  <rect x="346" y="196" width="12" height="68" rx="6" fill="white" opacity="0.85"/>
+  <!-- Center pivot dot -->
+  <circle cx="256" cy="182" r="16" fill="#ffc220"/>
+  <!-- Base foot -->
+  <rect x="196" y="368" width="120" height="28" rx="14" fill="white" opacity="0.7"/>
+</svg>

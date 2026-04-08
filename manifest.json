@@ -1,0 +1,26 @@
+{
+  "name": "David's Weight Dashboard",
+  "short_name": "Weight",
+  "description": "Personal weight tracking dashboard powered by openScale",
+  "start_url": "/weight-dashboard-v2/",
+  "scope": "/weight-dashboard-v2/",
+  "display": "standalone",
+  "background_color": "#0053e2",
+  "theme_color": "#0053e2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["health", "fitness"]
+}
