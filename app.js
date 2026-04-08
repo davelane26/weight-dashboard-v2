@@ -193,21 +193,22 @@ function renderJourney(latest) {
 }
 
 // ── Milestones ──────────────────────────────────────────────────────
-function renderMilestones(latest) {
+function renderMilestones(latest, data) {
   const row = el('milestones-row');
   if (!row) return;
-  const current = latest.weight;
-  // Build milestones every 10 lbs from START_WEIGHT down to 220 (or goal)
+  const current    = latest.weight;
+  const allTimeLow = Math.min(...data.map(d => d.weight));
+  // Build milestones every 10 lbs from START_WEIGHT down to goal or 220
   const floor = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
   const steps = [];
   for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
-  // Find the next uncompleted milestone
-  const nextIdx = steps.findIndex(w => current > w);
+  // Next uncompleted milestone based on all-time low
+  const nextIdx = steps.findIndex(w => allTimeLow > w);
   row.innerHTML = steps.map((w, i) => {
-    const done    = current <= w;
-    const isCurr  = i === nextIdx;
-    const cls     = done ? 'done' : isCurr ? 'current' : 'future';
-    const icon    = done ? '✓' : isCurr ? '▼' : w;
+    const done   = allTimeLow <= w;   // earned if all-time low crossed it
+    const isCurr = i === nextIdx;
+    const cls    = done ? 'done' : isCurr ? 'current' : 'future';
+    const icon   = done ? '✓' : isCurr ? '▼' : w;
     return `<div class="milestone-ring ${cls}">
       <div class="milestone-circle">${icon}</div>
       <div class="milestone-label">${w} lbs</div>
@@ -709,7 +710,7 @@ function renderAll() {
   setText('readings-count', `${todayCount} reading${todayCount !== 1 ? 's' : ''} today · ${allData.length} total`);
 
   renderTrendHero(allData);
-  renderMilestones(latest);
+  renderMilestones(latest, allData);
   renderBMITimeline(allData, latest);
   renderKPIs(latest, prev);
   renderJourney(latest);
