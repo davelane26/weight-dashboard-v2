@@ -185,12 +185,6 @@ main {
   border-radius: 9999px;
   transition: width 1s cubic-bezier(.4,0,.2,1);
   background: linear-gradient(90deg, var(--green-100), #7bc67e, var(--spark-100));
-  background-size: 200% 100%;
-  animation: shimmer 2.5s linear infinite;
-}
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
 }
 
 /* ── Stat grid inside journey/goal ──────── */
