@@ -3,12 +3,12 @@ const DATA_URL     = 'https://davelane26.github.io/Weight-tracker/data.json';
 const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 23, 2026';
 const REFRESH_MS   = 30_000;
-const BMI_CATS     = [
-  { label: 'Normal Weight',  range: 'BMI < 25',   max: 25,  icon: '🟢' },
-  { label: 'Overweight',     range: 'BMI 25–29.9', max: 30,  icon: '🟡' },
-  { label: 'Obese I',        range: 'BMI 30–34.9', max: 35,  icon: '🟠' },
-  { label: 'Obese II',       range: 'BMI 35–39.9', max: 40,  icon: '🔴' },
-  { label: 'Obese III',      range: 'BMI ≥ 40',   max: Infinity, icon: '⚫' },
+const BMI_CATS = [
+  { label: 'Normal Weight',  range: 'BMI < 25',    min: 18.5, max: 25,       icon: '🟢' },
+  { label: 'Overweight',     range: 'BMI 25–29.9', min: 25,   max: 30,       icon: '🟡' },
+  { label: 'Obese I',        range: 'BMI 30–34.9', min: 30,   max: 35,       icon: '🟠' },
+  { label: 'Obese II',       range: 'BMI 35–39.9', min: 35,   max: 40,       icon: '🔴' },
+  { label: 'Obese III',      range: 'BMI ≥ 40',   min: 40,   max: Infinity, icon: '⚫' },
 ];
 
 // ── Dark mode ─────────────────────────────────────────────────────
@@ -242,11 +242,16 @@ function renderBMITimeline(data, latest) {
     }
     const cls = achieved ? 'achieved' : isCurrentCat ? 'current' : 'future';
     const statusIcon = achieved ? '✓' : isCurrentCat ? '▶' : '';
+    // Weight range in lbs for this category
+    const bmiToLbs = b => Math.round(b * heightM * heightM * 2.205);
+    const minLbs = bmiToLbs(cat.min);
+    const maxLbs = cat.max === Infinity ? null : bmiToLbs(cat.max);
+    const wtRange = maxLbs ? `${minLbs}–${maxLbs} lbs` : `${minLbs}+ lbs`;
     return `<div class="bmi-step ${cls}">
       <span class="bmi-step-icon">${cat.icon}</span>
       <div class="bmi-step-info">
         <div class="bmi-step-cat">${statusIcon ? statusIcon + ' ' : ''}${cat.label}</div>
-        <div class="bmi-step-range">${cat.range}</div>
+        <div class="bmi-step-range">${cat.range} &middot; ${wtRange}</div>
       </div>
       <div class="bmi-step-date">${achieved ? '✅ Achieved' : isCurrentCat ? 'You are here' : dateStr ? 'Est. ' + dateStr : '—'}</div>
     </div>`;
