@@ -443,4 +443,13 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   /* Data table — smaller text */
   .data-table th,
   .data-table td { font-size: 0.7rem; padding: 0.4rem 0.35rem; }
+
+  /* Week-Over-Week — hide extra columns, keep Week / Avg / Change */
+  .data-table th:nth-child(2), .data-table td:nth-child(2),
+  .data-table th:nth-child(4), .data-table td:nth-child(4),
+  .data-table th:nth-child(5), .data-table td:nth-child(5),
+  .data-table th:nth-child(7), .data-table td:nth-child(7) { display: none; }
+
+  /* Prevent date wrapping in first column */
+  .data-table td:nth-child(1) { white-space: nowrap; font-size: 0.68rem; }
 }
