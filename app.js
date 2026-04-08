@@ -85,13 +85,16 @@ const setHTML = (id, v) => { const e = el(id); if (e) e.innerHTML   = v; };
 // ── Animated counter ────────────────────────────────────────────────────
 function countUp(id, target, decimals = 1, suffix = '', duration = 900) {
   const e = el(id);
-  if (!e || target == null) return;
-  const start     = performance.now();
-  const startVal  = parseFloat(e.textContent) || 0;
+  const t = +target;
+  if (!e || isNaN(t)) return;
+  // Set correct value immediately — never let raw float leak to screen
+  e.textContent = t.toFixed(decimals) + suffix;
+  const start    = performance.now();
+  const startVal = parseFloat(e.textContent) || 0;
   function tick(now) {
     const pct    = Math.min((now - start) / duration, 1);
-    const eased  = 1 - Math.pow(1 - pct, 3);          // ease-out cubic
-    const current = startVal + (target - startVal) * eased;
+    const eased  = 1 - Math.pow(1 - pct, 3);
+    const current = startVal + (t - startVal) * eased;
     e.textContent = current.toFixed(decimals) + suffix;
     if (pct < 1) requestAnimationFrame(tick);
   }
