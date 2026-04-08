@@ -38,7 +38,17 @@
 
 <main>
 
-  <!-- ── Streak banner ─────────────────────────────────────────────── -->
+  <!-- ── Trend Weight Hero (Happy Scale style) ───────────────── -->
+  <section class="trend-hero fade-in" aria-label="Trend weight">
+    <div>
+      <p class="trend-label">Trend Weight</p>
+      <p class="trend-value" id="trend-value">—</p>
+      <p class="trend-sub">raw <span id="trend-raw">—</span> lbs &nbsp;·&nbsp; <span id="trend-dir">—</span></p>
+    </div>
+    <div class="decade-badge" id="decade-badge" style="display:none"></div>
+  </section>
+
+  <!-- ── Streak banner ──────────────────────────────────── -->
   <div class="streak-banner fade-in">
     <div style="font-size:2rem">🔥</div>
     <div>
@@ -180,9 +190,17 @@
     <p id="goal-empty" style="font-size:0.8rem;color:#6d7a95;padding:0.5rem 0">Enter a target weight above to track your progress</p>
   </section>
 
-  <!-- ── Weight Trend Chart ─────────────────────────────────────────── -->
+  <!-- ── Weight Trend Chart ───────────────────────────────── -->
   <section class="card fade-in" aria-label="Weight trend chart">
-    <h2 class="card-title">Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+      <h2 class="card-title" style="margin-bottom:0">Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></h2>
+      <div class="range-pills" role="group" aria-label="Chart time range">
+        <button class="range-pill" data-range="1m" onclick="setRange('1m')">1M</button>
+        <button class="range-pill" data-range="3m" onclick="setRange('3m')">3M</button>
+        <button class="range-pill" data-range="6m" onclick="setRange('6m')">6M</button>
+        <button class="range-pill active" data-range="all" onclick="setRange('all')">All</button>
+      </div>
+    </div>
     <div class="chart-wrap">
       <canvas id="weightChart" aria-label="Weight trend over time"></canvas>
     </div>

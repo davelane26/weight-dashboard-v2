@@ -4,10 +4,11 @@ const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 23, 2026';
 const REFRESH_MS   = 30_000;
 
-// ── State ──────────────────────────────────────────────────────────────
+// ── State ───────────────────────────────────────────────────────────
 let allData    = [];
 let goalWeight = null;
 let charts     = {};
+let chartRange = 'all';
 
 // ── Formatters ─────────────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
@@ -168,7 +169,52 @@ function renderJourney(latest) {
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 }
 
-// ── Render streak ───────────────────────────────────────────────────────
+// ── Happy Scale: Trend hero + decade badge ────────────────────────────
+function renderTrendHero(data) {
+  const byDay  = {};
+  data.forEach(r => { byDay[r.date.toDateString()] = r; });
+  const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
+  const vals   = daily.map(r => r.weight);
+  const avg7   = movingAvg(vals, 7);
+  const trend  = avg7[avg7.length - 1];
+  const raw    = daily[daily.length - 1]?.weight;
+
+  // Direction: compare latest 7-day avg vs 7 days ago
+  const prevTrend = avg7.length > 7 ? avg7[avg7.length - 8] : null;
+  const dir = prevTrend == null ? 'neutral'
+    : trend < prevTrend - 0.05 ? 'down'
+    : trend > prevTrend + 0.05 ? 'up'
+    : 'neutral';
+
+  const trendEl = el('trend-value');
+  if (trendEl) {
+    trendEl.className = `trend-value ${dir}`;
+    countUp('trend-value', trend, 1);
+  }
+  setText('trend-raw', fmt(raw));
+  const dirLabel = dir === 'down' ? '↓ trending down 🟢'
+                 : dir === 'up'   ? '↑ trending up 🔴'
+                 : '— holding steady';
+  setText('trend-dir', dirLabel);
+
+  // Decade badge: e.g. "You’re in the 280s!"
+  const badge = el('decade-badge');
+  if (badge && trend != null) {
+    const decade = Math.floor(trend / 10) * 10;
+    badge.style.display = 'block';
+    badge.innerHTML = `You’re in the<br><strong>${decade}s!</strong>`;
+  }
+}
+
+// ── Happy Scale: Time range pills ────────────────────────────────────
+function setRange(r) {
+  chartRange = r;
+  document.querySelectorAll('.range-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.range === r));
+  if (allData.length) renderWeightChart(allData);
+}
+
+// ── Render KPIs ─────────────────────────────────────────────────────────
 function renderStreak(data) {
   const streak = calcStreak(data);
   setText('streak-count', streak);
@@ -187,8 +233,12 @@ function renderCalories(latest) {
 // ── Render weight chart ─────────────────────────────────────────────────
 function renderWeightChart(data) {
   destroyChart('weight');
+  // Filter by selected time range
+  const days   = { '1m': 30, '3m': 90, '6m': 180 }[chartRange];
+  const cutoff = days ? new Date(Date.now() - days * 86400000) : null;
+  const filtered = cutoff ? data.filter(r => r.date >= cutoff) : data;
   const byDay = {};
-  data.forEach(r => { byDay[r.date.toDateString()] = r; });
+  filtered.forEach(r => { byDay[r.date.toDateString()] = r; });
   const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
   const labels = daily.map(r => fmtDate(r.date));
   const vals   = daily.map(r => r.weight);
@@ -467,6 +517,7 @@ function renderAll() {
   const todayCount = allData.filter(r => r.date.toDateString() === latest.date.toDateString()).length;
   setText('readings-count', `${todayCount} reading${todayCount !== 1 ? 's' : ''} today · ${allData.length} total`);
 
+  renderTrendHero(allData);
   renderKPIs(latest, prev);
   renderJourney(latest);
   renderStreak(allData);
