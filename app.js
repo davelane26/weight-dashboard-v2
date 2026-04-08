@@ -124,7 +124,7 @@ function renderKPIs(latest, prev) {
   const md = prev?.muscle ? latest.muscle - prev.muscle : null;
   setHTML('kpi-muscle-sub', md != null ? delta(md, false) + '% from last' : '');
 
-  latest.water ? countUp('kpi-water', latest.water, 1, '%') : setText('kpi-water', '—');
+  latest.water ? countUp('kpi-water', latest.water, 0, '%') : setText('kpi-water', '—');
   const wad = prev?.water ? latest.water - prev.water : null;
   setHTML('kpi-water-sub', wad != null ? delta(wad, false) + '% from last' : '');
 
