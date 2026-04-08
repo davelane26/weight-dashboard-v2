@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>David's Weight Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-inner">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <div class="header-logo" aria-hidden="true">⚖️</div>
+      <div>
+        <h1 style="font-size:1.35rem;font-weight:800;letter-spacing:-0.01em">David's Weight Dashboard</h1>
+        <p style="font-size:0.75rem;color:rgba(255,255,255,0.65);margin-top:2px">
+          openScale · Powered by Code Puppy 🐶
+        </p>
+      </div>
+    </div>
+    <div class="header-meta">
+      <p>Last updated</p>
+      <strong id="last-updated">Loading…</strong>
+      <p id="readings-count" style="margin-top:2px"></p>
+    </div>
+  </div>
+</header>
+
+<!-- ── Status bar (shown only on error) ────────────────────────────── -->
+<div id="status-bar" style="display:none;background:#fef9c3;color:#854d0e;font-size:0.78rem;text-align:center;padding:0.4rem 1rem;font-weight:600"></div>
+
+<main>
+
+  <!-- ── Streak banner ─────────────────────────────────────────────── -->
+  <div class="streak-banner fade-in">
+    <div style="font-size:2rem">🔥</div>
+    <div>
+      <div style="display:flex;align-items:baseline;gap:0.4rem">
+        <span class="streak-number" id="streak-count">—</span>
+        <span style="font-size:1rem;font-weight:700;color:#995213" id="streak-label">days in a row</span>
+      </div>
+      <p style="font-size:0.72rem;color:#995213;margin-top:2px" id="streak-total"></p>
+    </div>
+    <div style="margin-left:auto;font-size:0.72rem;color:#995213;text-align:right">
+      Auto-refreshes every 30s
+    </div>
+  </div>
+
+  <!-- ── KPI Cards ─────────────────────────────────────────────────── -->
+  <section class="fade-in" aria-label="Key metrics">
+    <h2 class="card-title" style="margin-bottom:0.75rem" id="kpi-heading">Latest Reading</h2>
+    <div class="kpi-grid">
+
+      <div class="kpi" style="border-top-color:#0053e2">
+        <p class="kpi-label" style="color:#0053e2">Weight</p>
+        <p class="kpi-value" style="color:#0053e2" id="kpi-weight">—</p>
+        <p class="kpi-unit">lbs</p>
+        <p class="kpi-sub" id="kpi-weight-sub"></p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#ea1100">
+        <p class="kpi-label" style="color:#ea1100">BMI</p>
+        <p class="kpi-value" style="color:#ea1100" id="kpi-bmi">—</p>
+        <p class="kpi-unit">kg/m²</p>
+        <p class="kpi-sub" id="kpi-bmi-sub"></p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#ffc220">
+        <p class="kpi-label" style="color:#995213">Body Fat</p>
+        <p class="kpi-value" style="color:#995213" id="kpi-fat">—</p>
+        <p class="kpi-unit">% of total weight</p>
+        <p class="kpi-sub" id="kpi-fat-sub"></p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#2a8703">
+        <p class="kpi-label" style="color:#2a8703">Muscle</p>
+        <p class="kpi-value" style="color:#2a8703" id="kpi-muscle">—</p>
+        <p class="kpi-unit">skeletal muscle %</p>
+        <p class="kpi-sub" id="kpi-muscle-sub"></p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#0891b2">
+        <p class="kpi-label" style="color:#0891b2">Body Water</p>
+        <p class="kpi-value" style="color:#0891b2" id="kpi-water">—</p>
+        <p class="kpi-unit">% of total weight</p>
+        <p class="kpi-sub" id="kpi-water-sub"></p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#6b7280">
+        <p class="kpi-label">Bone Mass</p>
+        <p class="kpi-value" style="color:#374151" id="kpi-bone">—</p>
+        <p class="kpi-unit">lbs</p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#7c3aed">
+        <p class="kpi-label" style="color:#7c3aed">BMR</p>
+        <p class="kpi-value" style="color:#7c3aed" id="kpi-bmr">—</p>
+        <p class="kpi-unit">kcal/day at rest</p>
+      </div>
+
+      <div class="kpi" style="border-top-color:#0053e2">
+        <p class="kpi-label" style="color:#0053e2">TDEE</p>
+        <p class="kpi-value" style="color:#0053e2" id="kpi-tdee">—</p>
+        <p class="kpi-unit">kcal/day total burn</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Journey ───────────────────────────────────────────────────── -->
+  <section class="card fade-in" style="border-left:4px solid #ffc220" aria-label="Weight loss journey">
+    <h2 class="card-title" style="border-left:none;padding-left:0">🏆 Weight Loss Journey</h2>
+    <div class="stat-grid">
+      <div class="stat-box" style="background:#f5f6f8">
+        <p class="label" style="color:#6d7a95">Starting Weight</p>
+        <p class="val" style="color:#374151">315.0</p>
+        <p class="sub">Jan 23, 2026</p>
+      </div>
+      <div class="stat-box" style="background:#eff4ff">
+        <p class="label" style="color:#0053e2">Current Weight</p>
+        <p class="val" style="color:#0053e2" id="journey-current">—</p>
+        <p class="sub" id="journey-date">Latest reading</p>
+      </div>
+      <div class="stat-box" style="background:#f0fdf4">
+        <p class="label" style="color:#2a8703">Total Lost</p>
+        <p class="val" style="color:#2a8703" id="journey-lost">0.0</p>
+        <p class="sub">lbs lost</p>
+      </div>
+      <div class="stat-box" style="background:#fef9ec">
+        <p class="label" style="color:#995213">Days Active</p>
+        <p class="val" style="color:#995213" id="journey-days">—</p>
+        <p class="sub">days since Jan 23</p>
+      </div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="journey-bar" style="width:0%"></div>
+    </div>
+    <p style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem;text-align:right" id="journey-bar-label"></p>
+    <p style="font-size:0.7rem;font-weight:600;color:#995213;margin-top:0.4rem" id="journey-pct"></p>
+  </section>
+
+  <!-- ── Goal Weight ────────────────────────────────────────────────── -->
+  <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Goal weight tracker">
+    <h2 class="card-title" style="border-left:none;padding-left:0">🎯 Goal Weight</h2>
+    <div class="goal-input-row">
+      <label for="goal-input">Target (lbs)</label>
+      <input type="number" id="goal-input" placeholder="e.g. 220" step="0.1" aria-label="Target weight in lbs" />
+      <button class="btn-primary" onclick="setGoal()">Set Goal</button>
+      <button class="btn-secondary" onclick="clearGoal()">Clear</button>
+    </div>
+    <div id="goal-content" style="display:none">
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-box" style="background:#eff4ff">
+          <p class="label" style="color:#0053e2">Goal Weight</p>
+          <p class="val" style="color:#0053e2" id="goal-target">—</p>
+          <p class="sub">lbs target</p>
+        </div>
+        <div class="stat-box" style="background:#fef9ec">
+          <p class="label" style="color:#995213">Remaining</p>
+          <p class="val" style="color:#995213" id="goal-remaining">—</p>
+          <p class="sub">lbs to go</p>
+        </div>
+        <div class="stat-box" style="background:#f0fdf4">
+          <p class="label" style="color:#2a8703">Progress</p>
+          <p class="val" style="color:#2a8703" id="goal-pct">—</p>
+          <p class="sub" id="goal-eta"></p>
+        </div>
+      </div>
+      <div class="progress-track" style="height:1.25rem">
+        <div class="progress-fill" id="goal-bar" style="width:0%;background:linear-gradient(90deg,#0053e2,#0891b2);display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;font-weight:700"></div>
+      </div>
+    </div>
+    <p id="goal-empty" style="font-size:0.8rem;color:#6d7a95;padding:0.5rem 0">Enter a target weight above to track your progress</p>
+  </section>
+
+  <!-- ── Weight Trend Chart ─────────────────────────────────────────── -->
+  <section class="card fade-in" aria-label="Weight trend chart">
+    <h2 class="card-title">Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></h2>
+    <div class="chart-wrap">
+      <canvas id="weightChart" aria-label="Weight trend over time"></canvas>
+    </div>
+  </section>
+
+  <!-- ── Body Composition Charts ────────────────────────────────────── -->
+  <section class="card fade-in" aria-label="Body composition">
+    <h2 class="card-title">Body Composition Trends</h2>
+    <div class="comp-charts">
+      <div>
+        <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Fat % vs Muscle %</p>
+        <div class="comp-chart-wrap">
+          <canvas id="compChart" aria-label="Body fat vs muscle percentage trend"></canvas>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Body Water %</p>
+        <div class="comp-chart-wrap">
+          <canvas id="waterChart" aria-label="Body water percentage trend"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Calorie Insights ───────────────────────────────────────────── -->
+  <section class="card fade-in" aria-label="Calorie insights">
+    <h2 class="card-title">Calorie &amp; Goal Insights</h2>
+    <div class="cal-grid">
+      <div class="cal-box" style="background:#eff4ff">
+        <p class="cal-label" style="color:#0053e2">Maintain Weight</p>
+        <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
+        <p class="cal-sub">kcal/day = TDEE</p>
+      </div>
+      <div class="cal-box" style="background:#f0fdf4">
+        <p class="cal-label" style="color:#2a8703">Lose 1 lb/week</p>
+        <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
+        <p class="cal-sub">kcal/day (−500 deficit)</p>
+      </div>
+      <div class="cal-box" style="background:#fef9ec">
+        <p class="cal-label" style="color:#995213">Lose 2 lbs/week</p>
+        <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
+        <p class="cal-sub">kcal/day (−1,000 deficit)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Week Over Week Table ───────────────────────────────────────── -->
+  <section class="card fade-in" aria-label="Week over week breakdown">
+    <h2 class="card-title">Week-Over-Week</h2>
+    <div class="overflow-x">
+      <table class="data-table" aria-label="Weekly weight summary">
+        <thead>
+          <tr>
+            <th>Week of</th>
+            <th style="text-align:center">Readings</th>
+            <th>Avg Weight</th>
+            <th>Min</th>
+            <th>Max</th>
+            <th>vs Prev Week</th>
+            <th>Avg Fat %</th>
+          </tr>
+        </thead>
+        <tbody id="wow-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s
+</footer>
+
+</body>
+</html>
