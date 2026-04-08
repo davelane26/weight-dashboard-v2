@@ -120,7 +120,6 @@ function renderKPIs(latest, prev) {
 
 // ── Render journey ──────────────────────────────────────────────────────
 function renderJourney(latest) {
-  const daysSince = Math.floor((latest.date - new Date('2026-01-23')) / 86400000);
   const lost      = Math.max(0, START_WEIGHT - latest.weight);
   const pct       = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
 
@@ -128,7 +127,6 @@ function renderJourney(latest) {
   setText('journey-date',     fmtDate(latest.date));
   setText('journey-lost',     fmt(lost));
   setText('journey-pct-stat', fmt(pct) + '%');
-  setText('journey-days',     `${daysSince} days active since ${START_DATE}`);
   el('journey-bar').style.width = pct + '%';
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
