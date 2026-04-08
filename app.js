@@ -91,7 +91,7 @@ function destroyChart(key) {
 function renderKPIs(latest, prev) {
   setText('kpi-weight', fmt(latest.weight));
   const wd = prev ? latest.weight - prev.weight : null;
-  setHTML('kpi-weight-sub', wd != null ? delta(wd) + ` ${fmt(Math.abs(wd))} lbs from last` : '');
+  setHTML('kpi-weight-sub', wd != null ? delta(wd) + ' lbs from last' : '');
 
   setText('kpi-bmi', fmt(latest.bmi, 2));
   if (latest.bmi) {
@@ -102,15 +102,15 @@ function renderKPIs(latest, prev) {
 
   setText('kpi-fat',    latest.bodyFat ? fmtPct(latest.bodyFat) : '—');
   const fd = prev?.bodyFat ? latest.bodyFat - prev.bodyFat : null;
-  setHTML('kpi-fat-sub', fd != null ? delta(fd) + ` ${fmt(Math.abs(fd))}% from last` : '');
+  setHTML('kpi-fat-sub', fd != null ? delta(fd) + '% from last' : '');
 
   setText('kpi-muscle', latest.muscle ? fmtPct(latest.muscle) : '—');
   const md = prev?.muscle ? latest.muscle - prev.muscle : null;
-  setHTML('kpi-muscle-sub', md != null ? delta(md, false) + ` ${fmt(Math.abs(md))}% from last` : '');
+  setHTML('kpi-muscle-sub', md != null ? delta(md, false) + '% from last' : '');
 
   setText('kpi-water',  latest.water  ? fmtPct(latest.water)  : '—');
   const wad = prev?.water ? latest.water - prev.water : null;
-  setHTML('kpi-water-sub', wad != null ? delta(wad, false) + ` ${fmt(Math.abs(wad))}% from last` : '');
+  setHTML('kpi-water-sub', wad != null ? delta(wad, false) + '% from last' : '');
 
   setText('kpi-bone',   latest.bone   ? fmt(latest.bone, 2)   : '—');
 
