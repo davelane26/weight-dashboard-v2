@@ -53,6 +53,25 @@ function movingAvg(arr, window = 7) {
   });
 }
 
+// ── Linear regression → lbs/day slope ───────────────────────────────────
+// Uses last `days` of data so recent trend matters more than old data
+function weightTrendSlope(data, days = 30) {
+  const byDay  = {};
+  data.forEach(r => { byDay[r.date.toDateString()] = r; });
+  const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
+  const recent = daily.slice(-days);
+  if (recent.length < 3) return null;
+  const origin = recent[0].date.getTime();
+  const pts    = recent.map(r => ({ x: (r.date.getTime() - origin) / 86400000, y: r.weight }));
+  const n      = pts.length;
+  const sx     = pts.reduce((s, p) => s + p.x, 0);
+  const sy     = pts.reduce((s, p) => s + p.y, 0);
+  const sxy    = pts.reduce((s, p) => s + p.x * p.y, 0);
+  const sx2    = pts.reduce((s, p) => s + p.x * p.x, 0);
+  const denom  = n * sx2 - sx * sx;
+  return denom === 0 ? null : (n * sxy - sx * sy) / denom; // lbs per day
+}
+
 // ── Streak counter ──────────────────────────────────────────────────────
 function calcStreak(data) {
   if (!data.length) return 0;
@@ -365,7 +384,7 @@ function renderWoW(data) {
 }
 
 // ── Render goal section ─────────────────────────────────────────────────
-function renderGoal(latest) {
+function renderGoal(latest, data = []) {
   const content = el('goal-content');
   const empty   = el('goal-empty');
   if (!goalWeight) {
@@ -376,23 +395,35 @@ function renderGoal(latest) {
   content.style.display = 'block';
   empty.style.display   = 'none';
 
-  const remaining  = Math.max(0, latest.weight - goalWeight);
+  const remaining   = Math.max(0, latest.weight - goalWeight);
   const totalToLose = START_WEIGHT - goalWeight;
   const lost        = START_WEIGHT - latest.weight;
   const pct         = totalToLose > 0 ? Math.min(100, Math.max(0, (lost / totalToLose) * 100)) : 0;
 
-  setText('goal-target',    fmt(goalWeight));
-  setText('goal-remaining', fmt(remaining));
-  setText('goal-pct',       fmt(pct, 0) + '%');
+  countUp('goal-target',    goalWeight,  1);
+  countUp('goal-remaining', remaining,   1);
+  countUp('goal-pct',       pct,         0, '%');
   el('goal-bar').style.width = pct + '%';
-  el('goal-bar').textContent = pct >= 10 ? fmt(pct, 0) + '%' : '';
+  el('goal-bar').textContent = pct >= 10 ? Math.round(pct) + '%' : '';
 
-  if (remaining > 0) {
-    const weeksLeft = Math.ceil(remaining / 2);
-    const estDate   = new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
-    setText('goal-eta', `~${weeksLeft} wk${weeksLeft !== 1 ? 's' : ''} at 2 lbs/wk · est. ${fmtDate(estDate)}`);
-  } else {
+  if (remaining <= 0) {
     setText('goal-eta', '🎉 Goal reached!');
+    return;
+  }
+
+  // Use linear regression on last 30 days for projected date
+  const slopePerDay = weightTrendSlope(data);
+  if (slopePerDay !== null && slopePerDay < 0) {
+    const daysLeft    = remaining / Math.abs(slopePerDay);
+    const projDate    = new Date(latest.date.getTime() + daysLeft * 86400000);
+    const weeklyRate  = Math.abs(slopePerDay * 7);
+    setText('goal-eta',
+      `losing ~${weeklyRate.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+  } else {
+    // Fallback if trend is flat or gaining
+    const weeksLeft = Math.ceil(remaining / 1.5);
+    const estDate   = new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
+    setText('goal-eta', `~${weeksLeft} wk${weeksLeft !== 1 ? 's' : ''} at 1.5 lbs/wk · est. ${fmtDate(estDate)}`);
   }
 }
 
@@ -409,7 +440,7 @@ function setGoal() {
   goalWeight = v;
   localStorage.setItem('wt_v2_goal', goalWeight);
   if (allData.length) {
-    renderGoal(allData[allData.length - 1]);
+    renderGoal(allData[allData.length - 1], allData);
     renderWeightChart(allData);
   }
 }
@@ -418,7 +449,7 @@ function clearGoal() {
   el('goal-input').value = '';
   localStorage.removeItem('wt_v2_goal');
   if (allData.length) {
-    renderGoal(allData[allData.length - 1]);
+    renderGoal(allData[allData.length - 1], allData);
     renderWeightChart(allData);
   }
 }
@@ -443,7 +474,7 @@ function renderAll() {
   renderWeightChart(allData);
   renderCompositionCharts(allData);
   renderWoW(allData);
-  renderGoal(latest);
+  renderGoal(latest, allData);
 
   // Save to localStorage
   try { localStorage.setItem('wt_v2_data', JSON.stringify(allData)); } catch {}
