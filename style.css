@@ -396,3 +396,51 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
 .fade-in:nth-child(2) { animation-delay: 0.07s; }
 .fade-in:nth-child(3) { animation-delay: 0.14s; }
 .fade-in:nth-child(4) { animation-delay: 0.21s; }
+
+/* ── Mobile ─────────────────────────── */
+@media (max-width: 480px) {
+  /* Tighter layout */
+  main { padding: 0.75rem; gap: 1rem; }
+  .card { padding: 1rem; }
+
+  /* Header — shrink logo and stack meta below on very narrow */
+  .header-inner { padding: 0.9rem 1rem; gap: 0.5rem; }
+  .header-logo  { width: 40px; height: 40px; font-size: 1.2rem; }
+  .header-meta  { text-align: left; }
+
+  /* Trend hero — shrink the big number */
+  .trend-hero   { padding: 1.1rem 1rem; flex-wrap: wrap; gap: 0.75rem; }
+  .trend-value  { font-size: 2.4rem; }
+  .decade-badge { font-size: 0.75rem; padding: 0.45rem 0.8rem; }
+
+  /* KPI cards — tighter */
+  .kpi         { padding: 0.85rem 0.75rem; }
+  .kpi-value   { font-size: 1.6rem; }
+
+  /* Streak banner */
+  .streak-banner { padding: 0.75rem 1rem; gap: 0.6rem; }
+  .streak-number { font-size: 2rem; }
+
+  /* Goal input row — stack label above inputs */
+  .goal-input-row        { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .goal-input-row input  { width: 100%; }
+
+  /* Calorie log — hide deficit column on tiny screens */
+  .cal-log-table th:nth-child(3),
+  .cal-log-table td:nth-child(3) { display: none; }
+
+  /* Range pills — make them smaller */
+  .range-pill { padding: 0.2rem 0.5rem; font-size: 0.68rem; }
+
+  /* Charts — less height on mobile */
+  .chart-wrap     { height: 220px; }
+  .comp-chart-wrap { height: 160px; }
+
+  /* Stat boxes */
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .val       { font-size: 1.4rem; }
+
+  /* Data table — smaller text */
+  .data-table th,
+  .data-table td { font-size: 0.7rem; padding: 0.4rem 0.35rem; }
+}
