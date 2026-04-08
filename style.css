@@ -11,7 +11,64 @@
   --gray-100:  #6d7a95;
   --gray-50:   #c5c9d5;
   --gray-10:   #f5f6f8;
+  /* Light mode tokens */
+  --bg:        #eef2ff;
+  --card-bg:   rgba(255,255,255,0.85);
+  --card-border: rgba(255,255,255,0.8);
+  --text:      #1a1f36;
+  --text-sub:  #6d7a95;
+  --kpi-bg:    rgba(255,255,255,0.9);
+  --input-bg:  white;
+  --input-border: #d1d5e0;
+  --table-stripe: #f8faff;
+  --stat-box-bg: #f5f6f8;
 }
+
+/* ── Dark mode ───────────────────────────────────────── */
+#root.dark {
+  --bg:         #0d1117;
+  --card-bg:    rgba(22,27,34,0.95);
+  --card-border: rgba(48,54,61,0.8);
+  --text:       #e6edf3;
+  --text-sub:   #8b949e;
+  --kpi-bg:     rgba(28,33,48,0.95);
+  --input-bg:   #161b22;
+  --input-border: #30363d;
+  --table-stripe: #1c2130;
+  --stat-box-bg:  #1c2130;
+  --gray-160:   #e6edf3;
+  --gray-100:   #8b949e;
+}
+#root.dark body {
+  background-color: #0d1117;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,83,226,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 90% 60%,  rgba(255,194,32,0.04) 0%, transparent 60%);
+}
+#root.dark body::before { background-image: radial-gradient(rgba(0,83,226,0.04) 1px, transparent 1px); }
+#root.dark .card        { background: var(--card-bg); border-color: var(--card-border); color: var(--text); }
+#root.dark .kpi         { background: var(--kpi-bg); }
+#root.dark .stat-box    { background: var(--stat-box-bg) !important; }
+#root.dark .stat-box .label { color: var(--text-sub) !important; }
+#root.dark .stat-box .val   { color: var(--text) !important; }
+#root.dark .stat-box .sub   { color: var(--text-sub); }
+#root.dark .kpi-unit    { color: var(--text-sub); }
+#root.dark .kpi-label   { opacity: 0.85; }
+#root.dark .streak-banner { background: #1c2130; border-color: #2d3250; }
+#root.dark .trend-hero  { background: #161b22; border-color: #30363d; }
+#root.dark .goal-input-row input { background: var(--input-bg); border-color: var(--input-border); color: var(--text); }
+#root.dark .btn-secondary { background: #1c2130; border-color: #30363d; color: var(--text); }
+#root.dark .data-table th { color: var(--text-sub); }
+#root.dark .data-table td { color: var(--text); border-color: #21262d; }
+#root.dark .data-table tr.today-row td { background: #1c2130; }
+#root.dark .progress-track { background: #21262d; }
+#root.dark .card-title { background: linear-gradient(135deg,#1c2d4f,#1a2640); border-color: rgba(0,83,226,0.25); }
+#root.dark .cal-box    { background: #1c2130 !important; }
+#root.dark .range-pill { background: #161b22; border-color: #30363d; color: var(--text-sub); }
+#root.dark .range-pill.active { background: var(--blue-100); color: white; }
+#root.dark .milestone-ring.future { background: #21262d; border-color: #30363d; color: var(--text-sub); }
+#root.dark .bmi-step   { background: #1c2130; border-color: #30363d; }
+#root.dark .bmi-step.current { border-color: var(--blue-100); background: #1c2d4f; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -386,6 +443,109 @@ main {
 }
 .range-pill:hover { border-color: var(--blue-100); color: var(--blue-100); }
 .range-pill.active { background: var(--blue-100); border-color: var(--blue-100); color: white; }
+
+/* ── Dark mode toggle ──────────────────── */
+.dark-toggle {
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 9999px;
+  width: 38px; height: 38px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.dark-toggle:hover { background: rgba(255,255,255,0.25); }
+
+/* ── Milestone rings ──────────────────── */
+.milestones-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+.milestone-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 56px;
+}
+.milestone-circle {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 3px solid #e5e7eb;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  position: relative;
+  transition: all 0.3s;
+}
+.milestone-ring.done .milestone-circle {
+  background: linear-gradient(135deg, #2a8703, #4caf50);
+  border-color: #2a8703;
+  color: white;
+  box-shadow: 0 2px 8px rgba(42,135,3,0.35);
+}
+.milestone-ring.current .milestone-circle {
+  background: linear-gradient(135deg, #0053e2, #0066ff);
+  border-color: #0053e2;
+  color: white;
+  box-shadow: 0 2px 12px rgba(0,83,226,0.4);
+  animation: pulseMilestone 2s ease-in-out infinite;
+}
+.milestone-ring.future .milestone-circle {
+  background: white;
+  border-color: #e5e7eb;
+  color: #c5c9d5;
+}
+@keyframes pulseMilestone {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0,83,226,0.4); }
+  50%       { box-shadow: 0 2px 20px rgba(0,83,226,0.7); }
+}
+.milestone-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #6d7a95;
+  text-align: center;
+}
+.milestone-ring.done  .milestone-label { color: #2a8703; }
+.milestone-ring.current .milestone-label { color: #0053e2; }
+
+/* ── BMI Timeline ────────────────────── */
+.bmi-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+.bmi-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid #e5e7eb;
+  background: #f8faff;
+  font-size: 0.8rem;
+}
+.bmi-step.achieved {
+  border-color: #2a8703;
+  background: #f0fdf4;
+}
+.bmi-step.current {
+  border-color: #0053e2;
+  background: #eff4ff;
+  font-weight: 700;
+}
+.bmi-step.future {
+  opacity: 0.6;
+}
+.bmi-step-icon { font-size: 1.2rem; flex-shrink: 0; }
+.bmi-step-info { flex: 1; }
+.bmi-step-cat  { font-weight: 700; font-size: 0.82rem; }
+.bmi-step-range { font-size: 0.68rem; color: #6d7a95; }
+.bmi-step-date { font-size: 0.72rem; font-weight: 600; text-align: right; white-space: nowrap; }
 
 /* ── Footer ─────────────────────────── */
 footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding: 1.5rem 0 2rem; }

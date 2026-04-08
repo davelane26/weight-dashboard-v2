@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="root">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -38,6 +38,7 @@
       <strong id="last-updated">Loading…</strong>
       <p id="readings-count" style="margin-top:2px"></p>
     </div>
+    <button class="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode" id="dark-btn">🌙</button>
   </div>
 </header>
 
@@ -164,7 +165,19 @@
 
   </section>
 
-  <!-- ── Goal Weight ────────────────────────────────────────────────── -->
+  <!-- ── 10lb Milestones ──────────────────────────────── -->
+  <section class="card fade-in" aria-label="Weight milestones">
+    <h2 class="card-title">🏅 10 lb Milestones</h2>
+    <div id="milestones-row" class="milestones-row"></div>
+  </section>
+
+  <!-- ── BMI Timeline ────────────────────────────────── -->
+  <section class="card fade-in" aria-label="BMI milestone timeline">
+    <h2 class="card-title">📈 BMI Timeline</h2>
+    <div id="bmi-timeline" class="bmi-timeline"></div>
+  </section>
+
+  <!-- ── Goal Weight ───────────────────────────────── -->
   <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Goal weight tracker">
     <h2 class="card-title">🎯 Goal Weight</h2>
     <div class="goal-input-row">

@@ -1,8 +1,30 @@
-// ── Config ─────────────────────────────────────────────────────────────
-const DATA_URL = 'https://davelane26.github.io/Weight-tracker/data.json';
+// ── Config ───────────────────────────────────────────────────────────
+const DATA_URL     = 'https://davelane26.github.io/Weight-tracker/data.json';
 const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 23, 2026';
 const REFRESH_MS   = 30_000;
+const BMI_CATS     = [
+  { label: 'Normal Weight',  range: 'BMI < 25',   max: 25,  icon: '🟢' },
+  { label: 'Overweight',     range: 'BMI 25–29.9', max: 30,  icon: '🟡' },
+  { label: 'Obese I',        range: 'BMI 30–34.9', max: 35,  icon: '🟠' },
+  { label: 'Obese II',       range: 'BMI 35–39.9', max: 40,  icon: '🔴' },
+  { label: 'Obese III',      range: 'BMI ≥ 40',   max: Infinity, icon: '⚫' },
+];
+
+// ── Dark mode ─────────────────────────────────────────────────────
+function loadDark() {
+  const dark = localStorage.getItem('wt_v2_dark') === '1';
+  document.getElementById('root').classList.toggle('dark', dark);
+  const btn = el('dark-btn');
+  if (btn) btn.textContent = dark ? '☀️' : '🌙';
+}
+function toggleDark() {
+  const root = document.getElementById('root');
+  const isDark = root.classList.toggle('dark');
+  localStorage.setItem('wt_v2_dark', isDark ? '1' : '0');
+  const btn = el('dark-btn');
+  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+}
 
 // ── State ───────────────────────────────────────────────────────────
 let allData       = [];
@@ -168,6 +190,66 @@ function renderJourney(latest) {
   countUp('journey-pct-stat', Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100)), 1, '%');
   el('journey-bar').style.width = pct + '%';
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
+}
+
+// ── Milestones ──────────────────────────────────────────────────────
+function renderMilestones(latest) {
+  const row = el('milestones-row');
+  if (!row) return;
+  const current = latest.weight;
+  // Build milestones every 10 lbs from START_WEIGHT down to 220 (or goal)
+  const floor = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
+  const steps = [];
+  for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
+  // Find the next uncompleted milestone
+  const nextIdx = steps.findIndex(w => current > w);
+  row.innerHTML = steps.map((w, i) => {
+    const done    = current <= w;
+    const isCurr  = i === nextIdx;
+    const cls     = done ? 'done' : isCurr ? 'current' : 'future';
+    const icon    = done ? '✓' : isCurr ? '▼' : w;
+    return `<div class="milestone-ring ${cls}">
+      <div class="milestone-circle">${icon}</div>
+      <div class="milestone-label">${w} lbs</div>
+    </div>`;
+  }).join('');
+}
+
+// ── BMI Timeline ────────────────────────────────────────────────────
+function renderBMITimeline(data, latest) {
+  const box = el('bmi-timeline');
+  if (!box || !latest.bmi || !latest.weight) return;
+  // Derive height in meters from latest weight + BMI
+  const weightKg = latest.weight / 2.205;
+  const heightM  = Math.sqrt(weightKg / latest.bmi);
+  // Get BMI slope (lbs/day on weight, convert to BMI/day)
+  const slope = weightTrendSlope(data); // lbs/day
+  const bmiSlopePerDay = slope ? slope / (2.205 * heightM * heightM) : null;
+  const currentBmi = latest.bmi;
+  box.innerHTML = BMI_CATS.slice().reverse().map(cat => {
+    const bmiThreshold = cat.max === Infinity ? null : cat.max;
+    const isCurrentCat = bmiThreshold
+      ? currentBmi < bmiThreshold && currentBmi >= (BMI_CATS[BMI_CATS.findIndex(c => c.max === cat.max) - 1]?.max ?? 0)
+      : currentBmi >= 40;
+    const achieved = bmiThreshold ? currentBmi < bmiThreshold : false;
+    let dateStr = '';
+    if (!achieved && !isCurrentCat && bmiThreshold && bmiSlopePerDay && bmiSlopePerDay < 0) {
+      const bmiToLose = currentBmi - bmiThreshold;
+      const daysLeft  = bmiToLose / Math.abs(bmiSlopePerDay);
+      const proj      = new Date(latest.date.getTime() + daysLeft * 86400000);
+      dateStr = proj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    const cls = achieved ? 'achieved' : isCurrentCat ? 'current' : 'future';
+    const statusIcon = achieved ? '✓' : isCurrentCat ? '▶' : '';
+    return `<div class="bmi-step ${cls}">
+      <span class="bmi-step-icon">${cat.icon}</span>
+      <div class="bmi-step-info">
+        <div class="bmi-step-cat">${statusIcon ? statusIcon + ' ' : ''}${cat.label}</div>
+        <div class="bmi-step-range">${cat.range}</div>
+      </div>
+      <div class="bmi-step-date">${achieved ? '✅ Achieved' : isCurrentCat ? 'You are here' : dateStr ? 'Est. ' + dateStr : '—'}</div>
+    </div>`;
+  }).join('');
 }
 
 // ── Happy Scale: Trend hero + decade badge ────────────────────────────
@@ -627,6 +709,8 @@ function renderAll() {
   setText('readings-count', `${todayCount} reading${todayCount !== 1 ? 's' : ''} today · ${allData.length} total`);
 
   renderTrendHero(allData);
+  renderMilestones(latest);
+  renderBMITimeline(allData, latest);
   renderKPIs(latest, prev);
   renderJourney(latest);
   renderStreak(allData);
@@ -660,6 +744,7 @@ async function loadData() {
 }
 
 async function init() {
+  loadDark();
   loadGoal();
   loadCalLog();
   const ok = await loadData();
