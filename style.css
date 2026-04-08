@@ -283,6 +283,41 @@ main {
 .up   { color: var(--red-100); }
 .down { color: var(--green-100); }
 
+/* ── Calorie Log Table ──────────────────── */
+.cal-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.cal-log-table th {
+  text-align: left;
+  color: #6d7a95;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #eee;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cal-log-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #f4f5f7;
+  color: #374151;
+}
+.cal-log-table tr:last-child td { border-bottom: none; }
+.cal-log-table tr.today-row td { font-weight: 700; background: #f8faff; }
+.cal-log-delete {
+  background: none;
+  border: none;
+  color: #c5c9d5;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  transition: color 0.15s;
+}
+.cal-log-delete:hover { color: var(--red-100); }
+
 /* ── Trend Weight Hero ─────────────────── */
 .trend-hero {
   background: white;

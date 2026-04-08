@@ -7,7 +7,7 @@ const REFRESH_MS   = 30_000;
 // ── State ───────────────────────────────────────────────────────────
 let allData       = [];
 let goalWeight    = null;
-let dailyCalories = null;
+let calLog        = {};   // { 'YYYY-MM-DD': calories }
 let charts        = {};
 let chartRange    = 'all';
 
@@ -462,15 +462,17 @@ function renderGoal(latest, data = []) {
     return;
   }
 
-  // Calorie-based projection (overrides regression when calories are entered)
-  if (dailyCalories && latest.tdee) {
-    const deficit    = latest.tdee - dailyCalories;
+  // Calorie-based projection using 7-day rolling average
+  const avgCals = calAvg();
+  if (avgCals && latest.tdee) {
+    const deficit    = latest.tdee - avgCals;
     if (deficit > 0) {
       const lbsPerWeek = (deficit * 7) / 3500;
       const daysLeft   = remaining / (lbsPerWeek / 7);
       const projDate   = new Date(latest.date.getTime() + daysLeft * 86400000);
+      const loggedDays = Object.keys(calLog).length;
       setText('goal-eta',
-        `${Math.round(dailyCalories).toLocaleString()} kcal · ${Math.round(deficit).toLocaleString()} deficit · ~${lbsPerWeek.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+        `avg ${Math.round(avgCals).toLocaleString()} kcal (${loggedDays}d) · ${Math.round(deficit).toLocaleString()} deficit · ~${lbsPerWeek.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
       return;
     } else {
       setText('goal-eta', '⚠️ Eating at or above TDEE — no deficit to project from');
@@ -520,25 +522,95 @@ function clearGoal() {
   }
 }
 
-// ── Calorie persistence ───────────────────────────────────────────────
-function loadCalories() {
+// ── Calorie log ───────────────────────────────────────────────────
+const todayKey = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+function calAvg(days = 7) {
+  const entries = Object.entries(calLog)
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .slice(0, days)
+    .map(([, v]) => v);
+  return entries.length ? entries.reduce((a, b) => a + b, 0) / entries.length : null;
+}
+
+function loadCalLog() {
   try {
-    const c = localStorage.getItem('wt_v2_calories');
-    if (c) { dailyCalories = parseFloat(c); el('cal-input').value = dailyCalories; }
+    const stored = localStorage.getItem('wt_v2_cal_log');
+    calLog = stored ? JSON.parse(stored) : {};
+    // Migrate old single-value entry if present
+    const old = localStorage.getItem('wt_v2_calories');
+    if (old && !calLog[todayKey()]) {
+      calLog[todayKey()] = parseFloat(old);
+      localStorage.removeItem('wt_v2_calories');
+      saveCalLog();
+    }
+    // Pre-fill today's input if already logged
+    const todayVal = calLog[todayKey()];
+    if (todayVal) el('cal-input').value = todayVal;
   } catch {}
 }
-function setCalories() {
+
+function saveCalLog() {
+  try { localStorage.setItem('wt_v2_cal_log', JSON.stringify(calLog)); } catch {}
+}
+
+function logCalories() {
   const v = parseFloat(el('cal-input').value);
   if (isNaN(v) || v <= 0) return;
-  dailyCalories = v;
-  localStorage.setItem('wt_v2_calories', dailyCalories);
-  if (allData.length) renderGoal(allData[allData.length - 1], allData);
+  calLog[todayKey()] = v;
+  // Keep only last 30 days
+  const keys = Object.keys(calLog).sort().slice(-30);
+  calLog = Object.fromEntries(keys.map(k => [k, calLog[k]]));
+  saveCalLog();
+  if (allData.length) {
+    const latest = allData[allData.length - 1];
+    renderCalLog(latest);
+    renderGoal(latest, allData);
+  renderCalLog(latest);
+  }
 }
-function clearCalories() {
-  dailyCalories = null;
-  el('cal-input').value = '';
-  localStorage.removeItem('wt_v2_calories');
-  if (allData.length) renderGoal(allData[allData.length - 1], allData);
+
+function deleteCalEntry(dateKey) {
+  delete calLog[dateKey];
+  saveCalLog();
+  if (allData.length) {
+    const latest = allData[allData.length - 1];
+    renderCalLog(latest);
+    renderGoal(latest, allData);
+  }
+}
+
+function renderCalLog(latest) {
+  const content = el('cal-log-content');
+  const body    = el('cal-log-body');
+  if (!content || !body) return;
+
+  const entries = Object.entries(calLog).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
+  if (!entries.length) { content.style.display = 'none'; return; }
+  content.style.display = 'block';
+
+  const avg = calAvg();
+  const avgBadge = el('cal-avg-badge');
+  if (avgBadge) avgBadge.textContent = avg ? Math.round(avg).toLocaleString() + ' kcal' : '—';
+
+  const tdee = latest?.tdee || 0;
+  body.innerHTML = entries.map(([dateKey, cals]) => {
+    const d       = new Date(dateKey + 'T12:00:00');
+    const label   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const deficit = tdee ? Math.round(tdee - cals) : null;
+    const defHtml = deficit != null
+      ? deficit > 0
+        ? `<span style="color:#2a8703;font-weight:600">−${deficit.toLocaleString()}</span>`
+        : `<span style="color:#ea1100;font-weight:600">+${Math.abs(deficit).toLocaleString()} surplus</span>`
+      : '—';
+    const isToday = dateKey === todayKey();
+    return `<tr class="${isToday ? 'today-row' : ''}">
+      <td>${label}${isToday ? ' <span style="font-size:0.65rem;color:#0053e2">(today)</span>' : ''}</td>
+      <td>${Math.round(cals).toLocaleString()} kcal</td>
+      <td>${defHtml}</td>
+      <td><button class="cal-log-delete" onclick="deleteCalEntry('${dateKey}')" aria-label="Delete">&#x2715;</button></td>
+    </tr>`;
+  }).join('');
 }
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
@@ -589,7 +661,7 @@ async function loadData() {
 
 async function init() {
   loadGoal();
-  loadCalories();
+  loadCalLog();
   const ok = await loadData();
   if (!ok) {
     // Fall back to cached localStorage data
