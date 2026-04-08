@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>David's Weight Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script src="app.js" defer></script>
@@ -55,55 +58,55 @@
     <h2 class="card-title" style="margin-bottom:0.75rem" id="kpi-heading">Latest Reading</h2>
     <div class="kpi-grid">
 
-      <div class="kpi" style="border-top-color:#0053e2">
-        <p class="kpi-label" style="color:#0053e2">Weight</p>
+      <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#0053e2">⚖️ Weight</p>
         <p class="kpi-value" style="color:#0053e2" id="kpi-weight">—</p>
         <p class="kpi-unit">lbs</p>
         <p class="kpi-sub" id="kpi-weight-sub"></p>
       </div>
 
-      <div class="kpi" style="border-top-color:#ea1100">
-        <p class="kpi-label" style="color:#ea1100">BMI</p>
+      <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#ea1100">📋 BMI</p>
         <p class="kpi-value" style="color:#ea1100" id="kpi-bmi">—</p>
         <p class="kpi-unit">kg/m²</p>
         <p class="kpi-sub" id="kpi-bmi-sub"></p>
       </div>
 
-      <div class="kpi" style="border-top-color:#ffc220">
-        <p class="kpi-label" style="color:#995213">Body Fat</p>
+      <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#995213">🔥 Body Fat</p>
         <p class="kpi-value" style="color:#995213" id="kpi-fat">—</p>
         <p class="kpi-unit">% of total weight</p>
         <p class="kpi-sub" id="kpi-fat-sub"></p>
       </div>
 
-      <div class="kpi" style="border-top-color:#2a8703">
-        <p class="kpi-label" style="color:#2a8703">Muscle</p>
+      <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#2a8703">💪 Muscle</p>
         <p class="kpi-value" style="color:#2a8703" id="kpi-muscle">—</p>
         <p class="kpi-unit">skeletal muscle %</p>
         <p class="kpi-sub" id="kpi-muscle-sub"></p>
       </div>
 
-      <div class="kpi" style="border-top-color:#0891b2">
-        <p class="kpi-label" style="color:#0891b2">Body Water</p>
+      <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#0891b2">💧 Body Water</p>
         <p class="kpi-value" style="color:#0891b2" id="kpi-water">—</p>
         <p class="kpi-unit">% of total weight</p>
         <p class="kpi-sub" id="kpi-water-sub"></p>
       </div>
 
-      <div class="kpi" style="border-top-color:#6b7280">
-        <p class="kpi-label">Bone Mass</p>
+      <div class="kpi" style="border-top-color:#6b7280;background:linear-gradient(135deg,#f9fafb 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#6b7280">🦴 Bone Mass</p>
         <p class="kpi-value" style="color:#374151" id="kpi-bone">—</p>
         <p class="kpi-unit">lbs</p>
       </div>
 
-      <div class="kpi" style="border-top-color:#7c3aed">
-        <p class="kpi-label" style="color:#7c3aed">BMR</p>
+      <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#7c3aed">⚡ BMR</p>
         <p class="kpi-value" style="color:#7c3aed" id="kpi-bmr">—</p>
         <p class="kpi-unit">kcal/day at rest</p>
       </div>
 
-      <div class="kpi" style="border-top-color:#0053e2">
-        <p class="kpi-label" style="color:#0053e2">TDEE</p>
+      <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+        <p class="kpi-label" style="color:#0053e2">🏃 TDEE</p>
         <p class="kpi-value" style="color:#0053e2" id="kpi-tdee">—</p>
         <p class="kpi-unit">kcal/day total burn</p>
       </div>

@@ -207,6 +207,17 @@ function renderWeightChart(data) {
           borderWidth: 2,
           borderDash: [6, 3],
         },
+        ...(goalWeight ? [{
+          label: `🟢 Goal (${goalWeight} lbs)`,
+          data: labels.map(() => goalWeight),
+          borderColor: '#2a8703',
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [10, 5],
+        }] : []),
       ],
     },
     options: {
@@ -394,13 +405,19 @@ function setGoal() {
   if (isNaN(v) || v <= 0) return;
   goalWeight = v;
   localStorage.setItem('wt_v2_goal', goalWeight);
-  if (allData.length) renderGoal(allData[allData.length - 1]);
+  if (allData.length) {
+    renderGoal(allData[allData.length - 1]);
+    renderWeightChart(allData);
+  }
 }
 function clearGoal() {
   goalWeight = null;
   el('goal-input').value = '';
   localStorage.removeItem('wt_v2_goal');
-  if (allData.length) renderGoal(allData[allData.length - 1]);
+  if (allData.length) {
+    renderGoal(allData[allData.length - 1]);
+    renderWeightChart(allData);
+  }
 }
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
