@@ -77,29 +77,41 @@ def get_session_id(username, password):
 
 
 def get_readings(session_id, minutes=1440, max_count=288):
-    """Fetch glucose readings for the given session."""
+    """Fetch glucose readings — tries every known endpoint/method combo."""
+    attempts = [
+        # (method, endpoint, pass sessionId as)
+        ("POST", "Publisher/ReadPublisherLatestGlucoseValues",  "params"),
+        ("GET",  "Publisher/ReadPublisherLatestGlucoseValues",  "params"),
+        ("POST", "Follower/ReadPublisherLatestGlucoseValues",   "params"),
+        ("GET",  "Follower/ReadPublisherLatestGlucoseValues",   "params"),
+        ("POST", "Follower/ReadPublisherLatestGlucoseValues",   "body"),
+    ]
 
-    # Try publisher endpoint first (account owner)
-    for endpoint in ["Publisher/ReadPublisherLatestGlucoseValues",
-                     "Follower/ReadPublisherLatestGlucoseValues"]:
-        print(f"Trying endpoint: {endpoint}")
-        resp = requests.post(
-            f"{BASE_URL}/{endpoint}",
-            params={
-                "sessionId": session_id,
-                "minutes":   minutes,
-                "maxCount":  max_count,
-            },
-            headers={"Content-Type": "application/json"},
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            print(f"  → {len(data)} readings")
-            if data:
-                return data
-        else:
+    for method, endpoint, sid_mode in attempts:
+        url    = f"{BASE_URL}/{endpoint}"
+        params = {"sessionId": session_id, "minutes": minutes, "maxCount": max_count}
+        body   = {"sessionId": session_id, "minutes": minutes, "maxCount": max_count}
+
+        print(f"Trying {method} {endpoint} (sessionId in {sid_mode})")
+        try:
+            if method == "GET":
+                resp = requests.get(url, params=params, timeout=15)
+            elif sid_mode == "params":
+                resp = requests.post(url, params=params, timeout=15)
+            else:
+                resp = requests.post(url, json=body, timeout=15)
+
             print(f"  → HTTP {resp.status_code}")
+            if resp.status_code == 200:
+                data = resp.json()
+                print(f"  → {len(data)} readings")
+                if data:
+                    return data
+            else:
+                # Print first 200 chars of response body to help diagnose
+                print(f"  → {resp.text[:200]}")
+        except Exception as e:
+            print(f"  → Error: {e}")
 
     return []
 
