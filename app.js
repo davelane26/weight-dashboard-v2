@@ -179,8 +179,31 @@ function renderKPIs(latest, prev) {
   latest.tdee ? countUp('kpi-tdee', latest.tdee, 0) : setText('kpi-tdee', '—');
 }
 
+// ── Journey duration ────────────────────────────────────────────────────
+function renderJourneyDuration() {
+  const start = new Date(START_DATE);
+  const now   = new Date();
+  const days  = Math.max(0, Math.floor((now - start) / 864e5));
+  const weeks = Math.floor(days / 7);
+  const months = (days / 30.44).toFixed(1);
+
+  // Milestone flavour text
+  let milestone = '';
+  if      (days < 7)   milestone = '🌱 Just getting started!';
+  else if (days < 30)  milestone = '🔥 First month coming up!';
+  else if (days < 60)  milestone = '💪 Over a month strong!';
+  else if (days < 90)  milestone = '🚀 Closing in on 3 months!';
+  else if (days < 180) milestone = '⭐ Crushing it!';
+  else if (days < 365) milestone = '🏆 Half a year of hard work!';
+  else                  milestone = '🎉 Over a year — legendary!';
+
+  setText('journey-duration',
+    `Day ${days} · Week ${weeks} · ${months} months · ${milestone}`);
+}
+
 // ── Render journey ──────────────────────────────────────────────────────
 function renderJourney(latest) {
+  renderJourneyDuration();
   const lost      = Math.max(0, START_WEIGHT - latest.weight);
   const pct       = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
 
