@@ -58,14 +58,20 @@ function cors(body, status = 200, extra = {}) {
   });
 }
 
-// ── Auth check ────────────────────────────────────────────────────────────
-function isAuthorized(request, env) {
+// ── Auth check (xDrip+ sends SHA1 hash of secret, not plain text) ───────────
+async function sha1(str) {
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function isAuthorized(request, env) {
   const secret = env.API_SECRET;
-  if (!secret) return true; // no secret set → open (not recommended)
+  if (!secret) return true;
   const header = request.headers.get('API-SECRET') || request.headers.get('api-secret');
-  if (header === secret) return true;
-  const url    = new URL(request.url);
-  if (url.searchParams.get('token') === secret) return true;
+  if (!header) return false;
+  if (header === secret) return true;           // plain text match
+  const hashed = await sha1(secret);
+  if (header === hashed) return true;           // SHA1 hash match (xDrip+)
   return false;
 }
 
@@ -95,7 +101,7 @@ export default {
 
     // ── POST /api/v1/entries  (xDrip+ upload) ──────────────────────────
     if (method === 'POST' && url.pathname.startsWith('/api/v1/entries')) {
-      if (!isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
 
       let body;
       try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
