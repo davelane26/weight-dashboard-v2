@@ -12,7 +12,7 @@ const BMI_CATS = [
 ];
 
 // ── Tab switching ───────────────────────────────────────────────────
-const TABS = ['weight', 'glucose'];
+const TABS = ['weight', 'glucose', 'activity'];
 function switchTab(name) {
   TABS.forEach(t => {
     const panel = el('tab-' + t);
@@ -28,6 +28,13 @@ function switchTab(name) {
   if (name === 'glucose') {
     setTimeout(() => {
       if (window.glucoseChartInstance) window.glucoseChartInstance.resize();
+    }, 50);
+  }
+  if (name === 'activity') {
+    setTimeout(() => {
+      ['actStepsChartInst','actSleepChartInst','actHRChartInst'].forEach(k => {
+        if (window[k]) window[k].resize();
+      });
     }, 50);
   }
 }

@@ -144,6 +144,44 @@ export default {
       return cors(JSON.stringify(payload));
     }
 
+    // ── POST /health  (Tasker upload) ────────────────────────────────────
+    if (method === 'POST' && url.pathname === '/health') {
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+
+      const date = body.date ?? new Date().toISOString().slice(0, 10);
+      const entry = {
+        date,
+        steps:          Number(body.steps          ?? 0),
+        sleepHours:     Number(body.sleepHours     ?? 0),
+        sleepScore:     Number(body.sleepScore     ?? 0),
+        restingHR:      Number(body.restingHR      ?? 0),
+        activeCalories: Number(body.activeCalories ?? 0),
+        floorsClimbed:  Number(body.floorsClimbed  ?? 0),
+        stressLevel:    Number(body.stressLevel    ?? 0),
+        updatedAt:      new Date().toISOString(),
+      };
+
+      const stored  = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
+      const dedupMap = new Map();
+      for (const r of stored) dedupMap.set(r.date, r);
+      dedupMap.set(date, entry); // upsert today
+      const sorted  = [...dedupMap.values()]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-90); // keep 90 days
+
+      await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
+      return cors(JSON.stringify({ ok: true, date }));
+    }
+
+    // ── GET /health.json  (dashboard fetch) ───────────────────────────────
+    if (method === 'GET' && url.pathname === '/health.json') {
+      const data = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
+      return cors(JSON.stringify({ days: data, updatedAt: new Date().toISOString() }));
+    }
+
     return cors('{"error":"Not found"}', 404);
   },
 };

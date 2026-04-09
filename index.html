@@ -23,6 +23,7 @@
   </script>
   <script src="app.js" defer></script>
   <script src="glucose.js" defer></script>
+  <script src="activity.js" defer></script>
 </head>
 <body>
 
@@ -61,6 +62,10 @@
     <button class="tab-btn" role="tab" id="tab-btn-glucose"
             onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
       🩸 Glucose
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-activity"
+            onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">
+      🏃 Activity
     </button>
   </nav>
 
@@ -400,6 +405,83 @@
       <p style="font-size:0.65rem;color:#6d7a95;margin-top:0.6rem;text-align:right" id="glucose-updated"></p>
     </section>
   </div><!-- /tab-glucose -->
+
+  <!-- ── Activity tab panel ─────────────────────────────────────── -->
+  <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
+
+    <!-- Today hero -->
+    <section class="trend-hero fade-in" aria-label="Today's activity" style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%)">
+      <div>
+        <p class="trend-label">Steps Today</p>
+        <p class="trend-value" id="act-steps">—</p>
+        <p class="trend-sub" id="act-steps-sub">synced via Garmin · Health Connect</p>
+      </div>
+      <div style="text-align:right">
+        <p class="trend-label">Active Cal</p>
+        <p style="font-size:2rem;font-weight:800;color:#fff" id="act-cal">—</p>
+      </div>
+    </section>
+
+    <!-- KPI row -->
+    <section class="fade-in" style="margin-top:1rem" aria-label="Activity stats">
+      <div class="kpi-grid">
+
+        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#2a8703">💤 Sleep</p>
+          <p class="kpi-value" style="color:#2a8703" id="act-sleep">—</p>
+          <p class="kpi-unit">hours</p>
+          <p class="kpi-sub" id="act-sleep-score"></p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#ea1100">❤️ Resting HR</p>
+          <p class="kpi-value" style="color:#ea1100" id="act-hr">—</p>
+          <p class="kpi-unit">bpm</p>
+          <p class="kpi-sub" id="act-hr-sub"></p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#7c3aed">🏗️ Floors</p>
+          <p class="kpi-value" style="color:#7c3aed" id="act-floors">—</p>
+          <p class="kpi-unit">climbed</p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0891b2">🧠 Stress</p>
+          <p class="kpi-value" style="color:#0891b2" id="act-stress">—</p>
+          <p class="kpi-unit">avg level</p>
+          <p class="kpi-sub" id="act-stress-sub"></p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 7-day trend chart -->
+    <section class="card fade-in" aria-label="7-day activity trends">
+      <h2 class="card-title">📅 7-Day Trends</h2>
+      <div style="margin-bottom:1.5rem">
+        <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Steps</p>
+        <div class="chart-wrap"><canvas id="actStepsChart"></canvas></div>
+      </div>
+      <div style="margin-bottom:1.5rem">
+        <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Sleep Hours</p>
+        <div class="chart-wrap"><canvas id="actSleepChart"></canvas></div>
+      </div>
+      <div>
+        <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Resting Heart Rate</p>
+        <div class="chart-wrap"><canvas id="actHRChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Setup prompt (hidden once data arrives) -->
+    <section class="card fade-in" id="act-setup" style="border-left:4px solid #ffc220;text-align:center;padding:2rem">
+      <p style="font-size:2rem">&#9889;</p>
+      <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">Waiting for Tasker…</h2>
+      <p style="font-size:0.82rem;color:#6d7a95">Once Tasker is configured it’ll push your Garmin data here automatically.</p>
+    </section>
+
+    <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
+  </div><!-- /tab-activity -->
 
 </main>
 
