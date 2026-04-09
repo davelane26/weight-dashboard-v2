@@ -100,7 +100,7 @@ export default {
     if (method === 'OPTIONS') return cors('', 204);
 
     // ── POST /api/v1/entries  (xDrip+ upload) ──────────────────────────
-    if (method === 'POST' && url.pathname.startsWith('/api/v1/entries')) {
+    if (method === 'POST' && url.pathname.includes('entries')) {
       if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
 
       let body;
