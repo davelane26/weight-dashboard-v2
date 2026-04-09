@@ -11,7 +11,32 @@ const BMI_CATS = [
   { label: 'Obese III',      range: 'BMI ≥ 40',   min: 40,   max: Infinity, icon: '⚫' },
 ];
 
-// ── Dark mode ─────────────────────────────────────────────────────
+// ── Tab switching ───────────────────────────────────────────────────
+const TABS = ['weight', 'glucose'];
+function switchTab(name) {
+  TABS.forEach(t => {
+    const panel = el('tab-' + t);
+    const btn   = el('tab-btn-' + t);
+    if (panel) panel.hidden = (t !== name);
+    if (btn) {
+      btn.classList.toggle('active', t === name);
+      btn.setAttribute('aria-selected', t === name);
+    }
+  });
+  localStorage.setItem('wt_v2_tab', name);
+  // Chart.js needs a nudge when its canvas becomes visible
+  if (name === 'glucose') {
+    setTimeout(() => {
+      if (window.glucoseChartInstance) window.glucoseChartInstance.resize();
+    }, 50);
+  }
+}
+function restoreTab() {
+  const saved = localStorage.getItem('wt_v2_tab');
+  if (saved && TABS.includes(saved)) switchTab(saved);
+}
+
+// ── Dark mode ──────────────────────────────────────────────────────
 function loadDark() {
   const dark = localStorage.getItem('wt_v2_dark') === '1';
   document.getElementById('root').classList.toggle('dark', dark);
@@ -774,6 +799,7 @@ async function loadData() {
 
 async function init() {
   loadDark();
+  restoreTab();
   loadGoal();
   loadCalLog();
   const ok = await loadData();

@@ -52,6 +52,21 @@
 
 <main>
 
+  <!-- ── Tab navigation ────────────────────────────────────── -->
+  <nav class="tab-nav" role="tablist" aria-label="Dashboard sections">
+    <button class="tab-btn active" role="tab" id="tab-btn-weight"
+            onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">
+      ⚖️ Weight
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-glucose"
+            onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
+      🩸 Glucose
+    </button>
+  </nav>
+
+  <!-- ── Weight tab panel ───────────────────────────────────── -->
+  <div id="tab-weight" role="tabpanel" aria-labelledby="tab-btn-weight">
+
   <!-- ── Trend Weight Hero (Happy Scale style) ───────────────── -->
   <section class="trend-hero fade-in" aria-label="Trend weight">
     <div>
@@ -62,68 +77,6 @@
     <div class="decade-badge" id="decade-badge" style="display:none"></div>
   </section>
 
-  <!-- ── Dexcom G7 CGM ─────────────────────────────────────────── -->
-  <section class="card fade-in glucose-card" id="glucose-section" style="display:none;border-left:4px solid #2a8703" aria-label="Dexcom G7 glucose">
-    <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
-
-    <!-- Hero: current reading -->
-    <div class="glucose-hero">
-      <div class="glucose-reading">
-        <span class="glucose-value" id="glucose-value">—</span>
-        <span class="glucose-unit" id="glucose-unit">mg/dL</span>
-        <span class="glucose-arrow" id="glucose-trend-arrow">—</span>
-      </div>
-      <div class="glucose-meta">
-        <span class="glucose-status" id="glucose-status-label">Loading…</span>
-        <span class="glucose-desc"  id="glucose-trend-desc"></span>
-        <span class="glucose-ago"   id="glucose-ago"></span>
-      </div>
-    </div>
-
-    <!-- Stats chips -->
-    <div class="glucose-stats">
-      <div class="glucose-chip">
-        <p class="chip-label">Time In Range</p>
-        <p class="chip-val" id="glucose-tir" style="color:#2a8703">—</p>
-        <p class="chip-sub">70–180 mg/dL</p>
-      </div>
-      <div class="glucose-chip">
-        <p class="chip-label">24h Average</p>
-        <p class="chip-val" id="glucose-avg">—</p>
-        <p class="chip-sub">mg/dL</p>
-      </div>
-      <div class="glucose-chip">
-        <p class="chip-label">Est. A1C</p>
-        <p class="chip-val" id="glucose-a1c">—</p>
-        <p class="chip-sub">eA1C formula</p>
-      </div>
-      <div class="glucose-chip">
-        <p class="chip-label">Range</p>
-        <p class="chip-val" style="font-size:0.85rem" id="glucose-min">—</p>
-        <p class="chip-sub">low · <span id="glucose-max">—</span> high</p>
-      </div>
-      <div class="glucose-chip" style="background:#fff1f0">
-        <p class="chip-label" style="color:#ea1100">Lows &lt;70</p>
-        <p class="chip-val"   style="color:#ea1100" id="glucose-lows">—</p>
-        <p class="chip-sub"><span id="glucose-count">—</span> total</p>
-      </div>
-      <div class="glucose-chip" style="background:#fef9ec">
-        <p class="chip-label" style="color:#995213">Highs &gt;180</p>
-        <p class="chip-val"   style="color:#995213" id="glucose-highs">—</p>
-        <p class="chip-sub">readings</p>
-      </div>
-    </div>
-
-    <!-- 24h chart -->
-    <div style="margin-top:1rem">
-      <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Last 24 Hours</p>
-      <div class="chart-wrap">
-        <canvas id="glucoseChart" aria-label="24-hour glucose readings"></canvas>
-      </div>
-    </div>
-
-    <p style="font-size:0.65rem;color:#6d7a95;margin-top:0.6rem;text-align:right" id="glucose-updated"></p>
-  </section>
 
   <!-- ── Streak banner ──────────────────────────────── -->
   <div class="streak-banner fade-in">
@@ -380,6 +333,73 @@
       </table>
     </div>
   </section>
+
+  </div><!-- /tab-weight -->
+
+  <!-- ── Glucose tab panel ─────────────────────────────────────── -->
+  <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
+    <section class="card fade-in glucose-card" id="glucose-section" style="border-left:4px solid #2a8703" aria-label="Dexcom G7 glucose">
+      <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
+
+      <!-- Hero: current reading -->
+      <div class="glucose-hero">
+        <div class="glucose-reading">
+          <span class="glucose-value" id="glucose-value">—</span>
+          <span class="glucose-unit" id="glucose-unit">mg/dL</span>
+          <span class="glucose-arrow" id="glucose-trend-arrow">—</span>
+        </div>
+        <div class="glucose-meta">
+          <span class="glucose-status" id="glucose-status-label">Loading…</span>
+          <span class="glucose-desc"  id="glucose-trend-desc"></span>
+          <span class="glucose-ago"   id="glucose-ago"></span>
+        </div>
+      </div>
+
+      <!-- Stats chips -->
+      <div class="glucose-stats">
+        <div class="glucose-chip">
+          <p class="chip-label">Time In Range</p>
+          <p class="chip-val" id="glucose-tir" style="color:#2a8703">—</p>
+          <p class="chip-sub">70–180 mg/dL</p>
+        </div>
+        <div class="glucose-chip">
+          <p class="chip-label">24h Average</p>
+          <p class="chip-val" id="glucose-avg">—</p>
+          <p class="chip-sub">mg/dL</p>
+        </div>
+        <div class="glucose-chip">
+          <p class="chip-label">Est. A1C</p>
+          <p class="chip-val" id="glucose-a1c">—</p>
+          <p class="chip-sub">eA1C formula</p>
+        </div>
+        <div class="glucose-chip">
+          <p class="chip-label">Range</p>
+          <p class="chip-val" style="font-size:0.85rem" id="glucose-min">—</p>
+          <p class="chip-sub">low · <span id="glucose-max">—</span> high</p>
+        </div>
+        <div class="glucose-chip" style="background:#fff1f0">
+          <p class="chip-label" style="color:#ea1100">Lows &lt;70</p>
+          <p class="chip-val"   style="color:#ea1100" id="glucose-lows">—</p>
+          <p class="chip-sub"><span id="glucose-count">—</span> total</p>
+        </div>
+        <div class="glucose-chip" style="background:#fef9ec">
+          <p class="chip-label" style="color:#995213">Highs &gt;180</p>
+          <p class="chip-val"   style="color:#995213" id="glucose-highs">—</p>
+          <p class="chip-sub">readings</p>
+        </div>
+      </div>
+
+      <!-- 24h chart -->
+      <div style="margin-top:1rem">
+        <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Last 24 Hours</p>
+        <div class="chart-wrap">
+          <canvas id="glucoseChart" aria-label="24-hour glucose readings"></canvas>
+        </div>
+      </div>
+
+      <p style="font-size:0.65rem;color:#6d7a95;margin-top:0.6rem;text-align:right" id="glucose-updated"></p>
+    </section>
+  </div><!-- /tab-glucose -->
 
 </main>
 

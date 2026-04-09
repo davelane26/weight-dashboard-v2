@@ -752,3 +752,44 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   /* Prevent date wrapping in first column */
   .data-table td:nth-child(1) { white-space: nowrap; font-size: 0.68rem; }
 }
+
+/* ── Tab navigation ────────────────────────────────────────────────────── */
+.tab-nav {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0;
+  background: var(--blue-100);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.tab-btn {
+  flex: 1;
+  max-width: 160px;
+  padding: 0.55rem 1.25rem;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.8);
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
+}
+.tab-btn:hover {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+.tab-btn.active {
+  background: #fff;
+  color: var(--blue-100);
+}
+#root.dark .tab-btn {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.6);
+}
+#root.dark .tab-btn.active {
+  background: #1e2535;
+  color: #60a5fa;
+}

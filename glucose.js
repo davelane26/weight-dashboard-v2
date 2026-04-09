@@ -127,7 +127,7 @@ function renderGlucoseChart(readings) {
 
   const ctx = canvas.getContext('2d');
 
-  glucoseChart = new Chart(ctx, {
+  glucoseChart = window.glucoseChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
@@ -204,11 +204,11 @@ function renderGlucoseChart(readings) {
   });
 }
 
-// ── Master glucose render ────────────────────────────────────────────────
+// ── Master glucose render ──────────────────────────────────────────────
 function renderGlucose(data) {
   const section = el('glucose-section');
   if (!section) return;
-  section.style.display = 'block';
+  // visibility handled by tab system — no display toggle needed
 
   renderGlucoseHero(data.current);
 
