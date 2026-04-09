@@ -24,18 +24,26 @@ Garmin Watch → Garmin Connect app → garth (Python)
 Garmin blocks logins from cloud/corporate IPs. You need to generate OAuth tokens
 from your **home network** once — after that GitHub Actions uses the tokens silently.
 
-### Step 1 — Open a terminal at home and run:
+### Step 1 — Clone the repo at home (if you haven't already)
 
 ```bash
-cd C:\Users\d3lane\Documents\puppy_workspace\weight-dashboard-v2
+git clone https://github.com/davelane26/weight-dashboard-v2.git
+cd weight-dashboard-v2
+```
 
+### Step 2 — Run the setup script
+
+```bash
 uv run --with garth --with requests python garmin_setup.py
 ```
+
+> No `uv`? Install it first: https://docs.astral.sh/uv/getting-started/installation/
+> Or just use plain Python: `pip install garth requests && python garmin_setup.py`
 
 - Enter your Garmin Connect **email** and **password** when prompted
 - The script prints a big base64 string at the end — **copy the whole thing**
 
-### Step 2 — Add it as a GitHub secret
+### Step 3 — Add it as a GitHub secret
 
 👉 https://github.com/davelane26/weight-dashboard-v2/settings/secrets/actions
 
@@ -47,13 +55,13 @@ Click **New repository secret** and add:
 
 > You can delete `GARMIN_EMAIL` and `GARMIN_PASSWORD` secrets if you added them earlier — they're no longer needed.
 
-### Step 3 — Test the workflow manually
+### Step 4 — Test the workflow manually
 
 👉 https://github.com/davelane26/weight-dashboard-v2/actions/workflows/sync-garmin.yml
 
 Click **Run workflow** → watch the logs → should end with `Done ✓`
 
-### Step 4 — Check the dashboard
+### Step 5 — Check the dashboard
 
 Open the Activity tab on the dashboard — your steps, sleep, HR, and stress should appear.
 
