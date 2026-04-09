@@ -1,5 +1,6 @@
 """
 fetch_glucose.py — pulls Dexcom G7 readings via the Share API and writes glucose.json.
+Uses the raw Share API directly (more reliable than pydexcom for follower accounts).
 Runs every 5 minutes via GitHub Actions.
 Requires env vars: DEXCOM_USERNAME, DEXCOM_PASSWORD
 """
@@ -9,34 +10,105 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from pydexcom import Dexcom
+import requests
+
+# ── Dexcom Share API endpoints (US) ──────────────────────────────────────
+BASE_URL     = "https://share2.dexcom.com/ShareWebServices/Services"
+APP_ID       = "d8665ade-9673-4e27-9ff6-92db4ce13d13"  # Dexcom Follow app ID
 
 # ── Trend arrow mapping ───────────────────────────────────────────────────
 TREND_ARROWS = {
-    "None":              "?",
-    "DoubleUp":          "↑↑",
-    "SingleUp":          "↑",
-    "FortyFiveUp":       "↗",
-    "Flat":              "→",
-    "FortyFiveDown":     "↘",
-    "SingleDown":        "↓",
-    "DoubleDown":        "↓↓",
-    "NotComputable":     "—",
-    "RateOutOfRange":    "⚡",
+    1: "↑↑",  # DoubleUp
+    2: "↑",   # SingleUp
+    3: "↗",   # FortyFiveUp
+    4: "→",   # Flat
+    5: "↘",   # FortyFiveDown
+    6: "↓",   # SingleDown
+    7: "↓↓",  # DoubleDown
 }
 
-TREND_DESCRIPTIONS = {
-    "None":              "Not available",
-    "DoubleUp":          "Rising fast",
-    "SingleUp":          "Rising",
-    "FortyFiveUp":       "Rising slowly",
-    "Flat":              "Steady",
-    "FortyFiveDown":     "Falling slowly",
-    "SingleDown":        "Falling",
-    "DoubleDown":        "Falling fast",
-    "NotComputable":     "Not computable",
-    "RateOutOfRange":    "Rate out of range",
+TREND_DESCS = {
+    1: "Rising fast",
+    2: "Rising",
+    3: "Rising slowly",
+    4: "Steady",
+    5: "Falling slowly",
+    6: "Falling",
+    7: "Falling fast",
 }
+
+def get_session_id(username, password):
+    """Authenticate and return a session ID."""
+    # Step 1: get account ID
+    resp = requests.post(
+        f"{BASE_URL}/General/AuthenticatePublisherAccount",
+        json={
+            "accountName":       username,
+            "password":          password,
+            "applicationId":     APP_ID,
+        },
+        headers={"Content-Type": "application/json"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    account_id = resp.json()
+
+    if not account_id or account_id == "00000000-0000-0000-0000-000000000000":
+        print("ERROR: Bad account ID — check username/password", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Account ID: {account_id}")
+
+    # Step 2: get session ID
+    resp = requests.post(
+        f"{BASE_URL}/General/LoginPublisherAccountById",
+        json={
+            "accountId":     account_id,
+            "password":      password,
+            "applicationId": APP_ID,
+        },
+        headers={"Content-Type": "application/json"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    session_id = resp.json()
+    print(f"Session ID: {session_id}")
+    return session_id
+
+
+def get_readings(session_id, minutes=1440, max_count=288):
+    """Fetch glucose readings for the given session."""
+
+    # Try publisher endpoint first (account owner)
+    for endpoint in ["Publisher/ReadPublisherLatestGlucoseValues",
+                     "Follower/ReadPublisherLatestGlucoseValues"]:
+        print(f"Trying endpoint: {endpoint}")
+        resp = requests.post(
+            f"{BASE_URL}/{endpoint}",
+            params={
+                "sessionId": session_id,
+                "minutes":   minutes,
+                "maxCount":  max_count,
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            print(f"  → {len(data)} readings")
+            if data:
+                return data
+        else:
+            print(f"  → HTTP {resp.status_code}")
+
+    return []
+
+
+def parse_dexcom_time(wt_str):
+    """Convert Dexcom's /Date(ms)/ format to ISO 8601."""
+    ms = int(wt_str.replace("/Date(", "").replace(")/", "").split("+")[0].split("-")[0])
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
 def main():
     username = os.environ.get("DEXCOM_USERNAME")
@@ -46,41 +118,38 @@ def main():
         print("ERROR: DEXCOM_USERNAME / DEXCOM_PASSWORD env vars not set", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Connecting to Dexcom Share as {username}...")
-    dex = Dexcom(username=username, password=password)  # ous=True if outside the US
-    print("Auth succeeded!")
+    print(f"Connecting as {username}...")
+    session_id = get_session_id(username, password)
 
-    # Last 24 hours — 288 readings at 5-min intervals
-    print("Fetching readings...")
-    readings = dex.get_glucose_readings(minutes=1440, max_count=288)
-    print(f"Got {len(readings) if readings else 0} readings")
+    readings_raw = get_readings(session_id)
 
-    if readings:
-        print(f"Latest: {readings[0].value} mg/dL at {readings[0].datetime}")
-
-    if not readings:
-        print("No readings returned — is Share ON in your G7 app? Is the follower invite accepted?")
+    if not readings_raw:
+        print("No readings returned — Share may not be active or sensor needs time to sync")
         sys.exit(0)
 
     def serialize(r):
+        trend    = r.get("Trend", 4)
+        iso_time = parse_dexcom_time(r["WT"])
         return {
-            "time":        r.datetime.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "value":       r.value,
-            "trend":       r.trend_description,
-            "trendArrow":  TREND_ARROWS.get(r.trend_description, "—"),
+            "time":       iso_time,
+            "value":      r["Value"],
+            "trend":      TREND_DESCS.get(trend, "Steady"),
+            "trendArrow": TREND_ARROWS.get(trend, "→"),
         }
 
-    latest = readings[0]  # pydexcom returns newest first
+    readings  = [serialize(r) for r in reversed(readings_raw)]  # oldest → newest
+    latest_r  = readings_raw[0]
+    trend     = latest_r.get("Trend", 4)
+
     payload = {
         "current": {
-            "value":       latest.value,
-            "trend":       latest.trend_description,
-            "trendArrow":  TREND_ARROWS.get(latest.trend_description, "—"),
-            "trendDesc":   TREND_DESCRIPTIONS.get(latest.trend_description, ""),
-            "time":        latest.datetime.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "value":      latest_r["Value"],
+            "trend":      TREND_DESCS.get(trend, "Steady"),
+            "trendArrow": TREND_ARROWS.get(trend, "→"),
+            "trendDesc":  TREND_DESCS.get(trend, "Steady"),
+            "time":       parse_dexcom_time(latest_r["WT"]),
         },
-        # Oldest → newest so the chart renders left-to-right
-        "readings":  [serialize(r) for r in reversed(readings)],
+        "readings":  readings,
         "updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
@@ -88,7 +157,8 @@ def main():
     with open(out_path, "w") as f:
         json.dump(payload, f, indent=2)
 
-    print(f"Wrote {len(readings)} readings. Latest: {latest.value} mg/dL {TREND_ARROWS.get(latest.trend_description, '—')}")
+    print(f"✓ Wrote {len(readings)} readings. Latest: {latest_r['Value']} mg/dL {TREND_ARROWS.get(trend, '→')}")
+
 
 if __name__ == "__main__":
     main()

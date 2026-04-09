@@ -21,8 +21,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install pydexcom
-        run: pip install pydexcom
+      - name: Install dependencies
+        run: pip install requests
 
       - name: Fetch glucose data
         env:
