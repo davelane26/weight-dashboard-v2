@@ -1,10 +1,7 @@
 name: Sync Dexcom G7 Glucose Data
 
 on:
-  schedule:
-    # Every 5 minutes (GitHub's minimum)
-    - cron: '*/5 * * * *'
-  workflow_dispatch: # allow manual trigger
+  workflow_dispatch: # manual only - replaced by Cloudflare Worker + xDrip+
 
 jobs:
   sync:

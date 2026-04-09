@@ -3,7 +3,8 @@
 // the CGM section of the dashboard. Fully self-contained module.
 // Depends on: Chart.js (global), el/setText/countUp helpers from app.js
 
-const GLUCOSE_URL    = './glucose.json';
+// ⬇️ Replace this with your Cloudflare Worker URL after deploying
+const GLUCOSE_URL    = window.GLUCOSE_WORKER_URL || './glucose.json';
 const GLUCOSE_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
 // Target range (mg/dL)
