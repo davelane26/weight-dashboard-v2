@@ -1,0 +1,26 @@
+name: Sync Garmin Health Data
+
+on:
+  schedule:
+    - cron: '30 7 * * *'   # 1:30 AM CST (7:30 UTC) every day
+  workflow_dispatch:         # manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install garminconnect requests
+
+      - name: Fetch Garmin data → Worker
+        env:
+          GARMIN_EMAIL:    ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          WORKER_URL:      https://glucose-relay.djtwo6.workers.dev
+        run: python fetch_garmin.py
