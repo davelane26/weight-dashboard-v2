@@ -99,6 +99,11 @@ export default {
     // Preflight
     if (method === 'OPTIONS') return cors('', 204);
 
+    // ── POST /devicestatus  (xDrip+ heartbeat, just ack it) ────────────
+    if (method === 'POST' && url.pathname.includes('devicestatus')) {
+      return cors('{"ok":true}');
+    }
+
     // ── POST /api/v1/entries  (xDrip+ upload) ──────────────────────────
     if (method === 'POST' && url.pathname.includes('entries')) {
       if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
