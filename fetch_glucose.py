@@ -13,8 +13,9 @@ from datetime import datetime, timezone
 import requests
 
 # ── Dexcom Share API endpoints (US) ──────────────────────────────────────
-BASE_URL     = "https://share2.dexcom.com/ShareWebServices/Services"
-APP_ID       = "d8665ade-9673-4e27-9ff6-92db4ce13d13"  # Dexcom Follow app ID
+BASE_URL        = "https://share2.dexcom.com/ShareWebServices/Services"
+FOLLOWER_URL    = "https://follower.dexcom.com/ShareWebServices/Services"
+APP_ID          = "d8665ade-9673-4e27-9ff6-92db4ce13d13"  # Dexcom Follow app ID
 
 # ── Trend arrow mapping ───────────────────────────────────────────────────
 TREND_ARROWS = {
@@ -77,22 +78,37 @@ def get_session_id(username, password):
 
 
 def get_readings(session_id, minutes=1440, max_count=288):
-    """Fetch glucose readings — tries every known endpoint/method combo."""
+    """Fetch glucose readings — tries every known endpoint/server/method combo."""
+
+    # First, try to list publishers this follower can see
+    for base in [BASE_URL, FOLLOWER_URL]:
+        try:
+            r = requests.get(
+                f"{base}/Follower/ListFollowedPublishers",
+                params={"sessionId": session_id},
+                timeout=15,
+            )
+            print(f"ListFollowedPublishers ({base.split('/')[2]}) → HTTP {r.status_code}: {r.text[:300]}")
+        except Exception as e:
+            print(f"ListFollowedPublishers error: {e}")
+
     attempts = [
-        # (method, endpoint, pass sessionId as)
-        ("POST", "Publisher/ReadPublisherLatestGlucoseValues",  "params"),
-        ("GET",  "Publisher/ReadPublisherLatestGlucoseValues",  "params"),
-        ("POST", "Follower/ReadPublisherLatestGlucoseValues",   "params"),
-        ("GET",  "Follower/ReadPublisherLatestGlucoseValues",   "params"),
-        ("POST", "Follower/ReadPublisherLatestGlucoseValues",   "body"),
+        (BASE_URL,     "POST", "Publisher/ReadPublisherLatestGlucoseValues", "params"),
+        (BASE_URL,     "GET",  "Publisher/ReadPublisherLatestGlucoseValues", "params"),
+        (BASE_URL,     "POST", "Follower/ReadPublisherLatestGlucoseValues",  "params"),
+        (FOLLOWER_URL, "POST", "Publisher/ReadPublisherLatestGlucoseValues", "params"),
+        (FOLLOWER_URL, "GET",  "Publisher/ReadPublisherLatestGlucoseValues", "params"),
+        (FOLLOWER_URL, "POST", "Follower/ReadPublisherLatestGlucoseValues",  "params"),
+        (FOLLOWER_URL, "GET",  "Follower/ReadPublisherLatestGlucoseValues",  "params"),
     ]
 
-    for method, endpoint, sid_mode in attempts:
-        url    = f"{BASE_URL}/{endpoint}"
+    for base, method, endpoint, sid_mode in attempts:
+        url    = f"{base}/{endpoint}"
         params = {"sessionId": session_id, "minutes": minutes, "maxCount": max_count}
         body   = {"sessionId": session_id, "minutes": minutes, "maxCount": max_count}
+        host   = base.split('/')[2]
 
-        print(f"Trying {method} {endpoint} (sessionId in {sid_mode})")
+        print(f"Trying {method} [{host}] {endpoint}")
         try:
             if method == "GET":
                 resp = requests.get(url, params=params, timeout=15)
@@ -108,7 +124,6 @@ def get_readings(session_id, minutes=1440, max_count=288):
                 if data:
                     return data
             else:
-                # Print first 200 chars of response body to help diagnose
                 print(f"  → {resp.text[:200]}")
         except Exception as e:
             print(f"  → Error: {e}")
