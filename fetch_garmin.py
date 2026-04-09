@@ -1,91 +1,105 @@
 """
-fetch_garmin.py — Pulls daily health data from Garmin Connect
-and POSTs it to the Cloudflare Worker /health endpoint.
-Runs nightly via GitHub Actions.
+fetch_garmin.py — Pulls daily health data from Garmin Connect using garth.
+Authenticates via stored OAuth tokens (no password needed in CI).
 
 Required env vars:
-  GARMIN_EMAIL    — Garmin Connect login email
-  GARMIN_PASSWORD — Garmin Connect password
-  WORKER_URL      — e.g. https://glucose-relay.djtwo6.workers.dev
+  GARMIN_TOKENS — base64-encoded zip of garth token files (from garmin_setup.py)
+  WORKER_URL    — e.g. https://glucose-relay.djtwo6.workers.dev
 """
 
+import base64
+import io
 import json
 import os
+import pathlib
 import sys
-from datetime import date, timedelta
+import tempfile
+import zipfile
+from datetime import date
 
 import requests
-from garminconnect import Garmin, GarminConnectAuthenticationError
+
+try:
+    import garth
+except ImportError:
+    os.system(f'{sys.executable} -m pip install garth')
+    import garth
 
 # ── Config ────────────────────────────────────────────────────────────────
-EMAIL      = os.environ['GARMIN_EMAIL']
-PASSWORD   = os.environ['GARMIN_PASSWORD']
+TOKENS_B64 = os.environ.get('GARMIN_TOKENS', '')
 WORKER_URL = os.environ.get('WORKER_URL', 'https://glucose-relay.djtwo6.workers.dev')
 TODAY      = date.today().isoformat()
 
-# ── Auth ──────────────────────────────────────────────────────────────────
-print(f'Connecting to Garmin Connect as {EMAIL[:4]}***...')
-try:
-    api = Garmin(EMAIL, PASSWORD)
-    api.login()
-    print('Authenticated ✓')
-except GarminConnectAuthenticationError as e:
-    print(f'Auth failed: {e}', file=sys.stderr)
+# ── Restore tokens from secret ────────────────────────────────────────────
+if not TOKENS_B64:
+    print('ERROR: GARMIN_TOKENS secret not set.', file=sys.stderr)
+    print('Run garmin_setup.py on your home PC first.', file=sys.stderr)
     sys.exit(1)
 
-# ── Fetch helpers ─────────────────────────────────────────────────────────
-def safe(fn, *args, default=0):
+tmp = pathlib.Path(tempfile.mkdtemp())
+with zipfile.ZipFile(io.BytesIO(base64.b64decode(TOKENS_B64))) as z:
+    z.extractall(tmp)
+
+garth.resume(str(tmp))
+print(f'Tokens loaded ✓ — fetching data for {TODAY}')
+
+# ── Garmin Connect API calls ──────────────────────────────────────────────
+BASE = 'https://connect.garmin.com'
+
+def gc_get(path, default=None):
     try:
-        return fn(*args) or default
+        return garth.get(BASE, path).json()
     except Exception as e:
-        print(f'  Warning: {fn.__name__} failed — {e}')
-        return default
+        print(f'  Warning: GET {path} failed — {e}')
+        return default or {}
 
 def get_steps():
-    data = safe(api.get_steps_data, TODAY, default=[])
-    return sum(d.get('steps', 0) for d in data) if isinstance(data, list) else 0
+    data = gc_get(f'/proxy/usersummary-service/usersummary/daily/{TODAY}')
+    return int(data.get('totalSteps', 0) or 0)
 
 def get_sleep():
-    data = safe(api.get_sleep_data, TODAY, default={})
-    dto  = data.get('dailySleepDTO', {}) if isinstance(data, dict) else {}
-    secs = dto.get('sleepTimeSeconds', 0) or 0
+    data = gc_get(f'/proxy/wellness-service/wellness/dailySleepData/{TODAY}')
+    dto  = data.get('dailySleepDTO', {}) or {}
+    secs = int(dto.get('sleepTimeSeconds', 0) or 0)
     score = (
-        dto.get('sleepScores', {}).get('overall', {}).get('value', 0) or
+        (dto.get('sleepScores') or {}).get('overall', {}).get('value', 0) or
         dto.get('sleepScore', 0) or 0
     )
     return round(secs / 3600, 2), int(score)
 
 def get_hr():
-    data = safe(api.get_heart_rates, TODAY, default={})
-    return int(data.get('restingHeartRate', 0)) if isinstance(data, dict) else 0
+    data = gc_get(f'/proxy/wellness-service/wellness/dailyHeartRate/{TODAY}')
+    return int(data.get('restingHeartRate', 0) or 0)
 
-def get_summary():
-    data = safe(api.get_stats, TODAY, default={})
-    if not isinstance(data, dict):
-        return 0, 0, 0
-    return (
-        int(data.get('activeKilocalories', 0) or 0),
-        int(data.get('floorsAscended',     0) or 0),
-        int(data.get('averageStressLevel', 0) or 0),
-    )
+def get_stress():
+    data = gc_get(f'/proxy/wellness-service/wellness/dailyStress/{TODAY}')
+    return int(data.get('avgStressLevel', 0) or 0)
+
+def get_floors():
+    data = gc_get(f'/proxy/usersummary-service/usersummary/daily/{TODAY}')
+    return int(data.get('floorsAscended', 0) or 0)
+
+def get_active_cal():
+    data = gc_get(f'/proxy/usersummary-service/usersummary/daily/{TODAY}')
+    return int(data.get('activeKilocalories', 0) or 0)
 
 # ── Pull data ─────────────────────────────────────────────────────────────
-print(f'Fetching data for {TODAY}...')
-
-steps                            = get_steps()
-sleep_hours, sleep_score         = get_sleep()
-resting_hr                       = get_hr()
-active_cal, floors, stress_level = get_summary()
+steps        = get_steps()
+sleep_h, sleep_s = get_sleep()
+resting_hr   = get_hr()
+stress       = get_stress()
+floors       = get_floors()
+active_cal   = get_active_cal()
 
 payload = {
     'date':           TODAY,
     'steps':          steps,
-    'sleepHours':     sleep_hours,
-    'sleepScore':     sleep_score,
+    'sleepHours':     sleep_h,
+    'sleepScore':     sleep_s,
     'restingHR':      resting_hr,
     'activeCalories': active_cal,
     'floorsClimbed':  floors,
-    'stressLevel':    stress_level,
+    'stressLevel':    stress,
 }
 
 print(json.dumps(payload, indent=2))

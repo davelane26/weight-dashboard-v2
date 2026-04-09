@@ -16,11 +16,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install garminconnect requests
+        run: pip install garth requests
 
       - name: Fetch Garmin data → Worker
         env:
-          GARMIN_EMAIL:    ${{ secrets.GARMIN_EMAIL }}
-          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
-          WORKER_URL:      https://glucose-relay.djtwo6.workers.dev
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
+          WORKER_URL:    https://glucose-relay.djtwo6.workers.dev
         run: python fetch_garmin.py
