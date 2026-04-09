@@ -48,12 +48,18 @@ def main():
 
     print(f"Connecting to Dexcom Share as {username}...")
     dex = Dexcom(username=username, password=password)  # ous=True if outside the US
+    print("Auth succeeded!")
 
     # Last 24 hours — 288 readings at 5-min intervals
+    print("Fetching readings...")
     readings = dex.get_glucose_readings(minutes=1440, max_count=288)
+    print(f"Got {len(readings) if readings else 0} readings")
+
+    if readings:
+        print(f"Latest: {readings[0].value} mg/dL at {readings[0].datetime}")
 
     if not readings:
-        print("No readings returned — skipping write")
+        print("No readings returned — is Share ON in your G7 app? Is the follower invite accepted?")
         sys.exit(0)
 
     def serialize(r):
