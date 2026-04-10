@@ -33,6 +33,9 @@ async function loadActivityData() {
     const stressEl = document.getElementById('act-stress');
     if (stressEl) stressEl.textContent = data.stressLevel || '—';
 
+    const intensityEl = document.getElementById('act-intensity');
+    if (intensityEl) intensityEl.textContent = data.intensityMinutes || '—';
+
     // ── Hide "Waiting for Tasker" message ──
     const setupEl = document.getElementById('act-setup');
     if (setupEl) setupEl.style.display = 'none';
