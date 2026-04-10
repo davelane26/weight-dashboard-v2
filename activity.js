@@ -1,149 +1,183 @@
-/**
- * activity.js — Garmin / Health Connect data via Tasker → Cloudflare Worker
- * Fetches /health.json and renders the Activity tab.
- */
+// ── activity.js ─────────────────────────────────────────────────
+// Loads Garmin activity data from Firebase (synced via bookmarklet)
+// ────────────────────────────────────────────────────────────────
 
-const HEALTH_URL    = window.GLUCOSE_WORKER_URL?.replace('/glucose.json', '/health.json')
-                      ?? 'https://glucose-relay.djtwo6.workers.dev/health.json';
-const REFRESH_MS    = 5 * 60 * 1000; // 5 min
-const STEP_GOAL     = 10_000;
+const FIREBASE_GARMIN_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
 
-const elA = id => document.getElementById(id);
-
-// ── Formatters ────────────────────────────────────────────────────────────
-const fmtNum  = n  => n != null && n > 0 ? Math.round(n).toLocaleString() : '—';
-const fmtDec  = n  => n != null && n > 0 ? (+n).toFixed(1) : '—';
-
-// ── Stress label ──────────────────────────────────────────────────────────
-function stressLabel(level) {
-  if (!level || level <= 0) return '';
-  if (level < 26)  return 'Resting';
-  if (level < 51)  return 'Low';
-  if (level < 76)  return 'Medium';
-  return 'High';
-}
-
-// ── HR zone label ─────────────────────────────────────────────────────────
-function hrLabel(bpm) {
-  if (!bpm || bpm <= 0) return '';
-  if (bpm < 60) return 'Athlete range';
-  if (bpm < 70) return 'Excellent';
-  if (bpm < 80) return 'Good';
-  if (bpm < 90) return 'Average';
-  return 'Above avg';
-}
-
-// ── Render today's hero + KPIs ────────────────────────────────────────────
-function renderToday(today) {
-  const setup = elA('act-setup');
-
-  if (!today) {
-    if (setup) setup.style.display = '';
-    return;
-  }
-  if (setup) setup.style.display = 'none';
-
-  // Steps hero
-  const stepPct = STEP_GOAL > 0 ? Math.round((today.steps / STEP_GOAL) * 100) : 0;
-  if (elA('act-steps')) elA('act-steps').textContent = fmtNum(today.steps);
-  if (elA('act-steps-sub'))
-    elA('act-steps-sub').textContent =
-      `${stepPct}% of ${STEP_GOAL.toLocaleString()} goal · synced via Garmin · Health Connect`;
-
-  // Active cals
-  if (elA('act-cal')) elA('act-cal').textContent = fmtNum(today.activeCalories);
-
-  // Sleep
-  if (elA('act-sleep')) elA('act-sleep').textContent = fmtDec(today.sleepHours);
-  if (elA('act-sleep-score') && today.sleepScore > 0)
-    elA('act-sleep-score').textContent = `Score: ${today.sleepScore}`;
-
-  // Resting HR
-  if (elA('act-hr'))     elA('act-hr').textContent     = fmtNum(today.restingHR);
-  if (elA('act-hr-sub')) elA('act-hr-sub').textContent = hrLabel(today.restingHR);
-
-  // Floors
-  if (elA('act-floors')) elA('act-floors').textContent = fmtNum(today.floorsClimbed);
-
-  // Stress
-  if (elA('act-stress'))     elA('act-stress').textContent     = fmtNum(today.stressLevel);
-  if (elA('act-stress-sub')) elA('act-stress-sub').textContent = stressLabel(today.stressLevel);
-
-  // Updated
-  if (elA('act-updated') && today.updatedAt) {
-    const d = new Date(today.updatedAt);
-    elA('act-updated').textContent =
-      `Synced ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-  }
-}
-
-// ── Mini chart helper ─────────────────────────────────────────────────────
-function miniChart(canvasId, storeKey, labels, values, color, unit) {
-  const canvas = elA(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  if (window[storeKey]) { window[storeKey].destroy(); }
-
-  window[storeKey] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data:            values,
-        backgroundColor: color + '99',
-        borderColor:     color,
-        borderWidth:     1.5,
-        borderRadius:    4,
-      }],
-    },
-    options: {
-      responsive:          true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: {
-        callbacks: { label: ctx => `${ctx.parsed.y.toLocaleString()} ${unit}` },
-      }},
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-        y: { grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } },
-      },
-    },
-  });
-}
-
-// ── Render 7-day charts ───────────────────────────────────────────────────
-function renderCharts(days) {
-  const recent = days.slice(-7);
-  const labels = recent.map(d => {
-    const dt = new Date(d.date + 'T12:00:00');
-    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
-  });
-
-  miniChart('actStepsChart', 'actStepsChartInst', labels,
-    recent.map(d => d.steps),          '#0053e2', 'steps');
-  miniChart('actSleepChart', 'actSleepChartInst', labels,
-    recent.map(d => d.sleepHours),     '#7c3aed', 'hrs');
-  miniChart('actHRChart',    'actHRChartInst',    labels,
-    recent.map(d => d.restingHR),      '#ea1100', 'bpm');
-}
-
-// ── Fetch + render ────────────────────────────────────────────────────────
-async function refreshActivity() {
+async function loadActivityData() {
   try {
-    const resp = await fetch(HEALTH_URL, { cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
+    const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json`);
+    const data = await res.json();
+    if (!data) return;
 
-    if (!data.days || !data.days.length) return; // no data yet — keep setup prompt
+    // ── Update hero section ──
+    const stepsEl = document.getElementById('act-steps');
+    if (stepsEl) stepsEl.textContent = (data.steps || 0).toLocaleString();
 
-    const today = data.days[data.days.length - 1];
-    renderToday(today);
-    renderCharts(data.days);
-  } catch (e) {
-    console.warn('[activity] fetch error:', e.message);
+    const calEl = document.getElementById('act-cal');
+    if (calEl) calEl.textContent = (data.activeCalories || 0).toLocaleString();
+
+    // ── Update KPI cards ──
+    const sleepEl = document.getElementById('act-sleep');
+    if (sleepEl) sleepEl.textContent = data.sleepDuration || data.sleepHours || '—';
+
+    const sleepScoreEl = document.getElementById('act-sleep-score');
+    if (sleepScoreEl && data.sleepScore) sleepScoreEl.textContent = 'Score: ' + data.sleepScore;
+
+    const hrEl = document.getElementById('act-hr');
+    if (hrEl) hrEl.textContent = data.restingHR || '—';
+
+    const floorsEl = document.getElementById('act-floors');
+    if (floorsEl) floorsEl.textContent = data.floorsClimbed || '—';
+
+    const stressEl = document.getElementById('act-stress');
+    if (stressEl) stressEl.textContent = data.stressLevel || '—';
+
+    // ── Hide "Waiting for Tasker" message ──
+    const setupEl = document.getElementById('act-setup');
+    if (setupEl) setupEl.style.display = 'none';
+
+    // ── Show last updated time ──
+    const updatedEl = document.getElementById('act-updated');
+    if (updatedEl && data.lastUpdated) {
+      const d = new Date(data.lastUpdated);
+      updatedEl.textContent = 'Garmin data synced ' + d.toLocaleString();
+    }
+
+    // ── Load 7-day history for charts ──
+    loadActivityCharts();
+
+  } catch (err) {
+    console.error('Error loading activity data:', err);
   }
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────
-refreshActivity();
-setInterval(refreshActivity, REFRESH_MS);
+async function loadActivityCharts() {
+  try {
+    const days = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      days.push(dateStr);
+    }
+
+    const history = [];
+    for (const day of days) {
+      try {
+        const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/${day}.json`);
+        const data = await res.json();
+        history.push({ date: day, ...(data || {}) });
+      } catch (e) {
+        history.push({ date: day });
+      }
+    }
+
+    const labels = history.map(h => {
+      const d = new Date(h.date + 'T12:00:00');
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    });
+
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    };
+
+    // Steps chart
+    const stepsCanvas = document.getElementById('actStepsChart');
+    if (stepsCanvas) {
+      const ctx = stepsCanvas.getContext('2d');
+      if (window._actStepsChart) window._actStepsChart.destroy();
+      window._actStepsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: history.map(h => h.steps || 0),
+            backgroundColor: 'rgba(42, 135, 3, 0.6)',
+            borderColor: '#2a8703',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: chartOptions
+      });
+    }
+
+    // Sleep chart
+    const sleepCanvas = document.getElementById('actSleepChart');
+    if (sleepCanvas) {
+      const ctx = sleepCanvas.getContext('2d');
+      if (window._actSleepChart) window._actSleepChart.destroy();
+      window._actSleepChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: history.map(h => {
+              if (h.sleepHours) return h.sleepHours;
+              if (h.sleepDuration) {
+                const m = h.sleepDuration.match(/(\d+)h\s*(\d+)m/);
+                if (m) return parseInt(m[1]) + parseInt(m[2]) / 60;
+                const hOnly = h.sleepDuration.match(/(\d+)h/);
+                if (hOnly) return parseInt(hOnly[1]);
+              }
+              return 0;
+            }),
+            backgroundColor: 'rgba(8, 145, 178, 0.6)',
+            borderColor: '#0891b2',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: chartOptions
+      });
+    }
+
+    // Heart rate chart
+    const hrCanvas = document.getElementById('actHRChart');
+    if (hrCanvas) {
+      const ctx = hrCanvas.getContext('2d');
+      if (window._actHRChart) window._actHRChart.destroy();
+      window._actHRChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: history.map(h => h.restingHR || null),
+            borderColor: '#ea1100',
+            backgroundColor: 'rgba(234, 17, 0, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: '#ea1100',
+            spanGaps: true
+          }]
+        },
+        options: {
+          ...chartOptions,
+          scales: {
+            ...chartOptions.scales,
+            y: { ...chartOptions.scales.y, beginAtZero: false }
+          }
+        }
+      });
+    }
+
+  } catch (err) {
+    console.error('Error loading activity charts:', err);
+  }
+}
+
+// Load on page start
+loadActivityData();
+
+// Refresh every 30 seconds
+setInterval(loadActivityData, 30000);
