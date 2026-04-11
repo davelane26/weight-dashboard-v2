@@ -44,7 +44,9 @@ async function loadActivityData() {
 
     const calBreakdownEl = document.getElementById('act-cal-breakdown');
     if (calBreakdownEl) calBreakdownEl.textContent = (data.activeCalories || 0) + ' active · ' + (data.totalCalories - data.activeCalories || 0) + ' resting';
-    
+
+    const fitnessAgeEl = document.getElementById('act-fitness-age');
+    if (fitnessAgeEl) fitnessAgeEl.textContent = data.fitnessAge || '—';
 
     // ── Hide "Waiting for Tasker" message ──
     const setupEl = document.getElementById('act-setup');
