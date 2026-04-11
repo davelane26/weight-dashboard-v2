@@ -36,6 +36,16 @@ async function loadActivityData() {
     const intensityEl = document.getElementById('act-intensity');
     if (intensityEl) intensityEl.textContent = data.intensityMinutes || '—';
 
+    const batteryEl = document.getElementById('act-battery');
+    if (batteryEl) batteryEl.textContent = data.bodyBattery || '—';
+
+    const totalCalEl = document.getElementById('act-total-cal');
+    if (totalCalEl) totalCalEl.textContent = (data.totalCalories || 0).toLocaleString();
+
+    const calBreakdownEl = document.getElementById('act-cal-breakdown');
+    if (calBreakdownEl) calBreakdownEl.textContent = (data.activeCalories || 0) + ' active · ' + (data.totalCalories - data.activeCalories || 0) + ' resting';
+    
+
     // ── Hide "Waiting for Tasker" message ──
     const setupEl = document.getElementById('act-setup');
     if (setupEl) setupEl.style.display = 'none';
