@@ -293,6 +293,22 @@
   <!-- ── Calorie Insights ───────────────────────────────────────────── -->
   <section class="card fade-in" aria-label="Calorie insights">
     <h2 class="card-title">Calorie &amp; Goal Insights</h2>
+
+    <!-- Activity level picker -->
+    <div style="margin-bottom:1rem">
+      <p style="font-size:0.72rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">
+        ⚡ Activity Level <span style="font-weight:400">· used to calculate your real TDEE from scale data</span>
+      </p>
+      <div class="activity-pills" role="group" aria-label="Activity level">
+        <button class="activity-pill" data-level="sedentary"  onclick="setActivityLevel('sedentary')">Sedentary</button>
+        <button class="activity-pill" data-level="light"      onclick="setActivityLevel('light')">Light</button>
+        <button class="activity-pill" data-level="moderate"   onclick="setActivityLevel('moderate')">Moderate</button>
+        <button class="activity-pill" data-level="active"     onclick="setActivityLevel('active')">Active</button>
+        <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
+      </div>
+      <p id="activity-desc" style="font-size:0.7rem;color:#6d7a95;margin-top:0.4rem"></p>
+    </div>
+
     <div class="cal-grid">
       <div class="cal-box" style="background:#eff4ff">
         <p class="cal-label" style="color:#0053e2">Maintain Weight</p>

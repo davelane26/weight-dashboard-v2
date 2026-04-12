@@ -3,6 +3,14 @@ const DATA_URL     = 'https://davelane26.github.io/Weight-tracker/data.json';
 const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 23, 2026';
 const REFRESH_MS   = 30_000;
+const ACTIVITY_LEVELS = {
+  sedentary:   { label: 'Sedentary',   desc: 'Desk job, little or no exercise',       multiplier: 1.2   },
+  light:       { label: 'Light',       desc: 'Light exercise 1-3 days/week',          multiplier: 1.375 },
+  moderate:    { label: 'Moderate',    desc: 'Moderate exercise 3-5 days/week',       multiplier: 1.55  },
+  active:      { label: 'Active',      desc: 'Hard exercise 6-7 days/week',           multiplier: 1.725 },
+  very_active: { label: 'Very Active', desc: 'Physical job or twice-daily training',  multiplier: 1.9   },
+};
+
 const BMI_CATS = [
   { label: 'Normal Weight',  range: 'BMI < 25',    min: 18.5, max: 25,       icon: '🟢' },
   { label: 'Overweight',     range: 'BMI 25–29.9', min: 25,   max: 30,       icon: '🟡' },
@@ -11,7 +19,44 @@ const BMI_CATS = [
   { label: 'Obese III',      range: 'BMI ≥ 40',   min: 40,   max: Infinity, icon: '⚫' },
 ];
 
-// ── Tab switching ───────────────────────────────────────────────────
+// -- TDEE calculator (Katch-McArdle + activity multiplier) ----------------
+// LBM from the scale's body fat % means it auto-corrects as weight drops.
+// Falls back to the scale's own value if body fat data is missing.
+function calcTDEE(latest) {
+  const multiplier = ACTIVITY_LEVELS[activityLevel]?.multiplier ?? 1.55;
+  if (latest.bodyFat && latest.weight) {
+    const weightKg = latest.weight / 2.205;
+    const lbmKg    = weightKg * (1 - latest.bodyFat / 100);
+    const bmr      = 370 + 21.6 * lbmKg;
+    return { bmr: Math.round(bmr), tdee: Math.round(bmr * multiplier), source: 'katch' };
+  }
+  if (latest.tdee) return { bmr: latest.bmr ?? null, tdee: latest.tdee, source: 'scale' };
+  return null;
+}
+
+// -- Activity level persistence --------------------------------------------
+function loadActivityLevel() {
+  const saved = localStorage.getItem('wt_v2_activity');
+  if (saved && ACTIVITY_LEVELS[saved]) activityLevel = saved;
+  syncActivityUI();
+}
+function setActivityLevel(level) {
+  if (!ACTIVITY_LEVELS[level]) return;
+  activityLevel = level;
+  localStorage.setItem('wt_v2_activity', level);
+  syncActivityUI();
+  if (allData.length) renderAll();
+}
+function syncActivityUI() {
+  const info = ACTIVITY_LEVELS[activityLevel];
+  document.querySelectorAll('.activity-pill').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.level === activityLevel)
+  );
+  setText('activity-desc', info ? `${info.label} x${info.multiplier} - ${info.desc}` : '');
+}
+window.setActivityLevel = setActivityLevel;
+
+// -- Tab switching ---------------------------------------------------------────
 const TABS = ['weight', 'glucose', 'activity'];
 function switchTab(name) {
   TABS.forEach(t => {
@@ -61,9 +106,10 @@ function toggleDark() {
 // ── State ───────────────────────────────────────────────────────────
 let allData       = [];
 let goalWeight    = null;
-let calLog        = {};   // { 'YYYY-MM-DD': calories }
+let calLog        = {};
 let charts        = {};
 let chartRange    = 'all';
+let activityLevel = 'moderate';
 
 // ── Formatters ─────────────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
@@ -207,8 +253,15 @@ function renderKPIs(latest, prev) {
   setHTML('kpi-water-sub', wad != null ? delta(wad, false) + '% from last' : '');
 
   latest.bone ? countUp('kpi-bone', latest.bone, 2) : setText('kpi-bone', '—');
-  latest.bmr  ? countUp('kpi-bmr',  latest.bmr,  0) : setText('kpi-bmr',  '—');
-  latest.tdee ? countUp('kpi-tdee', latest.tdee, 0) : setText('kpi-tdee', '—');
+
+  const energy = calcTDEE(latest);
+  if (energy) {
+    countUp('kpi-bmr',  energy.bmr,  0);
+    countUp('kpi-tdee', energy.tdee, 0);
+  } else {
+    setText('kpi-bmr',  '—');
+    setText('kpi-tdee', '—');
+  }
 }
 
 // ── Journey duration ────────────────────────────────────────────────────
@@ -410,10 +463,11 @@ function renderStreak(data) {
 
 // ── Render calorie insights ─────────────────────────────────────────────
 function renderCalories(latest) {
-  if (!latest.tdee) return;
-  countUp('cal-maintain', latest.tdee,        0);
-  countUp('cal-lose1',    latest.tdee - 500,  0);
-  countUp('cal-lose2',    latest.tdee - 1000, 0);
+  const energy = calcTDEE(latest);
+  if (!energy) return;
+  countUp('cal-maintain', energy.tdee,        0);
+  countUp('cal-lose1',    energy.tdee - 500,  0);
+  countUp('cal-lose2',    energy.tdee - 1000, 0);
 }
 
 // ── Render weight chart ─────────────────────────────────────────────────
@@ -655,8 +709,9 @@ function renderGoal(latest, data = []) {
 
   // Calorie-based projection using 7-day rolling average
   const avgCals = calAvg();
-  if (avgCals && latest.tdee) {
-    const deficit    = latest.tdee - avgCals;
+  const energy = calcTDEE(latest);
+  if (avgCals && energy?.tdee) {
+    const deficit = energy.tdee - avgCals;
     if (deficit > 0) {
       const lbsPerWeek = (deficit * 7) / 3500;
       const daysLeft   = remaining / (lbsPerWeek / 7);
@@ -784,7 +839,7 @@ function renderCalLog(latest) {
   const avgBadge = el('cal-avg-badge');
   if (avgBadge) avgBadge.textContent = avg ? Math.round(avg).toLocaleString() + ' kcal' : '—';
 
-  const tdee = latest?.tdee || 0;
+  const tdee = calcTDEE(latest)?.tdee || 0;
   body.innerHTML = entries.map(([dateKey, cals]) => {
     const d       = new Date(dateKey + 'T12:00:00');
     const label   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -855,6 +910,7 @@ async function loadData() {
 async function init() {
   loadDark();
   restoreTab();
+  loadActivityLevel();
   loadGoal();
   loadCalLog();
   const ok = await loadData();
