@@ -1,198 +1,386 @@
-// ── activity.js ─────────────────────────────────────────────────
-// Loads Garmin activity data from Firebase (synced via bookmarklet)
-// ────────────────────────────────────────────────────────────────
+// ── activity.js ── Garmin Connect data display (overhauled) ────────────
+// Reads from Firebase /garmin/latest.json + /garmin/{date}.json
+// ───────────────────────────────────────────────────────────────────
 
 const FIREBASE_GARMIN_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
 
+// Chart instances for cleanup
+let actStepsChartInst = null;
+let actSleepChartInst = null;
+let actHRChartInst    = null;
+let actStressChartInst = null;
+let actBatteryChartInst = null;
+
+// Make charts globally accessible for tab-switch resize
+window.actStepsChartInst  = null;
+window.actSleepChartInst  = null;
+window.actHRChartInst     = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────
+const _el = id => document.getElementById(id);
+const _set = (id, v) => { const e = _el(id); if (e) e.textContent = v ?? '—'; };
+const _html = (id, v) => { const e = _el(id); if (e) e.innerHTML = v; };
+const _fmtK = n => n != null ? Math.round(n).toLocaleString() : '—';
+
+function _stressLabel(level) {
+  if (!level) return '';
+  if (level <= 25) return '🟢 Resting';
+  if (level <= 50) return '🟡 Low';
+  if (level <= 75) return '🟠 Medium';
+  return '🔴 High';
+}
+
+function _sleepQuality(score) {
+  if (!score) return '';
+  if (score >= 80) return '🟢 Excellent';
+  if (score >= 60) return '🟡 Good';
+  if (score >= 40) return '🟠 Fair';
+  return '🔴 Poor';
+}
+
+function _destroyChart(inst) {
+  if (inst) inst.destroy();
+  return null;
+}
+
+// ── Load today's data ───────────────────────────────────────────────
 async function loadActivityData() {
   try {
     const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json`);
     const data = await res.json();
     if (!data) return;
 
-    // ── Update hero section ──
-    const stepsEl = document.getElementById('act-steps');
-    if (stepsEl) stepsEl.textContent = (data.steps || 0).toLocaleString();
-
-    const calEl = document.getElementById('act-cal');
-    if (calEl) calEl.textContent = (data.activeCalories || 0).toLocaleString();
-
-    // ── Update KPI cards ──
-    const sleepEl = document.getElementById('act-sleep');
-    if (sleepEl) sleepEl.textContent = data.sleepDuration || data.sleepHours || '—';
-
-    const sleepScoreEl = document.getElementById('act-sleep-score');
-    if (sleepScoreEl && data.sleepScore) sleepScoreEl.textContent = 'Score: ' + data.sleepScore;
-
-    const hrEl = document.getElementById('act-hr');
-    if (hrEl) hrEl.textContent = data.restingHR || '—';
-
-    const floorsEl = document.getElementById('act-floors');
-    if (floorsEl) floorsEl.textContent = data.floorsClimbed || '—';
-
-    const stressEl = document.getElementById('act-stress');
-    if (stressEl) stressEl.textContent = data.stressLevel || '—';
-
-    const intensityEl = document.getElementById('act-intensity');
-    if (intensityEl) intensityEl.textContent = data.intensityMinutes || '—';
-
-    const batteryEl = document.getElementById('act-battery');
-    if (batteryEl) batteryEl.textContent = data.bodyBattery || '—';
-
-    const totalCalEl = document.getElementById('act-total-cal');
-    if (totalCalEl) totalCalEl.textContent = (data.totalCalories || 0).toLocaleString();
-
-    const calBreakdownEl = document.getElementById('act-cal-breakdown');
-    if (calBreakdownEl) calBreakdownEl.textContent = (data.activeCalories || 0) + ' active · ' + (data.totalCalories - data.activeCalories || 0) + ' resting';
-
-    const fitnessAgeEl = document.getElementById('act-fitness-age');
-    if (fitnessAgeEl) fitnessAgeEl.textContent = data.fitnessAge || '—';
-
-    // ── Hide "Waiting for Tasker" message ──
-    const setupEl = document.getElementById('act-setup');
-    if (setupEl) setupEl.style.display = 'none';
-
-    // ── Show last updated time ──
-    const updatedEl = document.getElementById('act-updated');
-    if (updatedEl && data.lastUpdated) {
-      const d = new Date(data.lastUpdated);
-      updatedEl.textContent = 'Garmin data synced ' + d.toLocaleString();
-    }
-
-    // ── Load 7-day history for charts ──
+    renderActivityKPIs(data);
+    renderSleepBreakdown(data);
+    renderHRVSection(data);
+    renderActivities(data.activities);
     loadActivityCharts();
 
+    // Hide setup prompt
+    const setup = _el('act-setup');
+    if (setup) setup.style.display = 'none';
+
+    // Show last updated
+    if (data.lastUpdated) {
+      const d = new Date(data.lastUpdated);
+      _set('act-updated', 'Garmin synced via garminconnect · ' + d.toLocaleString());
+    }
   } catch (err) {
     console.error('Error loading activity data:', err);
   }
 }
 
-async function loadActivityCharts() {
-  try {
-    const days = [];
-    const today = new Date();
+// ── KPI Cards ──────────────────────────────────────────────────────
+function renderActivityKPIs(data) {
+  // Steps hero
+  _set('act-steps', _fmtK(data.steps));
+  const stepGoal = 10000;
+  const stepPct = Math.min(100, ((data.steps || 0) / stepGoal) * 100);
+  _set('act-steps-sub',
+    `${data.distance || 0} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
 
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      days.push(dateStr);
-    }
+  // Sleep
+  _set('act-sleep', data.sleepDuration || data.sleepHours || '—');
+  const scoreHtml = data.sleepScore
+    ? `Score: ${data.sleepScore} ${_sleepQuality(data.sleepScore)}`
+    : '';
+  _set('act-sleep-score', scoreHtml);
 
-    const history = [];
-    for (const day of days) {
-      try {
-        const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/${day}.json`);
-        const data = await res.json();
-        history.push({ date: day, ...(data || {}) });
-      } catch (e) {
-        history.push({ date: day });
-      }
-    }
+  // Heart rate
+  _set('act-hr', data.restingHR || '—');
+  const hrSub = [];
+  if (data.minHR) hrSub.push('Min: ' + data.minHR);
+  if (data.maxHR) hrSub.push('Max: ' + data.maxHR);
+  if (data.avgHR) hrSub.push('Avg: ' + data.avgHR);
+  _set('act-hr-sub', hrSub.join(' · '));
 
-    const labels = history.map(h => {
-      const d = new Date(h.date + 'T12:00:00');
-      return d.toLocaleDateString('en-US', { weekday: 'short' });
-    });
+  // Intensity
+  _set('act-intensity', data.intensityMinutes || '—');
 
-    const chartOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false } },
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
-      }
-    };
+  // Stress
+  _set('act-stress', data.stressLevel || '—');
+  _set('act-stress-sub', _stressLabel(data.stressLevel));
 
-    // Steps chart
-    const stepsCanvas = document.getElementById('actStepsChart');
-    if (stepsCanvas) {
-      const ctx = stepsCanvas.getContext('2d');
-      if (window._actStepsChart) window._actStepsChart.destroy();
-      window._actStepsChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: history.map(h => h.steps || 0),
-            backgroundColor: 'rgba(42, 135, 3, 0.6)',
-            borderColor: '#2a8703',
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: chartOptions
-      });
-    }
+  // Body battery
+  _set('act-battery', data.bodyBattery || '—');
 
-    // Sleep chart
-    const sleepCanvas = document.getElementById('actSleepChart');
-    if (sleepCanvas) {
-      const ctx = sleepCanvas.getContext('2d');
-      if (window._actSleepChart) window._actSleepChart.destroy();
-      window._actSleepChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: history.map(h => {
-              if (h.sleepHours) return h.sleepHours;
-              if (h.sleepDuration) {
-                const m = h.sleepDuration.match(/(\d+)h\s*(\d+)m/);
-                if (m) return parseInt(m[1]) + parseInt(m[2]) / 60;
-                const hOnly = h.sleepDuration.match(/(\d+)h/);
-                if (hOnly) return parseInt(hOnly[1]);
-              }
-              return 0;
-            }),
-            backgroundColor: 'rgba(8, 145, 178, 0.6)',
-            borderColor: '#0891b2',
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: chartOptions
-      });
-    }
+  // Calories
+  _set('act-total-cal', _fmtK(data.totalCalories));
+  _set('act-cal-breakdown',
+    `${_fmtK(data.activeCalories)} active · ${_fmtK(data.restingCalories || (data.totalCalories - data.activeCalories))} resting`);
 
-    // Heart rate chart
-    const hrCanvas = document.getElementById('actHRChart');
-    if (hrCanvas) {
-      const ctx = hrCanvas.getContext('2d');
-      if (window._actHRChart) window._actHRChart.destroy();
-      window._actHRChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: history.map(h => h.restingHR || null),
-            borderColor: '#ea1100',
-            backgroundColor: 'rgba(234, 17, 0, 0.1)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 4,
-            pointBackgroundColor: '#ea1100',
-            spanGaps: true
-          }]
-        },
-        options: {
-          ...chartOptions,
-          scales: {
-            ...chartOptions.scales,
-            y: { ...chartOptions.scales.y, beginAtZero: false }
-          }
-        }
-      });
-    }
+  // Fitness age
+  _set('act-fitness-age', data.fitnessAge || '—');
 
-  } catch (err) {
-    console.error('Error loading activity charts:', err);
+  // VO2 Max
+  _set('act-vo2max', data.vo2Max ? data.vo2Max.toFixed(1) : '—');
+}
+
+// ── Sleep Breakdown ─────────────────────────────────────────────────
+function renderSleepBreakdown(data) {
+  const container = _el('sleep-breakdown');
+  if (!container || !data.sleepStages) return;
+  container.style.display = 'block';
+
+  const stages = data.sleepStages;
+  const total = (stages.deep || 0) + (stages.light || 0) + (stages.rem || 0) + (stages.awake || 0);
+  if (total <= 0) return;
+
+  const pct = (v) => Math.round((v / total) * 100);
+  const bar = (color, val, label) => {
+    const p = pct(val);
+    return `<div style="flex:${p};background:${color};height:100%;border-radius:4px;min-width:${p > 3 ? '0' : '4px'}" title="${label}: ${val.toFixed(1)}h (${p}%)"></div>`;
+  };
+
+  _html('sleep-stage-bar',
+    bar('#1e3a5f', stages.deep, 'Deep') +
+    bar('#4a90d9', stages.light, 'Light') +
+    bar('#7c3aed', stages.rem, 'REM') +
+    bar('#f59e0b', stages.awake, 'Awake')
+  );
+
+  _html('sleep-stage-legend',
+    `<span style="color:#1e3a5f">● Deep ${stages.deep.toFixed(1)}h (${pct(stages.deep)}%)</span>` +
+    `<span style="color:#4a90d9">● Light ${stages.light.toFixed(1)}h (${pct(stages.light)}%)</span>` +
+    `<span style="color:#7c3aed">● REM ${stages.rem.toFixed(1)}h (${pct(stages.rem)}%)</span>` +
+    `<span style="color:#f59e0b">● Awake ${stages.awake.toFixed(1)}h (${pct(stages.awake)}%)</span>`
+  );
+}
+
+// ── HRV Section ────────────────────────────────────────────────────
+function renderHRVSection(data) {
+  const section = _el('hrv-section');
+  if (!section) return;
+
+  if (!data.hrvLastNight && !data.hrvWeeklyAvg) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  _set('hrv-last-night', data.hrvLastNight ? data.hrvLastNight + ' ms' : '—');
+  _set('hrv-weekly-avg', data.hrvWeeklyAvg ? data.hrvWeeklyAvg + ' ms' : '—');
+  _set('hrv-status', data.hrvStatus || '—');
+
+  if (data.hrvBaseline) {
+    _set('hrv-baseline',
+      `Low: <${data.hrvBaseline.low || '?'} · Balanced: <${data.hrvBaseline.balanced || '?'}`);
   }
 }
 
-// Load on page start
-loadActivityData();
+// ── Activities List ─────────────────────────────────────────────────
+function renderActivities(activities) {
+  const container = _el('act-list');
+  if (!container) return;
 
-// Refresh every 30 seconds
+  if (!activities || !activities.length) {
+    container.innerHTML = '<p style="color:#6d7a95;font-size:0.8rem">No activities recorded today</p>';
+    return;
+  }
+
+  const typeIcons = {
+    running: '🏃', walking: '🚶', cycling: '🚴', swimming: '🏊',
+    strength_training: '🏋️', yoga: '🧘', hiking: '⛰️',
+    elliptical: '🧍', other: '🏅',
+  };
+
+  container.innerHTML = activities.map(act => {
+    const icon = typeIcons[act.type] || typeIcons.other;
+    const details = [];
+    if (act.duration) details.push(`${Math.round(act.duration)} min`);
+    if (act.distance) details.push(`${act.distance} mi`);
+    if (act.calories) details.push(`${act.calories} cal`);
+    if (act.avgHR) details.push(`❤️ ${act.avgHR} bpm`);
+    if (act.avgPace) details.push(`⏱ ${act.avgPace}/mi`);
+    if (act.elevationGain) details.push(`⬆️ ${Math.round(act.elevationGain)} ft`);
+
+    return `<div class="activity-card">
+      <div class="activity-icon">${icon}</div>
+      <div class="activity-info">
+        <div class="activity-name">${act.name}</div>
+        <div class="activity-details">${details.join(' · ')}</div>
+        ${act.startTime ? `<div class="activity-time">${new Date(act.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 7-Day History Charts ────────────────────────────────────────────
+async function loadActivityCharts() {
+  const days = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+
+  const history = [];
+  for (const day of days) {
+    try {
+      const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/${day}.json`);
+      const data = await res.json();
+      history.push({ date: day, ...(data || {}) });
+    } catch {
+      history.push({ date: day });
+    }
+  }
+
+  const labels = history.map(h => {
+    const d = new Date(h.date + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short' });
+  });
+
+  const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 11 } } },
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6d7a95', font: { size: 10 } } },
+    },
+  };
+
+  // Steps chart
+  const stepsCanvas = _el('actStepsChart');
+  if (stepsCanvas) {
+    actStepsChartInst = _destroyChart(actStepsChartInst);
+    actStepsChartInst = new Chart(stepsCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: history.map(h => h.steps || 0),
+          backgroundColor: history.map(h => (h.steps || 0) >= 10000
+            ? 'rgba(42,135,3,0.7)' : 'rgba(42,135,3,0.35)'),
+          borderColor: '#2a8703',
+          borderWidth: 1,
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        ...chartDefaults,
+        scales: {
+          ...chartDefaults.scales,
+          y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => _fmtK(v) } },
+        },
+      },
+    });
+    window.actStepsChartInst = actStepsChartInst;
+  }
+
+  // Sleep chart (stacked bar: deep/light/rem/awake)
+  const sleepCanvas = _el('actSleepChart');
+  if (sleepCanvas) {
+    actSleepChartInst = _destroyChart(actSleepChartInst);
+    actSleepChartInst = new Chart(sleepCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Deep',  data: history.map(h => h.sleepStages?.deep || 0),  backgroundColor: '#1e3a5f', borderRadius: 3 },
+          { label: 'Light', data: history.map(h => h.sleepStages?.light || 0), backgroundColor: '#4a90d9', borderRadius: 3 },
+          { label: 'REM',   data: history.map(h => h.sleepStages?.rem || 0),   backgroundColor: '#7c3aed', borderRadius: 3 },
+          { label: 'Awake', data: history.map(h => h.sleepStages?.awake || 0), backgroundColor: '#f59e0b', borderRadius: 3 },
+        ],
+      },
+      options: {
+        ...chartDefaults,
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)}h` } },
+        },
+        scales: {
+          ...chartDefaults.scales,
+          x: { ...chartDefaults.scales.x, stacked: true },
+          y: { ...chartDefaults.scales.y, stacked: true, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'h' } },
+        },
+      },
+    });
+    window.actSleepChartInst = actSleepChartInst;
+  }
+
+  // Heart rate chart
+  const hrCanvas = _el('actHRChart');
+  if (hrCanvas) {
+    actHRChartInst = _destroyChart(actHRChartInst);
+    actHRChartInst = new Chart(hrCanvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Resting HR', data: history.map(h => h.restingHR || null), borderColor: '#ea1100', backgroundColor: 'rgba(234,17,0,0.08)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#ea1100', spanGaps: true, borderWidth: 2.5 },
+          { label: 'Avg HR', data: history.map(h => h.avgHR || null), borderColor: '#f59e0b', backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 3, spanGaps: true, borderWidth: 1.5, borderDash: [4, 3] },
+        ],
+      },
+      options: {
+        ...chartDefaults,
+        plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } } },
+        scales: {
+          ...chartDefaults.scales,
+          y: { ...chartDefaults.scales.y, beginAtZero: false, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + ' bpm' } },
+        },
+      },
+    });
+    window.actHRChartInst = actHRChartInst;
+  }
+
+  // Stress chart
+  const stressCanvas = _el('actStressChart');
+  if (stressCanvas) {
+    actStressChartInst = _destroyChart(actStressChartInst);
+    actStressChartInst = new Chart(stressCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: history.map(h => h.stressLevel || 0),
+          backgroundColor: history.map(h => {
+            const s = h.stressLevel || 0;
+            if (s <= 25) return 'rgba(42,135,3,0.6)';
+            if (s <= 50) return 'rgba(255,194,32,0.6)';
+            if (s <= 75) return 'rgba(249,115,22,0.6)';
+            return 'rgba(234,17,0,0.6)';
+          }),
+          borderRadius: 6,
+        }],
+      },
+      options: chartDefaults,
+    });
+  }
+
+  // Body battery chart
+  const batteryCanvas = _el('actBatteryChart');
+  if (batteryCanvas) {
+    actBatteryChartInst = _destroyChart(actBatteryChartInst);
+    actBatteryChartInst = new Chart(batteryCanvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Body Battery',
+          data: history.map(h => h.bodyBattery || null),
+          borderColor: '#0891b2',
+          backgroundColor: 'rgba(8,145,178,0.1)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 5,
+          pointBackgroundColor: '#0891b2',
+          spanGaps: true,
+          borderWidth: 2.5,
+        }],
+      },
+      options: {
+        ...chartDefaults,
+        scales: {
+          ...chartDefaults.scales,
+          y: { ...chartDefaults.scales.y, min: 0, max: 100 },
+        },
+      },
+    });
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────
+loadActivityData();
 setInterval(loadActivityData, 30000);
