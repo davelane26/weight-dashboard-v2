@@ -1,0 +1,41 @@
+name: Garmin Backfill
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      days:
+        description: 'Number of days to backfill'
+        required: true
+        default: '30'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r garmin_sync/requirements.txt
+
+      - name: Restore Garmin session cache
+        uses: actions/cache@v4
+        with:
+          path: garmin_sync/.garmin_session
+          key: garmin-session-${{ github.run_id }}
+          restore-keys: garmin-session-
+
+      - name: Backfill Garmin data
+        working-directory: garmin_sync
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
+        run: python sync_garmin.py --days ${{ inputs.days }}
