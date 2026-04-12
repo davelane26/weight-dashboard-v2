@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="activity_styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script>
     // ⬇️ Paste your Cloudflare Worker URL here after deploying
@@ -415,17 +416,17 @@
     </section>
   </div><!-- /tab-glucose -->
 
-  <!-- ── Activity tab panel ─────────────────────────────────────── -->
+  <!-- ── Activity tab panel (overhauled) ─────────────────────────── -->
   <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
 
     <!-- Today hero -->
-    <section class="trend-hero fade-in" aria-label="Today's activity" style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%)">
+    <section class="trend-hero fade-in" aria-label="Today's activity"
+             style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%);color:white">
       <div>
-        <p class="trend-label">Steps Today</p>
-        <p class="trend-value" id="act-steps">—</p>
-        <p class="trend-sub" id="act-steps-sub">synced via Garmin · Health Connect</p>
+        <p class="trend-label" style="color:rgba(255,255,255,0.7)">Steps Today</p>
+        <p class="trend-value" id="act-steps" style="color:#7bc67e">—</p>
+        <p class="trend-sub" id="act-steps-sub" style="color:rgba(255,255,255,0.6)">synced via garminconnect</p>
       </div>
-      
     </section>
 
     <!-- KPI row -->
@@ -446,7 +447,7 @@
           <p class="kpi-sub" id="act-hr-sub"></p>
         </div>
 
-        <div class="kpi" style="border-top-colo:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" style="color:#7c3aed">💪 Intensity</p>
           <p class="kpi-value" style="color:#7c3aed" id="act-intensity">—</p>
           <p class="kpi-unit">minutes</p>
@@ -458,6 +459,7 @@
           <p class="kpi-unit">avg level</p>
           <p class="kpi-sub" id="act-stress-sub"></p>
         </div>
+
         <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" style="color:#995213">🔋 Body Battery</p>
           <p class="kpi-value" style="color:#995213" id="act-battery">—</p>
@@ -470,22 +472,95 @@
           <p class="kpi-unit">total burned</p>
           <p class="kpi-sub" id="act-cal-breakdown"></p>
         </div>
-        
+
         <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" style="color:#2a8703">🏃 Fitness Age</p>
           <p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p>
           <p class="kpi-unit">years</p>
           <p class="kpi-sub">Actual age: 44</p>
         </div>
-       
+
+        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0053e2">🎯 VO2 Max</p>
+          <p class="kpi-value" style="color:#0053e2" id="act-vo2max">—</p>
+          <p class="kpi-unit">mL/kg/min</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Sleep Breakdown -->
+    <section class="card fade-in" id="sleep-breakdown" style="display:none;border-left:4px solid #7c3aed" aria-label="Sleep stages">
+      <h2 class="card-title">💤 Sleep Stages</h2>
+      <div id="sleep-stage-bar" style="display:flex;height:28px;border-radius:8px;overflow:hidden;gap:2px;margin-bottom:0.6rem"></div>
+      <div id="sleep-stage-legend" style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.75rem;font-weight:600"></div>
+    </section>
+
+    <!-- HRV Section -->
+    <section class="card fade-in" id="hrv-section" style="display:none;border-left:4px solid #2a8703" aria-label="HRV data">
+      <h2 class="card-title">💚 Heart Rate Variability</h2>
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-box" style="background:#f0fdf4">
+          <p class="label" style="color:#2a8703">Last Night</p>
+          <p class="val" style="color:#2a8703" id="hrv-last-night">—</p>
+        </div>
+        <div class="stat-box" style="background:#eff4ff">
+          <p class="label" style="color:#0053e2">Weekly Avg</p>
+          <p class="val" style="color:#0053e2" id="hrv-weekly-avg">—</p>
+        </div>
+        <div class="stat-box" style="background:#f5f6f8">
+          <p class="label" style="color:#6d7a95">Status</p>
+          <p class="val" style="color:#374151" id="hrv-status">—</p>
+        </div>
+      </div>
+      <p style="font-size:0.7rem;color:#6d7a95;margin-top:0.5rem" id="hrv-baseline"></p>
+    </section>
+
+    <!-- Today's Activities -->
+    <section class="card fade-in" aria-label="Today's workouts">
+      <h2 class="card-title">🏋️ Today's Activities</h2>
+      <div id="act-list"></div>
+    </section>
+
+    <!-- 7-Day Charts -->
+    <section class="card fade-in" aria-label="7-day activity charts">
+      <h2 class="card-title">📈 7-Day Trends</h2>
+      <div class="comp-charts" style="grid-template-columns:1fr">
+
+        <div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🚶 Steps</p>
+          <div class="comp-chart-wrap" style="height:180px"><canvas id="actStepsChart"></canvas></div>
+        </div>
+
+        <div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">💤 Sleep Stages</p>
+          <div class="comp-chart-wrap" style="height:200px"><canvas id="actSleepChart"></canvas></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">❤️ Heart Rate</p>
+            <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
+          </div>
+          <div>
+            <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">😐 Stress</p>
+            <div class="comp-chart-wrap" style="height:180px"><canvas id="actStressChart"></canvas></div>
+          </div>
+        </div>
+
+        <div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🔋 Body Battery</p>
+          <div class="comp-chart-wrap" style="height:180px"><canvas id="actBatteryChart"></canvas></div>
+        </div>
+
       </div>
     </section>
 
     <!-- Setup prompt (hidden once data arrives) -->
     <section class="card fade-in" id="act-setup" style="border-left:4px solid #ffc220;text-align:center;padding:2rem">
-      <p style="font-size:2rem">&#9889;</p>
-      <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">Waiting for Tasker…</h2>
-      <p style="font-size:0.82rem;color:#6d7a95">Once Tasker is configured it’ll push your Garmin data here automatically.</p>
+      <p style="font-size:2rem">⚡</p>
+      <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">Waiting for Garmin data…</h2>
+      <p style="font-size:0.82rem;color:#6d7a95">Run <code style="background:#f5f6f8;padding:2px 6px;border-radius:4px">python sync_garmin.py</code> to fetch your data from Garmin Connect, or trigger the GitHub Action.</p>
     </section>
 
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
