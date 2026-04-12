@@ -38,4 +38,5 @@ jobs:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
+          GARMIN_SESSION: ${{ secrets.GARMIN_SESSION }}
         run: python sync_garmin.py --days ${{ inputs.days }}
