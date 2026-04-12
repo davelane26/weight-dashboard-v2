@@ -11,18 +11,25 @@ Requires a .env file with GARMIN_EMAIL, GARMIN_PASSWORD, and FIREBASE_URL.
 
 import argparse
 import logging
+import os
 import sys
 from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
-import os
 
-from garmin_client import get_client, fetch_all_for_day, fetch_history
-from firebase_push import push_day, push_latest, push_history
-
-# Load .env from same directory as script
+# Load .env FIRST so proxy vars are available before any network imports
 load_dotenv(Path(__file__).parent / ".env")
+
+# Configure proxy if set (e.g. corporate networks like Walmart sysproxy)
+# Set HTTP_PROXY / HTTPS_PROXY in .env to route through corporate proxy
+_proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+if _proxy:
+    os.environ.setdefault("HTTP_PROXY", _proxy)
+    os.environ.setdefault("HTTPS_PROXY", _proxy)
+
+from garmin_client import get_client, fetch_all_for_day, fetch_history  # noqa: E402
+from firebase_push import push_day, push_latest, push_history  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
