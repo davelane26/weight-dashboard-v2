@@ -6,6 +6,7 @@ from Garmin Connect using the garminconnect package.
 
 import json
 import logging
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -17,19 +18,44 @@ SESSION_FILE = Path(__file__).parent / ".garmin_session"
 
 
 def get_client(email: str, password: str) -> Garmin:
-    """Authenticate with Garmin Connect, reusing cached session if valid."""
+    """Authenticate with Garmin Connect, reusing cached session if valid.
+
+    Session priority:
+      1. GARMIN_SESSION env var (base64-encoded session JSON — used in CI)
+      2. Local .garmin_session file (used on home machines)
+      3. Fresh login with email/password
+    """
+    import base64
+
     client = Garmin(email, password)
 
+    # 1. Try session from env var (GitHub Actions injects this as a secret)
+    session_b64 = os.environ.get("GARMIN_SESSION")
+    if session_b64:
+        try:
+            session_json = base64.b64decode(session_b64).decode("utf-8")
+            import json as _json
+            client.garth.loads(_json.loads(session_json))
+            client.display_name  # validate
+            logger.info("Reused Garmin session from GARMIN_SESSION env var")
+            # Persist locally so the cache step in CI can save it
+            SESSION_FILE.write_text(session_json)
+            return client
+        except Exception as e:
+            logger.warning("GARMIN_SESSION env var invalid, falling through: %s", e)
+
+    # 2. Try local session file
     if SESSION_FILE.exists():
         try:
             saved = json.loads(SESSION_FILE.read_text())
             client.garth.loads(saved)
             client.display_name  # quick check — throws if session expired
-            logger.info("Reused cached Garmin session")
+            logger.info("Reused cached Garmin session from file")
             return client
         except Exception:
             logger.info("Cached session expired, re-authenticating")
 
+    # 3. Fresh login (works from home/non-blocked IPs)
     client.login()
     SESSION_FILE.write_text(json.dumps(client.garth.dumps()))
     logger.info("Logged in to Garmin Connect, session cached")
