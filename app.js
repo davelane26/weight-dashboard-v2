@@ -252,12 +252,18 @@ function renderJourney(latest, data) {
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
   // Rate of loss (lbs/week via linear regression on last 30 days)
+  // Deduplicate to one reading per day first so we can report the real sample size
+  const byDay30 = {};
+  data.forEach(r => { byDay30[r.date.toDateString()] = r; });
+  const dailyPts = Object.values(byDay30).sort((a, b) => a.date - b.date).slice(-30);
   const slopePerDay = weightTrendSlope(data);
   if (slopePerDay !== null) {
     const lbsPerWeek = Math.abs(slopePerDay * 7);
     countUp('journey-rate', lbsPerWeek, 1);
+    setText('journey-rate-sub', `lbs/wk · ${dailyPts.length} day${dailyPts.length !== 1 ? 's' : ''} of data`);
   } else {
     setText('journey-rate', '—');
+    setText('journey-rate-sub', 'not enough data yet');
   }
 
   // Personal best (all-time lowest weight)
