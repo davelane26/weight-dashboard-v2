@@ -93,12 +93,12 @@ function parseDate(val) {
 
 // ── BMI category ────────────────────────────────────────────────────────
 function bmiCategory(bmi) {
-  if (bmi < 18.5) return ['Underweight',    'background:#dbeafe;color:#1d4ed8'];
-  if (bmi < 25)   return ['Normal',          'background:#dcfce7;color:#166534'];
-  if (bmi < 30)   return ['Overweight',      'background:#fef9c3;color:#854d0e'];
-  if (bmi < 35)   return ['Class I Obesity', 'background:#ffedd5;color:#c2410c'];
-  if (bmi < 40)   return ['Class II Obesity','background:#fee2e2;color:#991b1b'];
-  return               ['Class III Obesity', 'background:#fecaca;color:#7f1d1d'];
+  if (bmi < 18.5) return ['Underweight',  'background:#dbeafe;color:#1d4ed8'];
+  if (bmi < 25)   return ['Normal',        'background:#dcfce7;color:#166534'];
+  if (bmi < 30)   return ['Overweight',    'background:#fef9c3;color:#854d0e'];
+  if (bmi < 35)   return ['Obese I',       'background:#ffedd5;color:#c2410c'];
+  if (bmi < 40)   return ['Obese II',      'background:#fee2e2;color:#991b1b'];
+  return               ['Obese III',       'background:#fecaca;color:#7f1d1d'];
 }
 
 // ── Moving average ──────────────────────────────────────────────────────
@@ -234,17 +234,52 @@ function renderJourneyDuration() {
 }
 
 // ── Render journey ──────────────────────────────────────────────────────
-function renderJourney(latest) {
+function renderJourney(latest, data) {
   renderJourneyDuration();
-  const lost      = Math.max(0, START_WEIGHT - latest.weight);
-  const pct       = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
+  const lost = Math.max(0, START_WEIGHT - latest.weight);
+  const pct  = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
 
   countUp('journey-current',  latest.weight, 1);
   setText('journey-date',     fmtDate(latest.date));
-  countUp('journey-lost',     Math.max(0, START_WEIGHT - latest.weight), 1);
-  countUp('journey-pct-stat', Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100)), 1, '%');
-  el('journey-bar').style.width = pct + '%';
+  countUp('journey-lost',     lost, 1);
+  countUp('journey-pct-stat', pct, 1, '%');
+
+  const bar = el('journey-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
+  }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
+
+  // Rate of loss (lbs/week via linear regression on last 30 days)
+  const slopePerDay = weightTrendSlope(data);
+  if (slopePerDay !== null) {
+    const lbsPerWeek = Math.abs(slopePerDay * 7);
+    countUp('journey-rate', lbsPerWeek, 1);
+  } else {
+    setText('journey-rate', '—');
+  }
+
+  // Personal best (all-time lowest weight)
+  const best    = data.reduce((b, r) => r.weight < b.weight ? r : b, data[0]);
+  countUp('journey-best', best.weight, 1);
+  setText('journey-best-date', fmtDate(best.date));
+
+  // Next milestone ETA
+  const allTimeLow = Math.min(...data.map(r => r.weight));
+  const floor  = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
+  const steps  = [];
+  for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
+  const nextMilestone = steps.find(w => allTimeLow > w);
+  if (nextMilestone && slopePerDay && slopePerDay < 0) {
+    const remaining = latest.weight - nextMilestone;
+    const daysLeft  = remaining / Math.abs(slopePerDay);
+    const projDate  = new Date(latest.date.getTime() + daysLeft * 86400000);
+    setText('journey-next-eta',
+      `${nextMilestone} lbs · ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+  } else {
+    setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : '🎉 All done!');
+  }
 }
 
 // ── Milestones ──────────────────────────────────────────────────────
@@ -287,16 +322,17 @@ function renderBMITimeline(data, latest) {
     const isCurrentCat = bmiThreshold
       ? currentBmi < bmiThreshold && currentBmi >= (BMI_CATS[BMI_CATS.findIndex(c => c.max === cat.max) - 1]?.max ?? 0)
       : currentBmi >= 40;
-    const achieved = bmiThreshold ? currentBmi < bmiThreshold : false;
+    // A category is "passed" only when BMI has dropped below its minimum
+    const passed = currentBmi < cat.min;
     let dateStr = '';
-    if (!achieved && !isCurrentCat && bmiThreshold && bmiSlopePerDay && bmiSlopePerDay < 0) {
+    if (!passed && !isCurrentCat && bmiThreshold && bmiSlopePerDay && bmiSlopePerDay < 0) {
       const bmiToLose = currentBmi - bmiThreshold;
       const daysLeft  = bmiToLose / Math.abs(bmiSlopePerDay);
       const proj      = new Date(latest.date.getTime() + daysLeft * 86400000);
       dateStr = proj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
-    const cls = achieved ? 'achieved' : isCurrentCat ? 'current' : 'future';
-    const statusIcon = achieved ? '✓' : isCurrentCat ? '▶' : '';
+    const cls = passed ? 'achieved' : isCurrentCat ? 'current' : 'future';
+    const statusIcon = passed ? '✓' : isCurrentCat ? '▶' : '';
     // Weight range in lbs for this category
     const bmiToLbs = b => Math.round(b * heightM * heightM * 2.205);
     const minLbs = bmiToLbs(cat.min);
@@ -308,7 +344,7 @@ function renderBMITimeline(data, latest) {
         <div class="bmi-step-cat">${statusIcon ? statusIcon + ' ' : ''}${cat.label}</div>
         <div class="bmi-step-range">${cat.range} &middot; ${wtRange}</div>
       </div>
-      <div class="bmi-step-date">${achieved ? '✅ Achieved' : isCurrentCat ? 'You are here' : dateStr ? 'Est. ' + dateStr : '—'}</div>
+      <div class="bmi-step-date">${passed ? '✅ Cleared' : isCurrentCat ? '📍 You are here' : dateStr ? 'Est. ' + dateStr : '—'}</div>
     </div>`;
   }).join('');
 }
@@ -413,7 +449,7 @@ function renderWeightChart(data) {
           borderWidth: 2.5,
         },
         {
-          label: '7-day avg',
+          label: '7-day rolling avg (trend)',
           data: avg7,
           borderColor: '#ffc220',
           backgroundColor: 'transparent',
@@ -773,7 +809,7 @@ function renderAll() {
   renderMilestones(latest, allData);
   renderBMITimeline(allData, latest);
   renderKPIs(latest, prev);
-  renderJourney(latest);
+  renderJourney(latest, allData);
   renderStreak(allData);
   renderCalories(latest);
   renderWeightChart(allData);

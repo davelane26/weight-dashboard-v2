@@ -161,10 +161,28 @@
         <p class="sub">of body weight lost since 315 lbs</p>
       </div>
     </div>
-    <div class="progress-track">
-      <div class="progress-fill" id="journey-bar" style="width:0%"></div>
+    <div class="progress-track" style="height:1.25rem">
+      <div class="progress-fill" id="journey-bar" style="width:0%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;font-weight:700"></div>
     </div>
     <p style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem;text-align:right" id="journey-bar-label"></p>
+
+    <!-- Insight chips: rate, personal best, next milestone ETA -->
+    <div class="journey-insights">
+      <div class="insight-chip">
+        <p class="insight-label">📉 Avg rate</p>
+        <p class="insight-val" id="journey-rate">—</p>
+        <p class="insight-sub">lbs / week</p>
+      </div>
+      <div class="insight-chip">
+        <p class="insight-label">🏆 Personal best</p>
+        <p class="insight-val" id="journey-best">—</p>
+        <p class="insight-sub" id="journey-best-date"></p>
+      </div>
+      <div class="insight-chip">
+        <p class="insight-label">🎯 Next milestone</p>
+        <p class="insight-val" style="font-size:0.95rem" id="journey-next-eta">—</p>
+      </div>
+    </div>
 
   </section>
 

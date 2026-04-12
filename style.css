@@ -47,7 +47,7 @@
 }
 #root.dark body::before { background-image: radial-gradient(rgba(0,83,226,0.04) 1px, transparent 1px); }
 #root.dark .card        { background: var(--card-bg); border-color: var(--card-border); color: var(--text); }
-#root.dark .kpi         { background: var(--kpi-bg); }
+#root.dark .kpi         { background: var(--kpi-bg) !important; }
 #root.dark .stat-box    { background: var(--stat-box-bg) !important; }
 #root.dark .stat-box .label { color: var(--text-sub) !important; }
 #root.dark .stat-box .val   { color: var(--text) !important; }
@@ -69,6 +69,10 @@
 #root.dark .milestone-ring.future { background: #21262d; border-color: #30363d; color: var(--text-sub); }
 #root.dark .bmi-step   { background: #1c2130; border-color: #30363d; }
 #root.dark .bmi-step.current { border-color: var(--blue-100); background: #1c2d4f; }
+#root.dark .journey-insights  { background: #1c2130; border-color: #30363d; }
+#root.dark .insight-chip      { background: #161b22; border-color: #21262d; }
+#root.dark .insight-label     { color: var(--text-sub); }
+#root.dark .insight-val       { color: var(--text); }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -262,6 +266,46 @@ main {
 .stat-box .label { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
 .stat-box .val   { font-size: 1.65rem; font-weight: 900; line-height: 1; }
 .stat-box .sub   { font-size: 0.62rem; color: var(--gray-100); margin-top: 0.25rem; }
+
+/* ── Journey insight chips ────────────────── */
+.journey-insights {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  background: #f5f6f8;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+.insight-chip {
+  flex: 1;
+  min-width: 7rem;
+  text-align: center;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.75rem;
+}
+.insight-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--gray-100);
+  margin-bottom: 0.25rem;
+}
+.insight-val {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--gray-160);
+  line-height: 1.1;
+}
+.insight-sub {
+  font-size: 0.62rem;
+  color: var(--gray-100);
+  margin-top: 0.15rem;
+}
 
 /* ── Chart wrapper ───────────────────────── */
 .chart-wrap { position: relative; height: 300px; }
