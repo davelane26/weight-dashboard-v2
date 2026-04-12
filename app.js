@@ -565,7 +565,7 @@ function renderCompositionCharts(data) {
   });
 }
 
-// ── Render week-over-week table ─────────────────────────────────────────
+// ── Render week-over-week table ─────────────────────────────────────────────────────
 function renderWoW(data) {
   if (data.length < 2) return;
 
@@ -583,30 +583,38 @@ function renderWoW(data) {
   tbody.innerHTML = '';
 
   sorted.forEach((wk, i) => {
-    const rs   = wk.rows.sort((a, b) => a.date - b.date);
-    const avg  = rs.reduce((s, r) => s + r.weight, 0) / rs.length;
-    const min  = Math.min(...rs.map(r => r.weight));
-    const max  = Math.max(...rs.map(r => r.weight));
-    const fats = rs.filter(r => r.bodyFat).map(r => r.bodyFat);
+    const rs     = wk.rows.sort((a, b) => a.date - b.date);
+    const avg    = rs.reduce((s, r) => s + r.weight, 0) / rs.length;
+    const fats   = rs.filter(r => r.bodyFat).map(r => r.bodyFat);
     const avgFat = fats.length ? fats.reduce((s, v) => s + v, 0) / fats.length : null;
     const weekEnd = new Date(wk.sun); weekEnd.setDate(weekEnd.getDate() + 6);
 
-    // compare avg vs previous week
-    const prevAvg  = i > 0 ? sorted[i - 1].rows.reduce((s, r) => s + r.weight, 0) / sorted[i - 1].rows.length : null;
-    const diffAvg  = prevAvg != null ? avg - prevAvg : null;
+    const prevAvg = i > 0
+      ? sorted[i - 1].rows.reduce((s, r) => s + r.weight, 0) / sorted[i - 1].rows.length
+      : null;
+    const diff = prevAvg != null ? avg - prevAvg : null; // negative = lost weight ✓
+
+    // Build the "Lost" cell — this is the hero column
+    let lostHtml;
+    if (diff == null) {
+      lostHtml = '<span style="color:#c5c9d5">first week</span>';
+    } else if (diff < 0) {
+      lostHtml = `<span class="down" style="font-size:1.05rem;font-weight:800">▼ ${fmt(Math.abs(diff))} lbs</span>`;
+    } else if (diff > 0) {
+      lostHtml = `<span class="up" style="font-size:1.05rem;font-weight:800">▲ ${fmt(diff)} lbs</span>`;
+    } else {
+      lostHtml = '<span style="color:#6d7a95">no change</span>';
+    }
+
+    const weekLabel = wk.sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + '–' + weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><span style="font-weight:600">${fmtDate(wk.sun)}</span><br>
-          <span style="font-size:0.65rem;color:#6d7a95">${fmtDate(wk.sun)} – ${fmtDate(weekEnd)}</span></td>
+      <td style="font-weight:600;white-space:nowrap">${weekLabel}</td>
+      <td>${lostHtml}</td>
       <td style="text-align:center"><span class="badge" style="background:#eff4ff;color:#0053e2">${rs.length}</span></td>
-      <td style="font-weight:700">${fmt(avg)}</td>
-      <td>${fmt(min)}</td>
-      <td>${fmt(max)}</td>
-      <td>${diffAvg != null ? (diffAvg <= 0
-          ? `<span class="down">▼ ${fmt(Math.abs(diffAvg))}</span>`
-          : `<span class="up">▲ ${fmt(Math.abs(diffAvg))}</span>`)
-        : '<span style="color:#c5c9d5">—</span>'}</td>
+      <td style="font-weight:700">${fmt(avg)} lbs</td>
       <td>${avgFat != null ? fmtPct(avgFat) : '<span style="color:#c5c9d5">—</span>'}</td>
     `;
     tbody.appendChild(tr);

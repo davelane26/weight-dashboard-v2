@@ -168,10 +168,10 @@
 
     <!-- Insight chips: rate, personal best, next milestone ETA -->
     <div class="journey-insights">
-      <div class="insight-chip">
+      <div class="insight-chip" title="Best-fit line through your last 30 days of weigh-ins — smooths out daily fluctuations">
         <p class="insight-label">📉 Avg rate</p>
         <p class="insight-val" id="journey-rate">—</p>
-        <p class="insight-sub">lbs / week</p>
+        <p class="insight-sub">lbs/wk · 30-day trend</p>
       </div>
       <div class="insight-chip">
         <p class="insight-label">🏆 Personal best</p>
@@ -319,12 +319,10 @@
       <table class="data-table" aria-label="Weekly weight summary">
         <thead>
           <tr>
-            <th>Week of</th>
-            <th style="text-align:center">Readings</th>
+            <th>Week</th>
+            <th>Lost</th>
+            <th style="text-align:center">Logged</th>
             <th>Avg Weight</th>
-            <th>Min</th>
-            <th>Max</th>
-            <th>vs Prev Week</th>
             <th>Avg Fat %</th>
           </tr>
         </thead>
