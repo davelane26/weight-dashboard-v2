@@ -1,5 +1,5 @@
 // Service Worker — David's Weight Dashboard
-const CACHE     = 'weight-dash-v5'; // bumped version to force refresh
+const CACHE     = 'weight-dash-v6'; // bumped version to force refresh
 const DATA_URL  = 'https://davelane26.github.io/Weight-tracker/data.json';
 
 // App shell — these are cached on install
