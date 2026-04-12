@@ -565,10 +565,11 @@ function renderCompositionCharts(data) {
   });
 }
 
-// ── Render week-over-week table ─────────────────────────────────────────────────────
+// ── Render week-over-week table ─────────────────────────────────────────────
 function renderWoW(data) {
   if (data.length < 2) return;
 
+  // Group readings by calendar week (Sun–Sat)
   const weeks = {};
   data.forEach(r => {
     const d = new Date(r.date);
@@ -582,40 +583,37 @@ function renderWoW(data) {
   const tbody  = el('wow-body');
   tbody.innerHTML = '';
 
-  sorted.forEach((wk, i) => {
-    const rs     = wk.rows.sort((a, b) => a.date - b.date);
-    const avg    = rs.reduce((s, r) => s + r.weight, 0) / rs.length;
-    const fats   = rs.filter(r => r.bodyFat).map(r => r.bodyFat);
-    const avgFat = fats.length ? fats.reduce((s, v) => s + v, 0) / fats.length : null;
-    const weekEnd = new Date(wk.sun); weekEnd.setDate(weekEnd.getDate() + 6);
-
-    const prevAvg = i > 0
-      ? sorted[i - 1].rows.reduce((s, r) => s + r.weight, 0) / sorted[i - 1].rows.length
-      : null;
-    const diff = prevAvg != null ? avg - prevAvg : null; // negative = lost weight ✓
-
-    // Build the "Lost" cell — this is the hero column
-    let lostHtml;
-    if (diff == null) {
-      lostHtml = '<span style="color:#c5c9d5">first week</span>';
-    } else if (diff < 0) {
-      lostHtml = `<span class="down" style="font-size:1.05rem;font-weight:800">▼ ${fmt(Math.abs(diff))} lbs</span>`;
-    } else if (diff > 0) {
-      lostHtml = `<span class="up" style="font-size:1.05rem;font-weight:800">▲ ${fmt(diff)} lbs</span>`;
-    } else {
-      lostHtml = '<span style="color:#6d7a95">no change</span>';
-    }
+  sorted.forEach(wk => {
+    const rs      = wk.rows.sort((a, b) => a.date - b.date);
+    const first   = rs[0].weight;
+    const last    = rs[rs.length - 1].weight;
+    const lost    = first - last;  // positive = lost weight ✓
+    const weekEnd = new Date(wk.sun);
+    weekEnd.setDate(weekEnd.getDate() + 6);
 
     const weekLabel = wk.sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       + '–' + weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+    let lostHtml;
+    if (rs.length === 1) {
+      lostHtml = '<span style="color:#c5c9d5">one reading</span>';
+    } else if (lost > 0) {
+      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(lost)} lbs</span>`;
+    } else if (lost < 0) {
+      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(lost))} lbs</span>`;
+    } else {
+      lostHtml = '<span style="color:#6d7a95">no change</span>';
+    }
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="font-weight:600;white-space:nowrap">${weekLabel}</td>
+      <td style="color:#6d7a95">${fmt(first)} lbs</td>
+      <td style="color:#6d7a95">${fmt(last)} lbs</td>
       <td>${lostHtml}</td>
-      <td style="text-align:center"><span class="badge" style="background:#eff4ff;color:#0053e2">${rs.length}</span></td>
-      <td style="font-weight:700">${fmt(avg)} lbs</td>
-      <td>${avgFat != null ? fmtPct(avgFat) : '<span style="color:#c5c9d5">—</span>'}</td>
+      <td style="text-align:center">
+        <span class="badge" style="background:#eff4ff;color:#0053e2">${rs.length}</span>
+      </td>
     `;
     tbody.appendChild(tr);
   });

@@ -787,7 +787,8 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   .data-table th,
   .data-table td { font-size: 0.7rem; padding: 0.4rem 0.35rem; }
 
-  /* Week-Over-Week — hide Logged + Avg Fat % on small screens, keep Week / Lost / Avg Weight */
+  /* Week-Over-Week — on mobile just show Week + Lost */
+  .data-table th:nth-child(2), .data-table td:nth-child(2),
   .data-table th:nth-child(3), .data-table td:nth-child(3),
   .data-table th:nth-child(5), .data-table td:nth-child(5) { display: none; }
 
