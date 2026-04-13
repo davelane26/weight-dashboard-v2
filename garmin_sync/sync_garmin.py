@@ -29,6 +29,11 @@ if _proxy:
     os.environ.setdefault("HTTPS_PROXY", _proxy)
 
 from garmin_client import get_client, fetch_all_for_day, fetch_history  # noqa: E402
+from garmin_cookie_client import (
+    get_cookies, get_display_name,
+    fetch_all_for_day as cookie_fetch_day,
+    fetch_history as cookie_fetch_history,
+)  # noqa: E402
 from firebase_push import push_day, push_latest, push_history  # noqa: E402
 
 logging.basicConfig(
@@ -56,7 +61,50 @@ def main() -> int:
         )
         return 1
 
-    # Authenticate
+    # Try cookie-based auth first (no rate limits, no OAuth headaches)
+    use_cookies = bool(os.getenv("GARMIN_COOKIES"))
+    if not use_cookies:
+        from pathlib import Path as _Path
+        use_cookies = (_Path(__file__).parent / ".garmin_cookies").exists()
+
+    if use_cookies:
+        logger.info("Using browser cookie auth...")
+        try:
+            cookies = get_cookies()
+            display_name = get_display_name(cookies)
+            if not display_name:
+                logger.warning("Could not get display name from cookies, falling back to OAuth")
+                use_cookies = False
+            else:
+                logger.info("Authenticated via cookies as %s", display_name)
+        except Exception as e:
+            logger.warning("Cookie auth failed: %s — falling back to OAuth", e)
+            use_cookies = False
+
+    if use_cookies:
+        if args.today:
+            today = date.today()
+            logger.info("Fetching today's data (%s)...", today.isoformat())
+            data = cookie_fetch_day(cookies, display_name, today)
+            if not data.get("steps") and not data.get("sleepHours"):
+                logger.warning("No data found for today yet")
+                return 0
+            push_day(firebase_url, today.isoformat(), data)
+            push_latest(firebase_url, data)
+            _print_summary(data)
+        else:
+            logger.info("Fetching last %d days of data...", args.days)
+            history = cookie_fetch_history(cookies, display_name, days=args.days)
+            if not history:
+                logger.warning("No data found")
+                return 0
+            count = push_history(firebase_url, history)
+            logger.info("Pushed %d/%d days to Firebase", count, len(history))
+            _print_summary(history[-1])
+        logger.info("Sync complete!")
+        return 0
+
+    # Fall back to OAuth/garth-based auth
     logger.info("Connecting to Garmin Connect as %s...", email)
     try:
         client = get_client(email, password)
