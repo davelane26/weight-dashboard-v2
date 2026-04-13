@@ -893,11 +893,14 @@ function computeProjection() {
       } else if (rounded < 100) {
         dateResult.textContent = 'Way beyond goal — you’d be a ghost 👻';
       } else {
-        const dateLabel = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        const lost      = projLatestWeight - rounded;
-        const lostStr   = lost > 0 ? ` (▼ ${fmt(lost)} lbs from now)` : lost < 0 ? ` (▲ ${fmt(Math.abs(lost))} lbs from now)` : '';
-        dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel}${lostStr}`;
-        dateResult.style.color = lost > 0 ? '#2a8703' : '#ea1100';
+        const dateLabel  = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const lostNow    = projLatestWeight - rounded;          // change from current
+        const lostTotal  = START_WEIGHT - rounded;              // total from 315.0
+        const lostNowStr = lostNow > 0
+          ? `▼ ${fmt(lostNow)} lbs from now`
+          : `▲ ${fmt(Math.abs(lostNow))} lbs from now`;
+        dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
+        dateResult.style.color = lostNow > 0 ? '#2a8703' : '#ea1100';
       }
     }
   }
