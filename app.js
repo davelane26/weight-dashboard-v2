@@ -106,13 +106,17 @@ function toggleDark() {
   if (TABS.includes(currentTab)) switchTab(currentTab);
 }
 
-// ── State ───────────────────────────────────────────────────────────
-let allData       = [];
-let goalWeight    = null;
-let calLog        = {};
-let charts        = {};
-let chartRange    = 'all';
-let activityLevel = 'moderate';
+// ── State ──────────────────────────────────────────────────────────
+let allData            = [];
+let goalWeight         = null;
+let calLog             = {};
+let charts             = {};
+let chartRange         = 'all';
+let activityLevel      = 'moderate';
+// Projection calculator — updated by renderJourney on every data load
+let projSlopeLbsPerDay = null;   // negative = losing weight
+let projLatestWeight   = null;
+let projLatestDate     = null;
 
 // ── Formatters ─────────────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
@@ -322,6 +326,23 @@ function renderJourney(latest, data) {
   data.forEach(r => { byDay30[r.date.toDateString()] = r; });
   const dailyPts = Object.values(byDay30).sort((a, b) => a.date - b.date).slice(-30);
   const slopePerDay = weightTrendSlope(data);
+  // Expose to projection calculator — updated every data refresh
+  projSlopeLbsPerDay = slopePerDay;
+  projLatestWeight   = latest.weight;
+  projLatestDate     = latest.date;
+
+  // Update projector blurb with current trend rate
+  const blurb = document.getElementById('proj-trend-blurb');
+  if (blurb) {
+    if (slopePerDay !== null) {
+      const wkRate = Math.abs(slopePerDay * 7).toFixed(1);
+      const dir    = slopePerDay < 0 ? 'losing' : 'gaining';
+      blurb.textContent = `Based on your 30-day trend — currently ${dir} ~${wkRate} lbs/week`;
+    } else {
+      blurb.textContent = 'Not enough data yet for a trend (need ~30 days of readings)';
+    }
+  }
+
   if (slopePerDay !== null) {
     const lbsPerWeek = Math.abs(slopePerDay * 7);
     countUp('journey-rate', lbsPerWeek, 1);
@@ -351,6 +372,8 @@ function renderJourney(latest, data) {
   } else {
     setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : '🎉 All done!');
   }
+  // Refresh projector if user already has inputs filled
+  computeProjection();
 }
 
 // ── Milestones ──────────────────────────────────────────────────────
@@ -928,6 +951,71 @@ function renderCalLog(latest) {
 }
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
+
+// ── Weight Projector ────────────────────────────────────────────────────
+function computeProjection() {
+  const dateInput   = document.getElementById('proj-date-input');
+  const weightInput = document.getElementById('proj-weight-input');
+  const dateResult  = document.getElementById('proj-date-result');
+  const weightResult= document.getElementById('proj-weight-result');
+
+  const noTrend = () => {
+    if (dateResult)   dateResult.textContent   = 'Need more data (< 30 days of readings)';
+    if (weightResult) weightResult.textContent = 'Need more data (< 30 days of readings)';
+  };
+
+  if (!projSlopeLbsPerDay || !projLatestWeight || !projLatestDate) {
+    noTrend(); return;
+  }
+
+  const MS_PER_DAY = 86_400_000;
+
+  // ── Date → Projected weight ───────────────────────────────────
+  if (dateInput && dateResult) {
+    const targetDate = dateInput.value ? new Date(dateInput.value + 'T12:00:00') : null;
+    if (!targetDate || isNaN(targetDate)) {
+      dateResult.textContent = 'Pick a date above';
+    } else {
+      const daysDiff    = (targetDate - projLatestDate) / MS_PER_DAY;
+      const projected   = projLatestWeight + projSlopeLbsPerDay * daysDiff;
+      const isFuture    = daysDiff > 0;
+      const rounded     = Math.round(projected * 10) / 10;
+      if (!isFuture) {
+        dateResult.textContent = 'Pick a future date';
+      } else if (rounded < 100) {
+        dateResult.textContent = 'Way beyond goal — you’d be a ghost 👻';
+      } else {
+        const dateLabel = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const lost      = projLatestWeight - rounded;
+        const lostStr   = lost > 0 ? ` (▼ ${fmt(lost)} lbs from now)` : lost < 0 ? ` (▲ ${fmt(Math.abs(lost))} lbs from now)` : '';
+        dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel}${lostStr}`;
+        dateResult.style.color = lost > 0 ? '#2a8703' : '#ea1100';
+      }
+    }
+  }
+
+  // ── Target weight → Projected date ──────────────────────────────
+  if (weightInput && weightResult) {
+    const targetW = parseFloat(weightInput.value);
+    if (!weightInput.value || isNaN(targetW)) {
+      weightResult.textContent = 'Enter a target weight above';
+    } else if (targetW >= projLatestWeight) {
+      weightResult.textContent = 'That’s above your current weight — enter something lower';
+      weightResult.style.color = '#ea1100';
+    } else if (projSlopeLbsPerDay >= 0) {
+      weightResult.textContent = 'Your trend is flat or gaining — projection unavailable';
+      weightResult.style.color = '#ea1100';
+    } else {
+      const daysNeeded  = (projLatestWeight - targetW) / Math.abs(projSlopeLbsPerDay);
+      const targetDate  = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
+      const dateLabel   = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const daysRounded = Math.round(daysNeeded);
+      weightResult.textContent = `~${dateLabel} · ${daysRounded} day${daysRounded !== 1 ? 's' : ''} from now`;
+      weightResult.style.color = '#2a8703';
+    }
+  }
+}
+window.computeProjection = computeProjection;
 
 // ── This Week vs Last Week comparison ────────────────────────────────
 // ── Monthly Summary ───────────────────────────────────────────────────
