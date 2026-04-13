@@ -22,6 +22,23 @@ const _set = (id, v) => { const e = _el(id); if (e) e.textContent = v ?? '—'; 
 const _html = (id, v) => { const e = _el(id); if (e) e.innerHTML = v; };
 const _fmtK = n => n != null ? Math.round(n).toLocaleString() : '—';
 
+// Bug 4 helpers: detect ghost data + render a friendly empty state on canvas
+const _allZero = arr => arr.every(v => !v || v === 0);
+function _emptyChart(inst, canvas, msg = 'No data yet for this period') {
+  if (inst) { inst.destroy(); }
+  if (!canvas) return null;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.font = '13px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#6d7a95';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(msg, canvas.width / 2, Math.max(canvas.height / 2, 30));
+  ctx.restore();
+  return null;
+}
+
 function _stressLabel(level) {
   if (!level) return '';
   if (level <= 25) return '🟢 Resting';
@@ -72,12 +89,17 @@ async function loadActivityData() {
 
 // ── KPI Cards ──────────────────────────────────────────────────────
 function renderActivityKPIs(data) {
-  // Steps hero
-  _set('act-steps', _fmtK(data.steps));
+  // Steps hero — Bug 2 fix: fall back to step-based distance when Garmin
+  // doesn't include a distance field (avoids the "0 mi" display bug)
+  const STEPS_PER_MILE = 2000;
   const stepGoal = 10000;
   const stepPct = Math.min(100, ((data.steps || 0) / stepGoal) * 100);
+  const distMi = data.distance
+    ? (+data.distance).toFixed(2)
+    : (data.steps ? (data.steps / STEPS_PER_MILE).toFixed(2) : '0.00');
+  _set('act-steps', _fmtK(data.steps));
   _set('act-steps-sub',
-    `${data.distance || 0} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
+    `${distMi} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
 
   // Sleep
   _set('act-sleep', data.sleepDuration || data.sleepHours || '—');
@@ -112,8 +134,14 @@ function renderActivityKPIs(data) {
   // Fitness age
   _set('act-fitness-age', data.fitnessAge || '—');
 
-  // VO2 Max
-  _set('act-vo2max', data.vo2Max ? data.vo2Max.toFixed(1) : '—');
+  // VO2 Max — Bug 3 fix: show a contextual fallback instead of a silent '—'
+  if (data.vo2Max) {
+    _set('act-vo2max', data.vo2Max.toFixed(1));
+    _set('act-vo2max-unit', 'mL/kg/min');
+  } else {
+    _set('act-vo2max', '—');
+    _set('act-vo2max-unit', 'Needs outdoor GPS activity');
+  }
 }
 
 // ── Sleep Breakdown ─────────────────────────────────────────────────
@@ -241,88 +269,110 @@ async function loadActivityCharts() {
     },
   };
 
-  // Steps chart
+  // Steps chart — Bug 4 fix: show empty state instead of ghost zero bars
   const stepsCanvas = _el('actStepsChart');
+  const stepsData = history.map(h => h.steps || 0);
   if (stepsCanvas) {
-    actStepsChartInst = _destroyChart(actStepsChartInst);
-    actStepsChartInst = new Chart(stepsCanvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          data: history.map(h => h.steps || 0),
-          backgroundColor: history.map(h => (h.steps || 0) >= 10000
-            ? 'rgba(42,135,3,0.7)' : 'rgba(42,135,3,0.35)'),
-          borderColor: '#2a8703',
-          borderWidth: 1,
-          borderRadius: 6,
-        }],
-      },
-      options: {
-        ...chartDefaults,
-        scales: {
-          ...chartDefaults.scales,
-          y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => _fmtK(v) } },
+    if (_allZero(stepsData)) {
+      actStepsChartInst = _emptyChart(actStepsChartInst, stepsCanvas, 'No step data yet — keep moving! 🚶');
+      window.actStepsChartInst = null;
+    } else {
+      actStepsChartInst = _destroyChart(actStepsChartInst);
+      actStepsChartInst = new Chart(stepsCanvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: stepsData,
+            backgroundColor: stepsData.map(s => s >= 10000
+              ? 'rgba(42,135,3,0.7)' : 'rgba(42,135,3,0.35)'),
+            borderColor: '#2a8703',
+            borderWidth: 1,
+            borderRadius: 6,
+          }],
         },
-      },
-    });
-    window.actStepsChartInst = actStepsChartInst;
+        options: {
+          ...chartDefaults,
+          scales: {
+            ...chartDefaults.scales,
+            y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => _fmtK(v) } },
+          },
+        },
+      });
+      window.actStepsChartInst = actStepsChartInst;
+    }
   }
 
-  // Sleep chart (stacked bar: deep/light/rem/awake)
+  // Sleep chart (stacked bar) — Bug 4 fix: check for real data first
   const sleepCanvas = _el('actSleepChart');
+  const sleepDeep  = history.map(h => h.sleepStages?.deep  || 0);
+  const sleepLight = history.map(h => h.sleepStages?.light || 0);
+  const sleepREM   = history.map(h => h.sleepStages?.rem   || 0);
+  const sleepAwake = history.map(h => h.sleepStages?.awake || 0);
   if (sleepCanvas) {
-    actSleepChartInst = _destroyChart(actSleepChartInst);
-    actSleepChartInst = new Chart(sleepCanvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Deep',  data: history.map(h => h.sleepStages?.deep || 0),  backgroundColor: '#1e3a5f', borderRadius: 3 },
-          { label: 'Light', data: history.map(h => h.sleepStages?.light || 0), backgroundColor: '#4a90d9', borderRadius: 3 },
-          { label: 'REM',   data: history.map(h => h.sleepStages?.rem || 0),   backgroundColor: '#7c3aed', borderRadius: 3 },
-          { label: 'Awake', data: history.map(h => h.sleepStages?.awake || 0), backgroundColor: '#f59e0b', borderRadius: 3 },
-        ],
-      },
-      options: {
-        ...chartDefaults,
-        plugins: {
-          legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
-          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)}h` } },
+    if ([sleepDeep, sleepLight, sleepREM, sleepAwake].every(_allZero)) {
+      actSleepChartInst = _emptyChart(actSleepChartInst, sleepCanvas, 'No sleep stage data yet');
+      window.actSleepChartInst = null;
+    } else {
+      actSleepChartInst = _destroyChart(actSleepChartInst);
+      actSleepChartInst = new Chart(sleepCanvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Deep',  data: sleepDeep,  backgroundColor: '#1e3a5f', borderRadius: 3 },
+            { label: 'Light', data: sleepLight, backgroundColor: '#4a90d9', borderRadius: 3 },
+            { label: 'REM',   data: sleepREM,   backgroundColor: '#7c3aed', borderRadius: 3 },
+            { label: 'Awake', data: sleepAwake, backgroundColor: '#f59e0b', borderRadius: 3 },
+          ],
         },
-        scales: {
-          ...chartDefaults.scales,
-          x: { ...chartDefaults.scales.x, stacked: true },
-          y: { ...chartDefaults.scales.y, stacked: true, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'h' } },
+        options: {
+          ...chartDefaults,
+          plugins: {
+            legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
+            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)}h` } },
+          },
+          scales: {
+            ...chartDefaults.scales,
+            x: { ...chartDefaults.scales.x, stacked: true },
+            y: { ...chartDefaults.scales.y, stacked: true, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'h' } },
+          },
         },
-      },
-    });
-    window.actSleepChartInst = actSleepChartInst;
+      });
+      window.actSleepChartInst = actSleepChartInst;
+    }
   }
 
-  // Heart rate chart
-  const hrCanvas = _el('actHRChart');
+  // Heart rate chart — Bug 4 fix: check for real HR data first
+  const hrCanvas    = _el('actHRChart');
+  const hrData      = history.map(h => h.restingHR || null);
+  const avgHRData   = history.map(h => h.avgHR    || null);
   if (hrCanvas) {
-    actHRChartInst = _destroyChart(actHRChartInst);
-    actHRChartInst = new Chart(hrCanvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Resting HR', data: history.map(h => h.restingHR || null), borderColor: '#ea1100', backgroundColor: 'rgba(234,17,0,0.08)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#ea1100', spanGaps: true, borderWidth: 2.5 },
-          { label: 'Avg HR', data: history.map(h => h.avgHR || null), borderColor: '#f59e0b', backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 3, spanGaps: true, borderWidth: 1.5, borderDash: [4, 3] },
-        ],
-      },
-      options: {
-        ...chartDefaults,
-        plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } } },
-        scales: {
-          ...chartDefaults.scales,
-          y: { ...chartDefaults.scales.y, beginAtZero: false, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + ' bpm' } },
+    if (_allZero(hrData.map(v => v || 0)) && _allZero(avgHRData.map(v => v || 0))) {
+      actHRChartInst = _emptyChart(actHRChartInst, hrCanvas, 'No heart rate data yet');
+      window.actHRChartInst = null;
+    } else {
+      actHRChartInst = _destroyChart(actHRChartInst);
+      actHRChartInst = new Chart(hrCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Resting HR', data: hrData,    borderColor: '#ea1100', backgroundColor: 'rgba(234,17,0,0.08)', fill: true,  tension: 0.3, pointRadius: 5, pointBackgroundColor: '#ea1100', spanGaps: true, borderWidth: 2.5 },
+            { label: 'Avg HR',     data: avgHRData, borderColor: '#f59e0b', backgroundColor: 'transparent',         fill: false, tension: 0.3, pointRadius: 3, spanGaps: true, borderWidth: 1.5, borderDash: [4, 3] },
+          ],
         },
-      },
-    });
-    window.actHRChartInst = actHRChartInst;
+        options: {
+          ...chartDefaults,
+          plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } } },
+          scales: {
+            ...chartDefaults.scales,
+            y: { ...chartDefaults.scales.y, beginAtZero: false, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + ' bpm' } },
+          },
+        },
+      });
+      window.actHRChartInst = actHRChartInst;
+    }
   }
 
   // Stress chart
