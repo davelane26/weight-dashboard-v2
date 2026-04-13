@@ -60,6 +60,10 @@
             onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">
       ⚖️ Weight
     </button>
+    <button class="tab-btn" role="tab" id="tab-btn-projector"
+            onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">
+      🔮 Projector
+    </button>
     <button class="tab-btn" role="tab" id="tab-btn-glucose"
             onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
       🩸 Glucose
@@ -67,10 +71,6 @@
     <button class="tab-btn" role="tab" id="tab-btn-activity"
             onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">
       🏃 Activity
-    </button>
-    <button class="tab-btn" role="tab" id="tab-btn-projector"
-            onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">
-      🔮 Projector
     </button>
   </nav>
 
@@ -236,6 +236,39 @@
       </div>
     </div>
     <p id="goal-empty" style="font-size:0.8rem;color:#6d7a95;padding:0.5rem 0">Enter a target weight above to track your progress</p>
+
+    <!-- ── Calorie targets (folded in from standalone card) ── -->
+    <hr style="border:none;border-top:1px solid #e5e9f5;margin:1rem 0" />
+    <div style="margin-bottom:0.75rem">
+      <p style="font-size:0.7rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">
+        ⚡ Activity Level <span style="font-weight:400">· used for TDEE calculation</span>
+      </p>
+      <div class="activity-pills" role="group" aria-label="Activity level">
+        <button class="activity-pill" data-level="sedentary"   onclick="setActivityLevel('sedentary')">Sedentary</button>
+        <button class="activity-pill" data-level="light"       onclick="setActivityLevel('light')">Light</button>
+        <button class="activity-pill" data-level="moderate"    onclick="setActivityLevel('moderate')">Moderate</button>
+        <button class="activity-pill" data-level="active"      onclick="setActivityLevel('active')">Active</button>
+        <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
+      </div>
+      <p id="activity-desc" style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem"></p>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-box" style="background:#eff4ff">
+        <p class="cal-label" style="color:#0053e2">Maintain</p>
+        <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
+        <p class="cal-sub">kcal/day</p>
+      </div>
+      <div class="cal-box" style="background:#f0fdf4">
+        <p class="cal-label" style="color:#2a8703">Lose 1 lb/wk</p>
+        <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
+        <p class="cal-sub">kcal/day</p>
+      </div>
+      <div class="cal-box" style="background:#fef9ec">
+        <p class="cal-label" style="color:#995213">Lose 2 lbs/wk</p>
+        <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
+        <p class="cal-sub">kcal/day</p>
+      </div>
+    </div>
   </section>
 
   <!-- ── Weight Trend Chart ───────────────────────────────── -->
@@ -273,49 +306,7 @@
     </div>
   </section>
 
-  <!-- ── Calorie Insights ───────────────────────────────────────────── -->
-  <section class="card fade-in" aria-label="Calorie insights">
-    <h2 class="card-title">Calorie &amp; Goal Insights</h2>
 
-    <!-- Activity level picker -->
-    <div style="margin-bottom:1rem">
-      <p style="font-size:0.72rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">
-        ⚡ Activity Level <span style="font-weight:400">· used to calculate your real TDEE from scale data</span>
-      </p>
-      <div class="activity-pills" role="group" aria-label="Activity level">
-        <button class="activity-pill" data-level="sedentary"  onclick="setActivityLevel('sedentary')">Sedentary</button>
-        <button class="activity-pill" data-level="light"      onclick="setActivityLevel('light')">Light</button>
-        <button class="activity-pill" data-level="moderate"   onclick="setActivityLevel('moderate')">Moderate</button>
-        <button class="activity-pill" data-level="active"     onclick="setActivityLevel('active')">Active</button>
-        <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
-      </div>
-      <p id="activity-desc" style="font-size:0.7rem;color:#6d7a95;margin-top:0.4rem"></p>
-    </div>
-
-    <div class="cal-grid">
-      <div class="cal-box" style="background:#eff4ff">
-        <p class="cal-label" style="color:#0053e2">Maintain Weight</p>
-        <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
-        <p class="cal-sub">kcal/day = TDEE</p>
-      </div>
-      <div class="cal-box" style="background:#f0fdf4">
-        <p class="cal-label" style="color:#2a8703">Lose 1 lb/week</p>
-        <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
-        <p class="cal-sub">kcal/day (−500 deficit)</p>
-      </div>
-      <div class="cal-box" style="background:#fef9ec">
-        <p class="cal-label" style="color:#995213">Lose 2 lbs/week</p>
-        <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
-        <p class="cal-sub">kcal/day (−1,000 deficit)</p>
-      </div>
-    </div>
-  </section>
-
-  
-  <section class="card fade-in" aria-label="Monthly summary">
-    <h2 class="card-title">📆 Monthly Summary</h2>
-    <div id="monthly-summary-body"></div>
-  </section>
 
   <!-- ── Week Over Week Table ───────────────────────────────────── -->
   <section class="card fade-in" aria-label="Week over week breakdown">

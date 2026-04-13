@@ -911,51 +911,7 @@ function computeProjection() {
 }
 window.computeProjection = computeProjection;
 
-// ── This Week vs Last Week comparison ────────────────────────────────
-// ── Monthly Summary ───────────────────────────────────────────────────
-function renderMonthlySummary(data) {
-  const box = el('monthly-summary-body');
-  if (!box) return;
-
-  // Group by YYYY-MM
-  const months = {};
-  data.forEach(r => {
-    const k = r.date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }); // 'YYYY-MM'
-    if (!months[k]) months[k] = [];
-    months[k].push(r);
-  });
-
-  const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0])).reverse();
-
-  box.innerHTML = sorted.map(([key, rows], i) => {
-    const rs      = rows.sort((a, b) => a.date - b.date);
-    const first   = rs[0].weight;
-    const last    = rs[rs.length - 1].weight;
-    const lost    = first - last;
-    const [yr, mo] = key.split('-');
-    const label   = new Date(+yr, +mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const isCurrent = i === 0;
-    const lostColor = lost > 0 ? '#2a8703' : lost < 0 ? '#ea1100' : '#6d7a95';
-    const lostText  = lost > 0 ? `▼ ${fmt(lost)} lbs` : lost < 0 ? `▲ ${fmt(Math.abs(lost))} lbs` : 'No change';
-
-    return `
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
-                  gap:0.5rem;padding:0.6rem 0;
-                  border-bottom:1px solid var(--gray-10, #f5f6f8)">
-        <div style="display:flex;align-items:center;gap:0.5rem">
-          ${isCurrent ? '<span style="background:#eff4ff;color:#0053e2;font-size:0.62rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:9999px">Current</span>' : ''}
-          <span style="font-weight:700;font-size:0.9rem">${label}</span>
-          <span style="font-size:0.7rem;color:#6d7a95">${rs.length} reading${rs.length !== 1 ? 's' : ''}</span>
-        </div>
-        <div style="text-align:right">
-          <span style="font-size:1.15rem;font-weight:800;color:${lostColor}">${lostText}</span>
-          <span style="font-size:0.68rem;color:#6d7a95;margin-left:0.4rem">${fmt(first)} → ${fmt(last)} lbs</span>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-// ── Master render ───────────────────────────────────────────────────────
+// ── Master render
 function renderAll() {
   if (!allData.length) return;
   const latest = allData[allData.length - 1];
@@ -975,7 +931,6 @@ function renderAll() {
   renderCalories(latest);
   renderWeightChart(allData);
   renderCompositionCharts(allData);
-  renderMonthlySummary(allData);
   renderWoW(allData);
   renderGoal(latest, allData);
 
