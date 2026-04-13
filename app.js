@@ -70,6 +70,15 @@ function switchTab(name) {
   });
   localStorage.setItem('wt_v2_tab', name);
   // Chart.js needs a nudge when its canvas becomes visible
+  if (name === 'weight') {
+    // Soft-refresh fix: charts rendered into a hidden tab have 0 dimensions.
+    // Resize them once the panel is visible so they fill the space correctly.
+    setTimeout(() => {
+      ['weight', 'comp', 'water'].forEach(k => {
+        if (charts[k]) charts[k].resize();
+      });
+    }, 50);
+  }
   if (name === 'glucose') {
     setTimeout(() => {
       if (window.glucoseChartInstance) window.glucoseChartInstance.resize();
@@ -302,6 +311,11 @@ function renderJourney(latest, data) {
   setText('journey-date',     fmtDate(latest.date));
   countUp('journey-lost',     lost, 1);
   countUp('journey-pct-stat', pct, 1, '%');
+
+  // Mirror the same numbers onto the Projector tab snapshot
+  countUp('proj-stat-current', latest.weight, 1);
+  countUp('proj-stat-lost',    lost,           1);
+  countUp('proj-stat-pct',     pct,            1, '%');
 
   const bar = el('journey-bar');
   if (bar) {
