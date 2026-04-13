@@ -22,6 +22,13 @@ from nacl import encoding, public
 
 load_dotenv(Path(__file__).parent / ".env")
 
+# This script must connect directly to Garmin — no corporate proxy.
+# Clear any proxy env vars that may have been loaded from .env.
+os.environ.pop("HTTP_PROXY", None)
+os.environ.pop("HTTPS_PROXY", None)
+os.environ.pop("http_proxy", None)
+os.environ.pop("https_proxy", None)
+
 SESSION_FILE = Path(__file__).parent / ".garmin_session"
 TOKEN_FILE = Path(__file__).parent.parent / ".github_token"
 REPO = "davelane26/weight-dashboard-v2"
