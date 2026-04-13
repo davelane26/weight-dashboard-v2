@@ -1,0 +1,42 @@
+name: Garmin Sync
+
+on:
+  schedule:
+    # Every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:  # Manual trigger button in GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r garmin_sync/requirements.txt
+
+      - name: Restore Garmin session cache
+        id: cache-session
+        uses: actions/cache@v4
+        with:
+          path: garmin_sync/.garmin_session
+          key: garmin-session-${{ github.run_id }}
+          restore-keys: garmin-session-
+
+      - name: Sync Garmin data to Firebase
+        working-directory: garmin_sync
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
+          GARMIN_SESSION: ${{ secrets.GARMIN_SESSION }}
+          GARMIN_COOKIES: ${{ secrets.GARMIN_COOKIES }}
+        run: python sync_garmin.py --today

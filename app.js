@@ -3,6 +3,14 @@ const DATA_URL     = 'https://davelane26.github.io/Weight-tracker/data.json';
 const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 23, 2026';
 const REFRESH_MS   = 30_000;
+const ACTIVITY_LEVELS = {
+  sedentary:   { label: 'Sedentary',   desc: 'Desk job, little or no exercise',       multiplier: 1.2   },
+  light:       { label: 'Light',       desc: 'Light exercise 1-3 days/week',          multiplier: 1.375 },
+  moderate:    { label: 'Moderate',    desc: 'Moderate exercise 3-5 days/week',       multiplier: 1.55  },
+  active:      { label: 'Active',      desc: 'Hard exercise 6-7 days/week',           multiplier: 1.725 },
+  very_active: { label: 'Very Active', desc: 'Physical job or twice-daily training',  multiplier: 1.9   },
+};
+
 const BMI_CATS = [
   { label: 'Normal Weight',  range: 'BMI < 25',    min: 18.5, max: 25,       icon: '🟢' },
   { label: 'Overweight',     range: 'BMI 25–29.9', min: 25,   max: 30,       icon: '🟡' },
@@ -11,7 +19,44 @@ const BMI_CATS = [
   { label: 'Obese III',      range: 'BMI ≥ 40',   min: 40,   max: Infinity, icon: '⚫' },
 ];
 
-// ── Tab switching ───────────────────────────────────────────────────
+// -- TDEE calculator (Katch-McArdle + activity multiplier) ----------------
+// LBM from the scale's body fat % means it auto-corrects as weight drops.
+// Falls back to the scale's own value if body fat data is missing.
+function calcTDEE(latest) {
+  const multiplier = ACTIVITY_LEVELS[activityLevel]?.multiplier ?? 1.55;
+  if (latest.bodyFat && latest.weight) {
+    const weightKg = latest.weight / 2.205;
+    const lbmKg    = weightKg * (1 - latest.bodyFat / 100);
+    const bmr      = 370 + 21.6 * lbmKg;
+    return { bmr: Math.round(bmr), tdee: Math.round(bmr * multiplier), source: 'katch' };
+  }
+  if (latest.tdee) return { bmr: latest.bmr ?? null, tdee: latest.tdee, source: 'scale' };
+  return null;
+}
+
+// -- Activity level persistence --------------------------------------------
+function loadActivityLevel() {
+  const saved = localStorage.getItem('wt_v2_activity');
+  if (saved && ACTIVITY_LEVELS[saved]) activityLevel = saved;
+  syncActivityUI();
+}
+function setActivityLevel(level) {
+  if (!ACTIVITY_LEVELS[level]) return;
+  activityLevel = level;
+  localStorage.setItem('wt_v2_activity', level);
+  syncActivityUI();
+  if (allData.length) renderAll();
+}
+function syncActivityUI() {
+  const info = ACTIVITY_LEVELS[activityLevel];
+  document.querySelectorAll('.activity-pill').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.level === activityLevel)
+  );
+  setText('activity-desc', info ? `${info.label} x${info.multiplier} - ${info.desc}` : '');
+}
+window.setActivityLevel = setActivityLevel;
+
+// -- Tab switching ---------------------------------------------------------────
 const TABS = ['weight', 'glucose', 'activity'];
 function switchTab(name) {
   TABS.forEach(t => {
@@ -64,9 +109,10 @@ function toggleDark() {
 // ── State ───────────────────────────────────────────────────────────
 let allData       = [];
 let goalWeight    = null;
-let calLog        = {};   // { 'YYYY-MM-DD': calories }
+let calLog        = {};
 let charts        = {};
 let chartRange    = 'all';
+let activityLevel = 'moderate';
 
 // ── Formatters ─────────────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
@@ -96,12 +142,12 @@ function parseDate(val) {
 
 // ── BMI category ────────────────────────────────────────────────────────
 function bmiCategory(bmi) {
-  if (bmi < 18.5) return ['Underweight',    'background:#dbeafe;color:#1d4ed8'];
-  if (bmi < 25)   return ['Normal',          'background:#dcfce7;color:#166534'];
-  if (bmi < 30)   return ['Overweight',      'background:#fef9c3;color:#854d0e'];
-  if (bmi < 35)   return ['Class I Obesity', 'background:#ffedd5;color:#c2410c'];
-  if (bmi < 40)   return ['Class II Obesity','background:#fee2e2;color:#991b1b'];
-  return               ['Class III Obesity', 'background:#fecaca;color:#7f1d1d'];
+  if (bmi < 18.5) return ['Underweight',  'background:#dbeafe;color:#1d4ed8'];
+  if (bmi < 25)   return ['Normal',        'background:#dcfce7;color:#166534'];
+  if (bmi < 30)   return ['Overweight',    'background:#fef9c3;color:#854d0e'];
+  if (bmi < 35)   return ['Obese I',       'background:#ffedd5;color:#c2410c'];
+  if (bmi < 40)   return ['Obese II',      'background:#fee2e2;color:#991b1b'];
+  return               ['Obese III',       'background:#fecaca;color:#7f1d1d'];
 }
 
 // ── Moving average ──────────────────────────────────────────────────────
@@ -210,8 +256,15 @@ function renderKPIs(latest, prev) {
   setHTML('kpi-water-sub', wad != null ? delta(wad, false) + '% from last' : '');
 
   latest.bone ? countUp('kpi-bone', latest.bone, 2) : setText('kpi-bone', '—');
-  latest.bmr  ? countUp('kpi-bmr',  latest.bmr,  0) : setText('kpi-bmr',  '—');
-  latest.tdee ? countUp('kpi-tdee', latest.tdee, 0) : setText('kpi-tdee', '—');
+
+  const energy = calcTDEE(latest);
+  if (energy) {
+    countUp('kpi-bmr',  energy.bmr,  0);
+    countUp('kpi-tdee', energy.tdee, 0);
+  } else {
+    setText('kpi-bmr',  '—');
+    setText('kpi-tdee', '—');
+  }
 }
 
 // ── Journey duration ────────────────────────────────────────────────────
@@ -237,17 +290,58 @@ function renderJourneyDuration() {
 }
 
 // ── Render journey ──────────────────────────────────────────────────────
-function renderJourney(latest) {
+function renderJourney(latest, data) {
   renderJourneyDuration();
-  const lost      = Math.max(0, START_WEIGHT - latest.weight);
-  const pct       = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
+  const lost = Math.max(0, START_WEIGHT - latest.weight);
+  const pct  = Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100));
 
   countUp('journey-current',  latest.weight, 1);
   setText('journey-date',     fmtDate(latest.date));
-  countUp('journey-lost',     Math.max(0, START_WEIGHT - latest.weight), 1);
-  countUp('journey-pct-stat', Math.min(100, Math.max(0, (lost / START_WEIGHT) * 100)), 1, '%');
-  el('journey-bar').style.width = pct + '%';
+  countUp('journey-lost',     lost, 1);
+  countUp('journey-pct-stat', pct, 1, '%');
+
+  const bar = el('journey-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
+  }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
+
+  // Rate of loss (lbs/week via linear regression on last 30 days)
+  // Deduplicate to one reading per day first so we can report the real sample size
+  const byDay30 = {};
+  data.forEach(r => { byDay30[r.date.toDateString()] = r; });
+  const dailyPts = Object.values(byDay30).sort((a, b) => a.date - b.date).slice(-30);
+  const slopePerDay = weightTrendSlope(data);
+  if (slopePerDay !== null) {
+    const lbsPerWeek = Math.abs(slopePerDay * 7);
+    countUp('journey-rate', lbsPerWeek, 1);
+    setText('journey-rate-sub', `lbs/wk · ${dailyPts.length} day${dailyPts.length !== 1 ? 's' : ''} of data`);
+  } else {
+    setText('journey-rate', '—');
+    setText('journey-rate-sub', 'not enough data yet');
+  }
+
+  // Personal best (all-time lowest weight)
+  const best    = data.reduce((b, r) => r.weight < b.weight ? r : b, data[0]);
+  countUp('journey-best', best.weight, 1);
+  setText('journey-best-date', fmtDate(best.date));
+
+  // Next milestone ETA
+  const allTimeLow = Math.min(...data.map(r => r.weight));
+  const floor  = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
+  const steps  = [];
+  for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
+  const nextMilestone = steps.find(w => allTimeLow > w);
+  if (nextMilestone && slopePerDay && slopePerDay < 0) {
+    const remaining = latest.weight - nextMilestone;
+    const daysLeft  = remaining / Math.abs(slopePerDay);
+    const projDate  = new Date(latest.date.getTime() + daysLeft * 86400000);
+    setText('journey-next-eta',
+      `${nextMilestone} lbs · ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+  } else {
+    setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : '🎉 All done!');
+  }
 }
 
 // ── Milestones ──────────────────────────────────────────────────────
@@ -290,16 +384,17 @@ function renderBMITimeline(data, latest) {
     const isCurrentCat = bmiThreshold
       ? currentBmi < bmiThreshold && currentBmi >= (BMI_CATS[BMI_CATS.findIndex(c => c.max === cat.max) - 1]?.max ?? 0)
       : currentBmi >= 40;
-    const achieved = bmiThreshold ? currentBmi < bmiThreshold : false;
+    // A category is "passed" only when BMI has dropped below its minimum
+    const passed = currentBmi < cat.min;
     let dateStr = '';
-    if (!achieved && !isCurrentCat && bmiThreshold && bmiSlopePerDay && bmiSlopePerDay < 0) {
+    if (!passed && !isCurrentCat && bmiThreshold && bmiSlopePerDay && bmiSlopePerDay < 0) {
       const bmiToLose = currentBmi - bmiThreshold;
       const daysLeft  = bmiToLose / Math.abs(bmiSlopePerDay);
       const proj      = new Date(latest.date.getTime() + daysLeft * 86400000);
       dateStr = proj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
-    const cls = achieved ? 'achieved' : isCurrentCat ? 'current' : 'future';
-    const statusIcon = achieved ? '✓' : isCurrentCat ? '▶' : '';
+    const cls = passed ? 'achieved' : isCurrentCat ? 'current' : 'future';
+    const statusIcon = passed ? '✓' : isCurrentCat ? '▶' : '';
     // Weight range in lbs for this category
     const bmiToLbs = b => Math.round(b * heightM * heightM * 2.205);
     const minLbs = bmiToLbs(cat.min);
@@ -311,7 +406,7 @@ function renderBMITimeline(data, latest) {
         <div class="bmi-step-cat">${statusIcon ? statusIcon + ' ' : ''}${cat.label}</div>
         <div class="bmi-step-range">${cat.range} &middot; ${wtRange}</div>
       </div>
-      <div class="bmi-step-date">${achieved ? '✅ Achieved' : isCurrentCat ? 'You are here' : dateStr ? 'Est. ' + dateStr : '—'}</div>
+      <div class="bmi-step-date">${passed ? '✅ Cleared' : isCurrentCat ? '📍 You are here' : dateStr ? 'Est. ' + dateStr : '—'}</div>
     </div>`;
   }).join('');
 }
@@ -371,10 +466,11 @@ function renderStreak(data) {
 
 // ── Render calorie insights ─────────────────────────────────────────────
 function renderCalories(latest) {
-  if (!latest.tdee) return;
-  countUp('cal-maintain', latest.tdee,        0);
-  countUp('cal-lose1',    latest.tdee - 500,  0);
-  countUp('cal-lose2',    latest.tdee - 1000, 0);
+  const energy = calcTDEE(latest);
+  if (!energy) return;
+  countUp('cal-maintain', energy.tdee,        0);
+  countUp('cal-lose1',    energy.tdee - 500,  0);
+  countUp('cal-lose2',    energy.tdee - 1000, 0);
 }
 
 // ── Render weight chart ─────────────────────────────────────────────────
@@ -416,7 +512,7 @@ function renderWeightChart(data) {
           borderWidth: 2.5,
         },
         {
-          label: '7-day avg',
+          label: '7-day rolling avg (trend)',
           data: avg7,
           borderColor: '#ffc220',
           backgroundColor: 'transparent',
@@ -532,10 +628,11 @@ function renderCompositionCharts(data) {
   });
 }
 
-// ── Render week-over-week table ─────────────────────────────────────────
+// ── Render week-over-week table ─────────────────────────────────────────────
 function renderWoW(data) {
   if (data.length < 2) return;
 
+  // Group readings by calendar week (Sun–Sat)
   const weeks = {};
   data.forEach(r => {
     const d = new Date(r.date);
@@ -549,32 +646,37 @@ function renderWoW(data) {
   const tbody  = el('wow-body');
   tbody.innerHTML = '';
 
-  sorted.forEach((wk, i) => {
-    const rs   = wk.rows.sort((a, b) => a.date - b.date);
-    const avg  = rs.reduce((s, r) => s + r.weight, 0) / rs.length;
-    const min  = Math.min(...rs.map(r => r.weight));
-    const max  = Math.max(...rs.map(r => r.weight));
-    const fats = rs.filter(r => r.bodyFat).map(r => r.bodyFat);
-    const avgFat = fats.length ? fats.reduce((s, v) => s + v, 0) / fats.length : null;
-    const weekEnd = new Date(wk.sun); weekEnd.setDate(weekEnd.getDate() + 6);
+  sorted.forEach(wk => {
+    const rs      = wk.rows.sort((a, b) => a.date - b.date);
+    const first   = rs[0].weight;
+    const last    = rs[rs.length - 1].weight;
+    const lost    = first - last;  // positive = lost weight ✓
+    const weekEnd = new Date(wk.sun);
+    weekEnd.setDate(weekEnd.getDate() + 6);
 
-    // compare avg vs previous week
-    const prevAvg  = i > 0 ? sorted[i - 1].rows.reduce((s, r) => s + r.weight, 0) / sorted[i - 1].rows.length : null;
-    const diffAvg  = prevAvg != null ? avg - prevAvg : null;
+    const weekLabel = wk.sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + '–' + weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    let lostHtml;
+    if (rs.length === 1) {
+      lostHtml = '<span style="color:#c5c9d5">one reading</span>';
+    } else if (lost > 0) {
+      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(lost)} lbs</span>`;
+    } else if (lost < 0) {
+      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(lost))} lbs</span>`;
+    } else {
+      lostHtml = '<span style="color:#6d7a95">no change</span>';
+    }
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><span style="font-weight:600">${fmtDate(wk.sun)}</span><br>
-          <span style="font-size:0.65rem;color:#6d7a95">${fmtDate(wk.sun)} – ${fmtDate(weekEnd)}</span></td>
-      <td style="text-align:center"><span class="badge" style="background:#eff4ff;color:#0053e2">${rs.length}</span></td>
-      <td style="font-weight:700">${fmt(avg)}</td>
-      <td>${fmt(min)}</td>
-      <td>${fmt(max)}</td>
-      <td>${diffAvg != null ? (diffAvg <= 0
-          ? `<span class="down">▼ ${fmt(Math.abs(diffAvg))}</span>`
-          : `<span class="up">▲ ${fmt(Math.abs(diffAvg))}</span>`)
-        : '<span style="color:#c5c9d5">—</span>'}</td>
-      <td>${avgFat != null ? fmtPct(avgFat) : '<span style="color:#c5c9d5">—</span>'}</td>
+      <td style="font-weight:600;white-space:nowrap">${weekLabel}</td>
+      <td style="color:#6d7a95">${fmt(first)} lbs</td>
+      <td style="color:#6d7a95">${fmt(last)} lbs</td>
+      <td>${lostHtml}</td>
+      <td style="text-align:center">
+        <span class="badge" style="background:#eff4ff;color:#0053e2">${rs.length}</span>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -610,8 +712,9 @@ function renderGoal(latest, data = []) {
 
   // Calorie-based projection using 7-day rolling average
   const avgCals = calAvg();
-  if (avgCals && latest.tdee) {
-    const deficit    = latest.tdee - avgCals;
+  const energy = calcTDEE(latest);
+  if (avgCals && energy?.tdee) {
+    const deficit = energy.tdee - avgCals;
     if (deficit > 0) {
       const lbsPerWeek = (deficit * 7) / 3500;
       const daysLeft   = remaining / (lbsPerWeek / 7);
@@ -739,7 +842,7 @@ function renderCalLog(latest) {
   const avgBadge = el('cal-avg-badge');
   if (avgBadge) avgBadge.textContent = avg ? Math.round(avg).toLocaleString() + ' kcal' : '—';
 
-  const tdee = latest?.tdee || 0;
+  const tdee = calcTDEE(latest)?.tdee || 0;
   body.innerHTML = entries.map(([dateKey, cals]) => {
     const d       = new Date(dateKey + 'T12:00:00');
     const label   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -776,7 +879,7 @@ function renderAll() {
   renderMilestones(latest, allData);
   renderBMITimeline(allData, latest);
   renderKPIs(latest, prev);
-  renderJourney(latest);
+  renderJourney(latest, allData);
   renderStreak(allData);
   renderCalories(latest);
   renderWeightChart(allData);
@@ -810,6 +913,7 @@ async function loadData() {
 async function init() {
   loadDark();
   restoreTab();
+  loadActivityLevel();
   loadGoal();
   loadCalLog();
   const ok = await loadData();
