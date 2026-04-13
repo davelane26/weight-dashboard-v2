@@ -43,16 +43,15 @@ def get_cookies() -> dict:
 
 def _get(path: str, cookies: dict, params: dict | None = None) -> dict | list | None:
     """Make an authenticated GET request to the Garmin web proxy."""
+    url = f"{BASE}/{path}"
     try:
-        r = requests.get(
-            f"{BASE}/{path}",
-            cookies=cookies,
-            headers=HEADERS,
-            params=params,
-            timeout=15,
-        )
-        if r.status_code == 401:
-            logger.warning("Cookies expired — need to refresh GARMIN_COOKIES secret")
+        r = requests.get(url, cookies=cookies, headers=HEADERS, params=params, timeout=15)
+        logger.debug("GET %s -> %d", url, r.status_code)
+        if r.status_code in (401, 403):
+            logger.warning("Auth failed (%d) for %s — cookies may be expired or IP-bound", r.status_code, path)
+            return None
+        if r.status_code == 302 or (r.text and r.text.strip().startswith("<")):
+            logger.warning("Got redirect/HTML for %s — session likely expired or IP-bound", path)
             return None
         r.raise_for_status()
         return r.json()
