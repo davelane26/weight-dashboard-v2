@@ -85,13 +85,11 @@ def main() -> int:
     print("(You may be prompted for an MFA code)\n")
 
     from garminconnect import Garmin
-    client = Garmin(email, password)
 
-    # Handle MFA prompt interactively
     def prompt_mfa():
         return input("Enter Garmin MFA code: ").strip()
 
-    client.prompt_mfa = prompt_mfa
+    client = Garmin(email, password, prompt_mfa=prompt_mfa)
     client.login()
 
     session_json = json.dumps(client.garth.dumps())
