@@ -342,6 +342,23 @@ function renderJourney(latest, data) {
   projLatestWeight   = latest.weight;
   projLatestDate     = latest.date;
 
+  // Initialise slider bounds now that we know the current weight
+  const slider = document.getElementById('proj-weight-input');
+  if (slider) {
+    const maxVal = Math.floor(projLatestWeight) - 1;
+    slider.max   = maxVal;
+    const maxLbl = document.getElementById('proj-slider-max');
+    if (maxLbl) maxLbl.textContent = maxVal;
+    // Clamp the current slider value if it crept above the new max
+    if (parseFloat(slider.value) >= projLatestWeight) {
+      slider.value = goalWeight && goalWeight < projLatestWeight
+        ? goalWeight
+        : Math.round(projLatestWeight - 20);
+    }
+    const disp = document.getElementById('proj-slider-display');
+    if (disp) disp.textContent = parseFloat(slider.value).toFixed(1);
+  }
+
   // Update projector blurb with current trend rate
   const blurb = document.getElementById('proj-trend-blurb');
   if (blurb) {
@@ -903,24 +920,46 @@ function computeProjection() {
     }
   }
 
-  // ── Target weight → Projected date ──────────────────────────────
+  // ── Weight slider → Projected date + countdown card ────────────────
   if (weightInput && weightResult) {
-    const targetW = parseFloat(weightInput.value);
-    if (!weightInput.value || isNaN(targetW)) {
-      weightResult.textContent = 'Enter a target weight above';
+    const targetW   = parseFloat(weightInput.value);
+    const disp      = document.getElementById('proj-slider-display');
+    const countdown = document.getElementById('proj-countdown');
+
+    if (disp) disp.textContent = isNaN(targetW) ? '—' : targetW.toFixed(1);
+
+    const hide = (msg, color = '#ea1100') => {
+      if (countdown) countdown.style.display = 'none';
+      weightResult.textContent  = msg;
+      weightResult.style.color  = color;
+    };
+
+    if (isNaN(targetW)) {
+      hide('', '#6d7a95');
     } else if (targetW >= projLatestWeight) {
-      weightResult.textContent = 'That’s above your current weight — enter something lower';
-      weightResult.style.color = '#ea1100';
+      hide('Slide below your current weight');
     } else if (projSlopeLbsPerDay >= 0) {
-      weightResult.textContent = 'Your trend is flat or gaining — projection unavailable';
-      weightResult.style.color = '#ea1100';
+      hide('Trend is flat or gaining — projection unavailable');
     } else {
-      const daysNeeded  = (projLatestWeight - targetW) / Math.abs(projSlopeLbsPerDay);
-      const targetDate  = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
-      const dateLabel   = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const daysNeeded = (projLatestWeight - targetW) / Math.abs(projSlopeLbsPerDay);
+      const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
+      const dateLabel   = arrivalDate.toLocaleDateString('en-US',
+        { month: 'long', day: 'numeric', year: 'numeric' });
       const daysRounded = Math.round(daysNeeded);
-      weightResult.textContent = `~${dateLabel} · ${daysRounded} day${daysRounded !== 1 ? 's' : ''} from now`;
-      weightResult.style.color = '#2a8703';
+      const totalLost   = START_WEIGHT - targetW;
+      const stillToGo   = projLatestWeight - targetW;
+
+      if (countdown) {
+        countdown.style.display = 'block';
+        document.getElementById('proj-cd-date').textContent  = dateLabel;
+        document.getElementById('proj-cd-days').textContent  =
+          `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
+        document.getElementById('proj-cd-total').textContent =
+          `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
+        document.getElementById('proj-cd-togo').textContent  =
+          `${fmt(stillToGo)} lbs`;
+      }
+      weightResult.textContent = '';
     }
   }
 }

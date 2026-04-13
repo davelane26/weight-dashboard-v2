@@ -355,21 +355,65 @@
           </p>
         </div>
 
-        <!-- Weight → Date -->
+        <!-- Weight slider → Date -->
         <div>
-          <label for="proj-weight-input" style="display:block;font-size:0.65rem;font-weight:700;
-                 text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.4rem">
-            ⚖️ Target weight (lbs) — see your projected date
+          <label style="display:block;font-size:0.65rem;font-weight:700;
+                 text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">
+            🎯 Drag to a target — see your arrival date
           </label>
-          <input type="number" id="proj-weight-input" oninput="computeProjection()"
-                 placeholder="e.g. 250" step="0.1" min="100" max="500"
-                 style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;
-                        font-size:0.9rem;font-weight:600;color:#1a2340"
-                 aria-label="Target weight in lbs" />
-          <p id="proj-weight-result"
-             style="margin-top:0.75rem;font-size:0.95rem;font-weight:700;color:#6d7a95;min-height:1.4rem">
-            Enter a target weight above
-          </p>
+
+          <!-- slider row -->
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+            <span id="proj-slider-min" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">150</span>
+            <input type="range" id="proj-weight-input" oninput="computeProjection()"
+                   min="150" max="314" step="0.5" value="250"
+                   style="flex:1;accent-color:#7c3aed;cursor:pointer"
+                   aria-label="Target weight slider" />
+            <span id="proj-slider-max" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">314</span>
+          </div>
+
+          <!-- big number readout -->
+          <div style="text-align:center;margin-bottom:0.85rem">
+            <span id="proj-slider-display"
+                  style="font-size:2.1rem;font-weight:900;color:#7c3aed;line-height:1">250.0</span>
+            <span style="font-size:0.85rem;color:#6d7a95;margin-left:0.3rem">lbs</span>
+          </div>
+
+          <!-- countdown card -->
+          <div id="proj-countdown"
+               style="display:none;background:#f5f0ff;border-radius:12px;
+                      padding:0.9rem;border:1.5px solid #c4b5fd">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;text-align:center">
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">📅 Arrival Date</p>
+                <p id="proj-cd-date"
+                   style="font-size:0.92rem;font-weight:800;color:#1a2340;line-height:1.2"></p>
+              </div>
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">⏳ Days Away</p>
+                <p id="proj-cd-days"
+                   style="font-size:0.92rem;font-weight:800;color:#1a2340"></p>
+              </div>
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#2a8703;margin-bottom:0.2rem">✅ Total Lost</p>
+                <p id="proj-cd-total"
+                   style="font-size:0.92rem;font-weight:800;color:#2a8703"></p>
+              </div>
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#0053e2;margin-bottom:0.2rem">▼ Still To Go</p>
+                <p id="proj-cd-togo"
+                   style="font-size:0.92rem;font-weight:800;color:#0053e2"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- hidden compat element (computeProjection still writes here for error states) -->
+          <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;
+             color:#ea1100;min-height:1.2rem"></p>
         </div>
 
       </div>
