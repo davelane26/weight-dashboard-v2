@@ -917,24 +917,31 @@ function renderWeekComparison(data) {
   if (thisHead) thisHead.textContent = thisLabel;
   if (lastHead) lastHead.textContent = lastLabel;
 
+  // fmtWk: returns the most recent reading of a week bucket.
+  // We compare end-to-end across weeks (latest this week vs latest last week)
+  // so a single reading in a week is still meaningful — no more "No change".
   const fmtWk = wk => {
-    const rs   = wk.rows.sort((a, b) => a.date - b.date);
-    const lo   = rs[0], hi = rs[rs.length - 1];
-    const lost = lo.weight - hi.weight;
-    const label = lo.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      + '–' + hi.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return { lost, label, readings: rs.length };
+    const rs     = wk.rows.sort((a, b) => a.date - b.date);
+    const latest = rs[rs.length - 1];
+    const first  = rs[0];
+    const label  = first.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + (rs.length > 1 ? '–' + latest.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
+    return { weight: latest.weight, label, readings: rs.length };
   };
 
   const thisWk  = fmtWk(sorted[sorted.length - 1]);
   const lastWk  = fmtWk(sorted[sorted.length - 2]);
-  const isAhead = thisWk.lost >= lastWk.lost;
-  const diff    = Math.abs(thisWk.lost - lastWk.lost);
-  const color   = thisWk.lost > 0 ? '#2a8703' : thisWk.lost < 0 ? '#ea1100' : '#6d7a95';
+  // Positive = lost weight since end of last week ✓
+  const lost    = lastWk.weight - thisWk.weight;
+  const isAhead = lost >= 0;
+  const diff    = Math.abs(lost);
+  const color   = lost > 0 ? '#2a8703' : lost < 0 ? '#ea1100' : '#6d7a95';
   const arrow   = isAhead ? '🔥' : '📉';
-  const verdict = isAhead
-    ? (diff < 0.1 ? `On par with ${lastLabel.toLowerCase()}` : `+${fmt(diff)} lbs ahead of ${lastLabel.toLowerCase()} 💪`)
-    : `${fmt(diff)} lbs behind ${lastLabel.toLowerCase()} — keep going!`;
+  const verdict = lost > 0
+    ? `▼ ${fmt(diff)} lbs since end of ${lastLabel.toLowerCase()} 💪`
+    : lost < 0
+      ? `▲ ${fmt(diff)} lbs gained since end of ${lastLabel.toLowerCase()} — keep going!`
+      : 'Same weight as end of last week';
 
   setText('wc-this-dates', thisWk.label);
   setText('wc-last-dates', lastWk.label);
@@ -943,14 +950,13 @@ function renderWeekComparison(data) {
 
   const thisEl = el('wc-this-val');
   if (thisEl) {
-    thisEl.textContent = thisWk.lost > 0 ? `▼ ${fmt(thisWk.lost)} lbs`
-      : thisWk.lost < 0 ? `▲ ${fmt(Math.abs(thisWk.lost))} lbs` : 'No change';
+    thisEl.textContent = `${fmt(thisWk.weight)} lbs`;
     thisEl.style.color = color;
   }
   const lastEl = el('wc-last-val');
   if (lastEl) {
-    lastEl.textContent = lastWk.lost > 0 ? `▼ ${fmt(lastWk.lost)} lbs`
-      : lastWk.lost < 0 ? `▲ ${fmt(Math.abs(lastWk.lost))} lbs` : 'No change';
+    lastEl.textContent = `${fmt(lastWk.weight)} lbs`;
+    lastEl.style.color = '#6d7a95';
   }
 }
 
