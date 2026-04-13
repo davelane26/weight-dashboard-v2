@@ -637,49 +637,105 @@ function renderCompositionCharts(data) {
   });
 }
 
-// ── Render week-over-week table ─────────────────────────────────────────────
+// ── Render week-over-week table ──────────────────────────────────────────
 function renderWoW(data) {
   if (data.length < 2) return;
 
-  // Group readings by calendar week (Sun–Sat)
+  // Group by Mon-Sun week
+  const weekKey = d => {
+    const dt = new Date(d);
+    const day = (dt.getDay() + 6) % 7; // Mon=0
+    dt.setDate(dt.getDate() - day);
+    return dt.toDateString();
+  };
   const weeks = {};
   data.forEach(r => {
-    const d = new Date(r.date);
-    d.setDate(d.getDate() - d.getDay());
-    const k = d.toDateString();
-    if (!weeks[k]) weeks[k] = { sun: d, rows: [] };
+    const k = weekKey(r.date);
+    if (!weeks[k]) weeks[k] = { mon: new Date(r.date), rows: [] };
+    // rewind stored date to Monday
+    const dt = new Date(r.date);
+    dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    weeks[k].mon = dt;
     weeks[k].rows.push(r);
   });
 
-  const sorted = Object.values(weeks).sort((a, b) => a.sun - b.sun);
-  const tbody  = el('wow-body');
+  const currentKey = weekKey(new Date());
+  const sorted     = Object.entries(weeks).sort((a, b) =>
+    new Date(b[0]) - new Date(a[0])  // newest first
+  );
+
+  const tbody = el('wow-body');
   tbody.innerHTML = '';
 
-  sorted.forEach(wk => {
-    const rs      = wk.rows.sort((a, b) => a.date - b.date);
-    const first   = rs[0].weight;
-    const last    = rs[rs.length - 1].weight;
-    const lost    = first - last;  // positive = lost weight ✓
-    const weekEnd = new Date(wk.sun);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+  sorted.forEach(([key, wk], idx) => {
+    const isCurrent = key === currentKey;
+    const rs        = wk.rows.sort((a, b) => a.date - b.date);
+    const first     = rs[0].weight;
+    const last      = rs[rs.length - 1].weight;
+    const withinLost = first - last; // positive = lost within this week
 
-    const weekLabel = wk.sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      + '–' + weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Week label: Mon – Sun
+    const monDate = new Date(key);
+    const sunDate = new Date(key);
+    sunDate.setDate(sunDate.getDate() + 6);
+    const weekLabel = monDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + '–' + sunDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-    let lostHtml;
-    if (rs.length === 1) {
-      lostHtml = '<span style="color:#c5c9d5">one reading</span>';
-    } else if (lost > 0) {
-      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(lost)} lbs</span>`;
-    } else if (lost < 0) {
-      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(lost))} lbs</span>`;
-    } else {
-      lostHtml = '<span style="color:#6d7a95">no change</span>';
+    // Cross-week delta: this week's latest vs previous week's latest
+    let vsLastHtml = '';
+    if (isCurrent && sorted.length > 1) {
+      const prevRs      = sorted[1][1].rows.sort((a, b) => a.date - b.date);
+      const prevLatest  = prevRs[prevRs.length - 1].weight;
+      const crossDelta  = prevLatest - last; // positive = lost vs end of last week
+      const crossColor  = crossDelta > 0 ? '#2a8703' : crossDelta < 0 ? '#ea1100' : '#6d7a95';
+      const crossText   = crossDelta > 0
+        ? `▼ ${fmt(crossDelta)} vs last wk`
+        : crossDelta < 0
+          ? `▲ ${fmt(Math.abs(crossDelta))} vs last wk`
+          : 'flat vs last wk';
+      vsLastHtml = `<br><span style="font-size:0.68rem;color:${crossColor};font-weight:600">${crossText}</span>`;
     }
 
+    // Within-week Lost cell
+    let lostHtml;
+    if (isCurrent && rs.length === 1) {
+      // Single reading this week — skip the meaningless within-week delta,
+      // show the cross-week comparison as the primary number instead
+      const prevRs     = sorted.length > 1 ? sorted[1][1].rows.sort((a, b) => a.date - b.date) : null;
+      const prevLatest = prevRs ? prevRs[prevRs.length - 1].weight : null;
+      if (prevLatest != null) {
+        const crossDelta = prevLatest - last;
+        const crossColor = crossDelta > 0 ? '#2a8703' : crossDelta < 0 ? '#ea1100' : '#6d7a95';
+        lostHtml = crossDelta > 0
+          ? `<span style="color:${crossColor};font-size:1.1rem;font-weight:800">▼ ${fmt(crossDelta)} lbs</span><br><span style="font-size:0.65rem;color:#6d7a95">vs end of last week</span>`
+          : crossDelta < 0
+            ? `<span style="color:${crossColor};font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(crossDelta))} lbs</span><br><span style="font-size:0.65rem;color:#6d7a95">vs end of last week</span>`
+            : `<span style="color:#6d7a95">flat vs last week</span>`;
+      } else {
+        lostHtml = '<span style="color:#c5c9d5">1 reading</span>';
+      }
+    } else if (rs.length === 1) {
+      lostHtml = '<span style="color:#c5c9d5">1 reading</span>';
+    } else if (withinLost > 0) {
+      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(withinLost)} lbs</span>${vsLastHtml}`;
+    } else if (withinLost < 0) {
+      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(withinLost))} lbs</span>${vsLastHtml}`;
+    } else {
+      lostHtml = `<span style="color:#6d7a95">no change</span>${vsLastHtml}`;
+    }
+
+    const nowBadge = isCurrent
+      ? '<span style="background:#0053e2;color:#fff;font-size:0.58rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:9999px;margin-right:0.35rem">NOW</span>'
+      : '';
+
     const tr = document.createElement('tr');
+    if (isCurrent) {
+      tr.style.background    = '#eff4ff';
+      tr.style.fontWeight    = '700';
+      tr.style.borderLeft    = '3px solid #0053e2';
+    }
     tr.innerHTML = `
-      <td style="font-weight:600;white-space:nowrap">${weekLabel}</td>
+      <td style="font-weight:600;white-space:nowrap">${nowBadge}${weekLabel}</td>
       <td style="color:#6d7a95">${fmt(first)} lbs</td>
       <td style="color:#6d7a95">${fmt(last)} lbs</td>
       <td>${lostHtml}</td>
@@ -874,92 +930,6 @@ window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
 
 // ── This Week vs Last Week comparison ────────────────────────────────
-function renderWeekComparison(data) {
-  // Group readings by Mon-Sun week (ISO-style: week starts Monday)
-  const weekKey = d => {
-    const dt = new Date(d);
-    const day = (dt.getDay() + 6) % 7; // Mon=0 ... Sun=6
-    dt.setDate(dt.getDate() - day);
-    return dt.toDateString();
-  };
-  const weeks = {};
-  data.forEach(r => {
-    const k = weekKey(r.date);
-    if (!weeks[k]) weeks[k] = { start: new Date(r.date), rows: [] };
-    weeks[k].rows.push(r);
-  });
-  const sorted = Object.values(weeks).sort((a, b) => a.start - b.start);
-  const sec    = el('week-compare-section');
-
-  if (sorted.length < 2) {
-    if (sec) sec.style.display = 'none';
-    return;
-  }
-  if (sec) sec.style.display = '';
-
-  // Is the most recent bucket actually the current calendar week?
-  const currentWeekKey  = weekKey(new Date());
-  const newestBucketKey = sorted[sorted.length - 1].start.toDateString() === new Date(currentWeekKey).toDateString()
-    ? currentWeekKey
-    : null;
-  const isCurrentWeek = newestBucketKey !== null
-    && weekKey(sorted[sorted.length - 1].start) === currentWeekKey;
-
-  // Labels change depending on whether the user has weighed in this week
-  const titleEl    = sec ? sec.querySelector('.card-title') : null;
-  const thisLabel  = isCurrentWeek ? 'This Week'  : 'Last Week';
-  const lastLabel  = isCurrentWeek ? 'Last Week'  : 'Prior Week';
-  if (titleEl) titleEl.textContent = isCurrentWeek ? '📅 This Week vs Last Week' : '📅 Last Week vs Prior Week';
-
-  // Update column headers in the banner
-  const thisHead = el('wc-this-head');
-  const lastHead = el('wc-last-head');
-  if (thisHead) thisHead.textContent = thisLabel;
-  if (lastHead) lastHead.textContent = lastLabel;
-
-  // fmtWk: returns the most recent reading of a week bucket.
-  // We compare end-to-end across weeks (latest this week vs latest last week)
-  // so a single reading in a week is still meaningful — no more "No change".
-  const fmtWk = wk => {
-    const rs     = wk.rows.sort((a, b) => a.date - b.date);
-    const latest = rs[rs.length - 1];
-    const first  = rs[0];
-    const label  = first.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      + (rs.length > 1 ? '–' + latest.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
-    return { weight: latest.weight, label, readings: rs.length };
-  };
-
-  const thisWk  = fmtWk(sorted[sorted.length - 1]);
-  const lastWk  = fmtWk(sorted[sorted.length - 2]);
-  // Positive = lost weight since end of last week ✓
-  const lost    = lastWk.weight - thisWk.weight;
-  const isAhead = lost >= 0;
-  const diff    = Math.abs(lost);
-  const color   = lost > 0 ? '#2a8703' : lost < 0 ? '#ea1100' : '#6d7a95';
-  const arrow   = isAhead ? '🔥' : '📉';
-  const verdict = lost > 0
-    ? `▼ ${fmt(diff)} lbs since end of ${lastLabel.toLowerCase()} 💪`
-    : lost < 0
-      ? `▲ ${fmt(diff)} lbs gained since end of ${lastLabel.toLowerCase()} — keep going!`
-      : 'Same weight as end of last week';
-
-  setText('wc-this-dates', thisWk.label);
-  setText('wc-last-dates', lastWk.label);
-  setText('wc-arrow', arrow);
-  setText('wc-verdict', verdict);
-
-  const thisEl = el('wc-this-val');
-  if (thisEl) {
-    thisEl.textContent = `${fmt(thisWk.weight)} lbs`;
-    thisEl.style.color = color;
-  }
-  const lastEl = el('wc-last-val');
-  if (lastEl) {
-    lastEl.textContent = `${fmt(lastWk.weight)} lbs`;
-    lastEl.style.color = '#6d7a95';
-  }
-}
-
 // ── Monthly Summary ───────────────────────────────────────────────────
 function renderMonthlySummary(data) {
   const box = el('monthly-summary-body');
@@ -1023,7 +993,6 @@ function renderAll() {
   renderCalories(latest);
   renderWeightChart(allData);
   renderCompositionCharts(allData);
-  renderWeekComparison(allData);
   renderMonthlySummary(allData);
   renderWoW(allData);
   renderGoal(latest, allData);
