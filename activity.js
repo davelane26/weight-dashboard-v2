@@ -131,8 +131,32 @@ function renderActivityKPIs(data) {
   _set('act-cal-breakdown',
     `${_fmtK(data.activeCalories)} active · ${_fmtK(data.restingCalories || (data.totalCalories - data.activeCalories))} resting`);
 
-  // Fitness age
-  _set('act-fitness-age', data.fitnessAge || '—');
+  // Fitness age — color code vs actual age; green = younger, red = older
+  const ACTUAL_AGE  = 44;
+  const fitnessAge  = data.fitnessAge ? +data.fitnessAge : null;
+  _set('act-fitness-age', fitnessAge ?? '—');
+  if (fitnessAge != null) {
+    const diff      = fitnessAge - ACTUAL_AGE;
+    const isGood    = diff <= 0;
+    const color     = isGood ? '#2a8703' : diff <= 3 ? '#995213' : '#ea1100';
+    const bgGrad    = isGood
+      ? 'linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)'
+      : diff <= 3
+        ? 'linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)'
+        : 'linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)';
+    const borderColor = isGood ? '#2a8703' : diff <= 3 ? '#ffc220' : '#ea1100';
+    const diffLabel   = diff === 0 ? 'Same as actual age'
+      : diff < 0  ? `${Math.abs(diff)} yr${Math.abs(diff) !== 1 ? 's' : ''} younger 🎉`
+      : `${diff} yr${diff !== 1 ? 's' : ''} older than actual`;
+    const card  = _el('act-fitness-age-card');
+    const label = _el('act-fitness-age-label');
+    const val   = _el('act-fitness-age');
+    const sub   = _el('act-fitness-age-sub');
+    if (card)  { card.style.borderTopColor = borderColor; card.style.background = bgGrad; }
+    if (label) { label.style.color = color; }
+    if (val)   { val.style.color   = color; }
+    if (sub)   { sub.textContent   = diffLabel; sub.style.color = color; }
+  }
 
   // VO2 Max — Bug 3 fix: show a contextual fallback instead of a silent '—'
   if (data.vo2Max) {

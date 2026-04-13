@@ -304,6 +304,15 @@ function renderJourney(latest, data) {
   if (bar) {
     bar.style.width = pct + '%';
     bar.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
+    // Progress bar gradient: red → amber → yellow → green as journey advances
+    // We scale the gradient so the colour at the leading edge always matches progress
+    const pctSafe = Math.max(1, pct);
+    bar.style.background = `linear-gradient(
+      90deg,
+      #ea1100 0%,
+      #ffc220 ${Math.min(100, (50 / pctSafe) * 100)}%,
+      #2a8703 ${Math.min(100, (100 / pctSafe) * 100)}%
+    )`;
   }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
@@ -864,6 +873,110 @@ function renderCalLog(latest) {
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
 
+// ── This Week vs Last Week comparison ────────────────────────────────
+function renderWeekComparison(data) {
+  // Group readings by Mon-Sun week (ISO-style: week starts Monday)
+  const weekKey = d => {
+    const dt = new Date(d);
+    const day = (dt.getDay() + 6) % 7; // Mon=0 ... Sun=6
+    dt.setDate(dt.getDate() - day);
+    return dt.toDateString();
+  };
+  const weeks = {};
+  data.forEach(r => {
+    const k = weekKey(r.date);
+    if (!weeks[k]) weeks[k] = { start: new Date(r.date), rows: [] };
+    weeks[k].rows.push(r);
+  });
+  const sorted = Object.values(weeks)
+    .sort((a, b) => a.start - b.start);
+
+  if (sorted.length < 2) {
+    const sec = el('week-compare-section');
+    if (sec) sec.style.display = 'none';
+    return;
+  }
+
+  const fmtWk = wk => {
+    const rs  = wk.rows.sort((a, b) => a.date - b.date);
+    const lo  = rs[0], hi = rs[rs.length - 1];
+    const lost = lo.weight - hi.weight;
+    const label = lo.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + '–' + hi.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return { lost, label, readings: rs.length };
+  };
+
+  const thisWk = fmtWk(sorted[sorted.length - 1]);
+  const lastWk = fmtWk(sorted[sorted.length - 2]);
+
+  const isAhead = thisWk.lost >= lastWk.lost;
+  const diff    = Math.abs(thisWk.lost - lastWk.lost);
+
+  const color  = thisWk.lost > 0 ? '#2a8703' : thisWk.lost < 0 ? '#ea1100' : '#6d7a95';
+  const arrow  = isAhead ? '🔥' : '📉';
+  const verdict = isAhead
+    ? (diff < 0.1 ? 'On par with last week' : `+${fmt(diff)} lbs ahead of last week 💪`)
+    : `${fmt(diff)} lbs behind last week — keep going!`;
+
+  setText('wc-this-dates', thisWk.label);
+  setText('wc-last-dates', lastWk.label);
+  setText('wc-arrow', arrow);
+  setText('wc-verdict', verdict);
+
+  const thisEl = el('wc-this-val');
+  if (thisEl) {
+    thisEl.textContent = thisWk.lost > 0 ? `▼ ${fmt(thisWk.lost)} lbs` : thisWk.lost < 0 ? `▲ ${fmt(Math.abs(thisWk.lost))} lbs` : 'No change';
+    thisEl.style.color = color;
+  }
+  const lastEl = el('wc-last-val');
+  if (lastEl) {
+    lastEl.textContent = lastWk.lost > 0 ? `▼ ${fmt(lastWk.lost)} lbs` : lastWk.lost < 0 ? `▲ ${fmt(Math.abs(lastWk.lost))} lbs` : 'No change';
+  }
+}
+
+// ── Monthly Summary ───────────────────────────────────────────────────
+function renderMonthlySummary(data) {
+  const box = el('monthly-summary-body');
+  if (!box) return;
+
+  // Group by YYYY-MM
+  const months = {};
+  data.forEach(r => {
+    const k = r.date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }); // 'YYYY-MM'
+    if (!months[k]) months[k] = [];
+    months[k].push(r);
+  });
+
+  const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0])).reverse();
+
+  box.innerHTML = sorted.map(([key, rows], i) => {
+    const rs      = rows.sort((a, b) => a.date - b.date);
+    const first   = rs[0].weight;
+    const last    = rs[rs.length - 1].weight;
+    const lost    = first - last;
+    const [yr, mo] = key.split('-');
+    const label   = new Date(+yr, +mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const isCurrent = i === 0;
+    const lostColor = lost > 0 ? '#2a8703' : lost < 0 ? '#ea1100' : '#6d7a95';
+    const lostText  = lost > 0 ? `▼ ${fmt(lost)} lbs` : lost < 0 ? `▲ ${fmt(Math.abs(lost))} lbs` : 'No change';
+
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+                  gap:0.5rem;padding:0.6rem 0;
+                  border-bottom:1px solid var(--gray-10, #f5f6f8)">
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          ${isCurrent ? '<span style="background:#eff4ff;color:#0053e2;font-size:0.62rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:9999px">Current</span>' : ''}
+          <span style="font-weight:700;font-size:0.9rem">${label}</span>
+          <span style="font-size:0.7rem;color:#6d7a95">${rs.length} reading${rs.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="text-align:right">
+          <span style="font-size:1.15rem;font-weight:800;color:${lostColor}">${lostText}</span>
+          <span style="font-size:0.68rem;color:#6d7a95;margin-left:0.4rem">${fmt(first)} → ${fmt(last)} lbs</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 // ── Master render ───────────────────────────────────────────────────────
 function renderAll() {
   if (!allData.length) return;
@@ -884,6 +997,8 @@ function renderAll() {
   renderCalories(latest);
   renderWeightChart(allData);
   renderCompositionCharts(allData);
+  renderWeekComparison(allData);
+  renderMonthlySummary(allData);
   renderWoW(allData);
   renderGoal(latest, allData);
 

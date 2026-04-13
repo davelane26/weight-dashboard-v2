@@ -821,6 +821,7 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
 }
 
 /* ── Tab navigation ────────────────────────────────────────────────────── */
+/* ── Tab nav — mobile-safe horizontal scroll ───────────────────────────── */
 .tab-nav {
   display: flex;
   gap: 0.25rem;
@@ -829,10 +830,16 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   position: sticky;
   top: 0;
   z-index: 40;
+  /* Mobile overflow: scroll instead of squish */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge */
 }
+.tab-nav::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 .tab-btn {
-  flex: 1;
-  max-width: 160px;
+  flex: none;      /* tabs keep their natural width — don't shrink on mobile */
+  min-width: fit-content;
   padding: 0.55rem 1.25rem;
   border: none;
   border-radius: 8px 8px 0 0;
