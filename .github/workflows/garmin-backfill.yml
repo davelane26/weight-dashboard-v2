@@ -39,4 +39,5 @@ jobs:
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
           GARMIN_SESSION: ${{ secrets.GARMIN_SESSION }}
+          GARMIN_COOKIES: ${{ secrets.GARMIN_COOKIES }}
         run: python sync_garmin.py --days ${{ inputs.days }}
