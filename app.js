@@ -971,10 +971,13 @@ async function loadData() {
 
 async function init() {
   loadDark();
-  restoreTab();
   loadActivityLevel();
   loadGoal();
+  // Load data FIRST while the weight tab is still visible so Chart.js
+  // can measure the canvas at its real size. Switch to the saved tab
+  // only after the initial render is done.
   const ok = await loadData();
+  restoreTab(); // ← charts are already drawn at correct dimensions
   if (!ok) {
     // Fall back to cached localStorage data
     try {
@@ -982,6 +985,7 @@ async function init() {
       if (saved) {
         allData = JSON.parse(saved).map(r => ({ ...r, date: new Date(r.date) })).filter(r => r.weight);
         renderAll();
+        restoreTab(); // ← same here
         el('status-bar').textContent = '⚠ Showing cached data — live fetch failed';
         el('status-bar').style.display = 'block';
       }
