@@ -1,35 +1,30 @@
 // Service Worker — David's Weight Dashboard
-const CACHE     = 'weight-dash-v6'; // bumped version to force refresh
-const DATA_URL  = 'https://davelane26.github.io/Weight-tracker/data.json';
+const CACHE = 'weight-dash-v8';
 
-// App shell — these are cached on install
+// App shell — pre-cached for offline fallback only
 const SHELL = [
   '/weight-dashboard-v2/',
   '/weight-dashboard-v2/index.html',
   '/weight-dashboard-v2/style.css',
   '/weight-dashboard-v2/app.js',
   '/weight-dashboard-v2/glucose.js',
+  '/weight-dashboard-v2/activity.js',
   '/weight-dashboard-v2/icon.svg',
   '/weight-dashboard-v2/manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js',
 ];
 
-// ── Install: cache app shell ─────────────────────────────────────────────
+// ── Install: cache shell, activate immediately ───────────────────────────
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(SHELL))
-    // No skipWaiting — let the page decide when to activate
+    caches.open(CACHE).then(c => c.addAll(SHELL))
   );
+  // Take over straight away — don't wait for old tabs to close
+  self.skipWaiting();
 });
 
-// ── Message: page tells us to take over ──────────────────────────────────
-self.addEventListener('message', e => {
-  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
-});
-
-// ── Activate: remove old caches ──────────────────────────────────────────
+// ── Activate: purge old caches ───────────────────────────────────────────
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -40,33 +35,23 @@ self.addEventListener('activate', e => {
   );
 });
 
-// ── Fetch: network-first for data, cache-first for shell ─────────────────
+// ── Fetch: network-first for everything, cache as offline fallback ────────
+// Using cache-first for the shell caused stale HTML/JS to be served on
+// soft refresh, breaking the dashboard whenever code was deployed.
 self.addEventListener('fetch', e => {
-  const url = e.request.url;
+  // Only handle GET requests for our own origin + known external CDNs
+  if (e.request.method !== 'GET') return;
 
-  // Always go network-first for glucose AND weight data (want fresh readings)
-  if (url.includes('data.json') || url.includes('glucose.json')) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request)) // offline fallback
-    );
-    return;
-  }
-
-  // Cache-first for everything else (app shell)
   e.respondWith(
-    caches.match(e.request)
-      .then(cached => cached || fetch(e.request)
-        .then(res => {
+    fetch(e.request)
+      .then(res => {
+        // Cache a fresh copy for offline use
+        if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-      )
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request)) // offline fallback
   );
 });
