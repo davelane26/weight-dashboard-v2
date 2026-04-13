@@ -92,15 +92,21 @@ def main() -> int:
     print("  Garmin Session Builder - Token from Chrome DevTools")
     print("=" * 60)
     print()
-    print("STEP 1: Open Chrome -> https://connect.garmin.com")
-    print("STEP 2: Log in (with MFA if needed)")
-    print("STEP 3: Press F12 -> Network tab -> filter: 'oauth2'")
-    print("STEP 4: Refresh the page (F5)")
-    print("STEP 5: Click the request to:")
-    print("  connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0")
-    print("STEP 6: Click 'Response' tab -> copy ALL the JSON text")
+    print("OPTION A - Full JSON (best, lasts 90 days):")
+    print("  1. Open Chrome -> https://connect.garmin.com")
+    print("  2. F12 -> Network tab -> filter: oauth2")
+    print("  3. Sign out, log back in")
+    print("  4. Click the '2.0' request -> Response tab -> copy JSON")
     print()
-    print("Paste the JSON here (press Enter twice when done):")
+    print("OPTION B - Bearer token (lasts ~1 hour, easier to find):")
+    print("  1. Open Chrome -> https://connect.garmin.com (stay logged in)")
+    print("  2. F12 -> Network tab -> filter: connectapi")
+    print("  3. Click any request -> Headers -> Request Headers")
+    print("  4. Copy everything after 'Authorization: Bearer '")
+    print()
+    print("Paste the token here and press Enter twice when done.")
+    print("  Option A: Full JSON from Network Response tab")
+    print("  Option B: Just the Bearer token from Request Headers")
     print("-" * 60)
 
     lines = []
@@ -112,17 +118,26 @@ def main() -> int:
 
     raw = "\n".join(lines).strip()
 
-    try:
-        oauth2 = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"\nERROR: Could not parse JSON: {e}")
-        print("Make sure you copied the full response body.")
-        return 1
+    # Detect if it's just a raw Bearer token (no JSON braces)
+    if not raw.startswith("{"):
+        print("\nDetected raw Bearer token — building session with access_token only.")
+        print("(Note: session expires in ~1 hour, re-run this script monthly)")
+        oauth2 = {
+            "access_token": raw.strip(),
+            "refresh_token": "",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+    else:
+        try:
+            oauth2 = json.loads(raw)
+        except json.JSONDecodeError as e:
+            print(f"\nERROR: Could not parse JSON: {e}")
+            return 1
 
-    if "access_token" not in oauth2 or "refresh_token" not in oauth2:
-        print("\nERROR: JSON is missing access_token or refresh_token.")
-        print("Make sure you clicked the right network request.")
-        return 1
+        if "access_token" not in oauth2:
+            print("\nERROR: JSON is missing access_token.")
+            return 1
 
     print("\nParsed successfully!")
     print(f"  access_token:  {oauth2['access_token'][:20]}...")
