@@ -69,15 +69,18 @@ function switchTab(name) {
     }
   });
   localStorage.setItem('wt_v2_tab', name);
-  // Chart.js needs a nudge when its canvas becomes visible
+  // When switching to the weight tab, fully re-render the charts.
+  // resize() alone isn't enough — if renderAll() fired while the tab
+  // was hidden (e.g. the 30s interval refresh), Chart.js created new
+  // instances into 0px canvases. A fresh render into the now-visible
+  // panel is the only reliable fix.
   if (name === 'weight') {
-    // Soft-refresh fix: charts rendered into a hidden tab have 0 dimensions.
-    // Resize them once the panel is visible so they fill the space correctly.
     setTimeout(() => {
-      ['weight', 'comp', 'water'].forEach(k => {
-        if (charts[k]) charts[k].resize();
-      });
-    }, 50);
+      if (allData.length) {
+        renderWeightChart(allData);
+        renderCompositionCharts(allData);
+      }
+    }, 0);
   }
   if (name === 'glucose') {
     setTimeout(() => {
