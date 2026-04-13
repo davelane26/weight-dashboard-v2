@@ -312,11 +312,6 @@ function renderJourney(latest, data) {
   countUp('journey-lost',     lost, 1);
   countUp('journey-pct-stat', pct, 1, '%');
 
-  // Mirror the same numbers onto the Projector tab snapshot
-  countUp('proj-stat-current', latest.weight, 1);
-  countUp('proj-stat-lost',    lost,           1);
-  countUp('proj-stat-pct',     pct,            1, '%');
-
   const bar = el('journey-bar');
   if (bar) {
     bar.style.width = pct + '%';
