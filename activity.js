@@ -7,6 +7,7 @@ const HEALTH_URL    = window.GLUCOSE_WORKER_URL?.replace('/glucose.json', '/heal
                       ?? 'https://glucose-relay.djtwo6.workers.dev/health.json';
 const REFRESH_MS    = 5 * 60 * 1000; // 5 min
 const STEP_GOAL     = 10_000;
+const STEPS_PER_MILE = 2000; // ~2k steps/mile; Garmin uses stride-based but this is a solid default
 
 const elA = id => document.getElementById(id);
 
@@ -43,12 +44,13 @@ function renderToday(today) {
   }
   if (setup) setup.style.display = 'none';
 
-  // Steps hero
+  // Steps hero — Bug 2 fix: calculate and display miles from step count
   const stepPct = STEP_GOAL > 0 ? Math.round((today.steps / STEP_GOAL) * 100) : 0;
+  const stepMiles = today.steps > 0 ? (today.steps / STEPS_PER_MILE).toFixed(2) : '0.00';
   if (elA('act-steps')) elA('act-steps').textContent = fmtNum(today.steps);
   if (elA('act-steps-sub'))
     elA('act-steps-sub').textContent =
-      `${stepPct}% of ${STEP_GOAL.toLocaleString()} goal · synced via Garmin · Health Connect`;
+      `${stepMiles} mi · ${stepPct}% of ${STEP_GOAL.toLocaleString()} goal`;
 
   // Active cals
   if (elA('act-cal')) elA('act-cal').textContent = fmtNum(today.activeCalories);
@@ -75,9 +77,44 @@ function renderToday(today) {
     elA('act-updated').textContent =
       `Synced ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
   }
+
+  // VO2 Max — Bug 3 fix: render with a meaningful fallback when data is absent
+  const vo2El  = elA('act-vo2');
+  const vo2Sub = elA('act-vo2-sub');
+  if (vo2El) {
+    if (today.vo2Max && today.vo2Max > 0) {
+      vo2El.textContent = (+today.vo2Max).toFixed(1);
+      if (vo2Sub) vo2Sub.textContent = 'mL/kg/min';
+    } else {
+      vo2El.textContent = '—';
+      if (vo2Sub) vo2Sub.textContent = 'Needs outdoor GPS activity';
+    }
+  }
 }
 
-// ── Mini chart helper ─────────────────────────────────────────────────────
+// ── Empty state helper — Bug 4 fix ───────────────────────────────────────
+// Shows a friendly message in place of an empty chart so users aren't
+// staring at a blank canvas wondering if something is broken.
+function showEmptyState(canvasId, storeKey, message = 'No data yet for this period') {
+  // Destroy any existing chart instance first
+  if (window[storeKey]) { window[storeKey].destroy(); window[storeKey] = null; }
+  const canvas = elA(canvasId);
+  if (!canvas) return;
+  // Clear the canvas and write the message directly
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.font = '13px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#6d7a95';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+  ctx.restore();
+}
+
+const hasRealData = values => values.some(v => v != null && v > 0);
+
+// ── Mini chart helper ─────────────────────────────────────────────────
 function miniChart(canvasId, storeKey, labels, values, color, unit) {
   const canvas = elA(canvasId);
   if (!canvas) return;
@@ -111,7 +148,7 @@ function miniChart(canvasId, storeKey, labels, values, color, unit) {
   });
 }
 
-// ── Render 7-day charts ───────────────────────────────────────────────────
+// ── Render 7-day charts — Bug 4 fix: check for real data before drawing ──
 function renderCharts(days) {
   const recent = days.slice(-7);
   const labels = recent.map(d => {
@@ -119,12 +156,27 @@ function renderCharts(days) {
     return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
   });
 
-  miniChart('actStepsChart', 'actStepsChartInst', labels,
-    recent.map(d => d.steps),          '#0053e2', 'steps');
-  miniChart('actSleepChart', 'actSleepChartInst', labels,
-    recent.map(d => d.sleepHours),     '#7c3aed', 'hrs');
-  miniChart('actHRChart',    'actHRChartInst',    labels,
-    recent.map(d => d.restingHR),      '#ea1100', 'bpm');
+  const stepsVals = recent.map(d => d.steps);
+  const sleepVals = recent.map(d => d.sleepHours);
+  const hrVals    = recent.map(d => d.restingHR);
+
+  if (hasRealData(stepsVals)) {
+    miniChart('actStepsChart', 'actStepsChartInst', labels, stepsVals, '#0053e2', 'steps');
+  } else {
+    showEmptyState('actStepsChart', 'actStepsChartInst', 'No step data yet — keep moving! 🚶');
+  }
+
+  if (hasRealData(sleepVals)) {
+    miniChart('actSleepChart', 'actSleepChartInst', labels, sleepVals, '#7c3aed', 'hrs');
+  } else {
+    showEmptyState('actSleepChart', 'actSleepChartInst', 'No sleep data yet');
+  }
+
+  if (hasRealData(hrVals)) {
+    miniChart('actHRChart', 'actHRChartInst', labels, hrVals, '#ea1100', 'bpm');
+  } else {
+    showEmptyState('actHRChart', 'actHRChartInst', 'No heart rate data yet');
+  }
 }
 
 // ── Fetch + render ────────────────────────────────────────────────────────

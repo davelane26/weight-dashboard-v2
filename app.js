@@ -56,6 +56,9 @@ function toggleDark() {
   localStorage.setItem('wt_v2_dark', isDark ? '1' : '0');
   const btn = el('dark-btn');
   if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+  // Bug 1 fix: theme change must never disturb active tab state
+  const currentTab = localStorage.getItem('wt_v2_tab') || 'weight';
+  if (TABS.includes(currentTab)) switchTab(currentTab);
 }
 
 // ── State ───────────────────────────────────────────────────────────
