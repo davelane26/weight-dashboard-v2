@@ -61,29 +61,58 @@ function _destroyChart(inst) {
 }
 
 // ── Load today's data ───────────────────────────────────────────────
+// Tries Cloudflare Worker /health.json first, falls back to Firebase
 async function loadActivityData() {
+  let data = null;
+  let source = '';
+
+  // 1. Try Cloudflare Worker (fed by Exist.io via GitHub Actions)
   try {
-    const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json`);
-    const data = await res.json();
-    if (!data) return;
-
-    renderActivityKPIs(data);
-    renderSleepBreakdown(data);
-    renderHRVSection(data);
-    renderActivities(data.activities);
-    loadActivityCharts();
-
-    // Hide setup prompt
-    const setup = _el('act-setup');
-    if (setup) setup.style.display = 'none';
-
-    // Show last updated
-    if (data.lastUpdated) {
-      const d = new Date(data.lastUpdated);
-      _set('act-updated', 'Garmin synced via garminconnect · ' + d.toLocaleString());
+    const workerBase = (window.GLUCOSE_WORKER_URL || '').replace('/glucose.json', '');
+    if (workerBase) {
+      const res = await fetch(`${workerBase}/health.json`);
+      const json = await res.json();
+      // Worker returns { days: [...], updatedAt } — grab the latest entry
+      if (json?.days?.length) {
+        data = json.days[json.days.length - 1];
+        source = 'Exist.io via Cloudflare';
+      }
     }
-  } catch (err) {
-    console.error('Error loading activity data:', err);
+  } catch (e) {
+    console.warn('Worker health.json failed, trying Firebase...', e);
+  }
+
+  // 2. Fall back to Firebase (legacy)
+  if (!data) {
+    try {
+      const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json`);
+      data = await res.json();
+      source = 'Garmin via Firebase';
+    } catch (e) {
+      console.error('Both data sources failed:', e);
+      return;
+    }
+  }
+
+  if (!data) return;
+
+  renderActivityKPIs(data);
+  renderSleepBreakdown(data);
+  renderHRVSection(data);
+  renderActivities(data.activities);
+  loadActivityCharts();
+
+  // Hide setup prompt
+  const setup = _el('act-setup');
+  if (setup) setup.style.display = 'none';
+
+  // Show last updated
+  const ts = data.lastUpdated || data.updatedAt;
+  if (ts) {
+    const d = new Date(ts);
+    _set('act-updated', `Synced via ${source} · ${d.toLocaleString()}`);
+  } else if (data.date) {
+    _set('act-updated', `Data for ${data.date} · via ${source}`);
   }
 }
 
