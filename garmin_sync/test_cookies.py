@@ -4,7 +4,7 @@ from datetime import date
 all_cookies = json.load(open(".garmin_cookies.json"))
 
 # Only send connect.garmin.com cookies — not SSO domain ones
-CONNECT_COOKIES = ["JWT_WEB", "SESSIONID", "SESSION", "__VCAP_ID__", "__cflb", "cf_clearance", "__cf_bm"]
+CONNECT_COOKIES = ["JWT_WEB", "SESSIONID", "SESSION", "session", "SERVERID", "__VCAP_ID__", "__cflb", "cf_clearance", "__cf_bm", "_cfuvid"]
 c = {k: v for k, v in all_cookies.items() if k in CONNECT_COOKIES}
 print(f"Sending cookies: {list(c.keys())}")
 
@@ -27,8 +27,14 @@ endpoints = [
     (f"userprofile-service/userprofile/user-settings", {}),
 ]
 
-for path, params in endpoints:
-    r = requests.get(f"{BASE}/{path}", cookies=c, headers=h, params=params or None, timeout=15)
-    print(f"\n{r.status_code} | {path}")
-    print(r.text[:300])
+# Try 1: filtered cookies
+c = {k: v for k, v in all_cookies.items() if k in CONNECT_COOKIES}
+print(f"Sending filtered cookies: {list(c.keys())}")
+r = requests.get(f"{BASE}/usersummary-service/usersummary/daily/{UUID}", cookies=c, headers=h, params={"calendarDate": today}, timeout=15)
+print(f"Filtered: {r.status_code} | {r.text[:200]}")
+
+# Try 2: ALL cookies
+print(f"\nSending ALL cookies: {list(all_cookies.keys())}")
+r2 = requests.get(f"{BASE}/usersummary-service/usersummary/daily/{UUID}", cookies=all_cookies, headers=h, params={"calendarDate": today}, timeout=15)
+print(f"All cookies: {r2.status_code} | {r2.text[:200]}")
 
