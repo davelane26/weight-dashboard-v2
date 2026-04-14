@@ -17,7 +17,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 COOKIES_FILE = Path(__file__).parent / ".garmin_cookies"
-BASE = "https://connect.garmin.com/proxy"
+BASE = "https://connect.garmin.com/gc-api"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
