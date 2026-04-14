@@ -49,7 +49,10 @@ oauth_tokens = {}
 
 
 def handle_response(response):
-    if "oauth-service/oauth/exchange" in response.url:
+    url = response.url
+    if any(x in url for x in ["oauth", "token", "auth", "sso", "exchange", "jwt"]):
+        print(f"[NET] {response.status} {url[:120]}")
+    if "oauth-service/oauth/exchange" in url or "oauth2/token" in url or "exchange/user" in url:
         try:
             data = response.json()
             if "access_token" in str(data) or "oauth_token" in str(data):
