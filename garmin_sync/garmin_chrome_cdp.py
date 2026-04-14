@@ -116,16 +116,14 @@ try:
         print("\nMonitoring active — navigating to Garmin login...")
         page.goto(GARMIN_SSO, timeout=30000)
 
-        print("\n" + "="*50)
-        print("Log in to Garmin in the browser window.")
-        print("The script will grab your tokens automatically.")
-        print("Waiting up to 3 minutes...")
-        print("="*50 + "\n")
+        print("\nLog in to Garmin in the browser window...")
 
-        # Wait for OAuth exchange to happen
-        deadline = time.time() + 180
-        while not oauth_tokens and time.time() < deadline:
-            time.sleep(1)
+        # Wait until login is complete (URL changes to connect.garmin.com)
+        try:
+            page.wait_for_url("*connect.garmin.com/**", timeout=180000)
+            print("[OK] Logged in!")
+        except Exception:
+            print("[WARN] Timed out waiting for login — grabbing whatever cookies exist")
 
         if not oauth_tokens:
             print("[WARN] No OAuth tokens intercepted — grabbing cookies as fallback...")
