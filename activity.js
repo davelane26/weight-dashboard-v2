@@ -170,14 +170,18 @@ function renderActivityKPIs(data) {
   _set('act-steps-sub',
     `${distMi} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
 
-  // Sleep
+  // Sleep — hours left, score right
   const sleepHours = data.sleepDuration || data.sleepHours || 0;
   _set('act-sleep', sleepHours || '—');
-  const score    = data.sleepScore || _calcSleepScore(data);
-  const isCalc   = !data.sleepScore && score;
-  _set('act-sleep-score',
-    score ? `Score: ${score} ${_sleepQuality(score)}${isCalc ? ' · est.' : ''}` : ''
-  );
+  const score  = data.sleepScore || _calcSleepScore(data);
+  const isCalc = !data.sleepScore && score;
+  const scoreColor = score >= 80 ? '#2a8703' : score >= 60 ? '#995213' : score >= 40 ? '#f97316' : '#ea1100';
+  const scoreLabel = _sleepQuality(score).replace(/^\S+\s*/, '') + (isCalc ? ' · est.' : '');
+  if (_el('act-sleep-score-val')) {
+    _el('act-sleep-score-val').textContent  = score ?? '—';
+    _el('act-sleep-score-val').style.color  = scoreColor;
+    _el('act-sleep-score-label').textContent = scoreLabel || 'score';
+  }
 
   // Workouts
   _set('act-hr', data.workouts ?? '—');
@@ -191,7 +195,8 @@ function renderActivityKPIs(data) {
   _set('act-stress-sub', '');
 
   // Distance
-  _set('act-battery', data.workoutsKm ? `${data.workoutsKm}` : '—');
+  // Distance (km → miles)
+  _set('act-battery', data.workoutsKm ? (data.workoutsKm * 0.621371).toFixed(2) : '—');
 
   // Awakenings
   _set('act-fitness-age', data.sleepAwakenings ?? '—');
@@ -399,7 +404,7 @@ function loadActivityCharts(history = []) {
   // Workouts chart (replaces HR — we don't have HR from Exist.io)
   const hrCanvas      = _el('actHRChart');
   const workoutMins   = recent.map(h => h.workoutsMins || 0);
-  const workoutKm     = recent.map(h => h.workoutsKm   || 0);
+  const workoutMiles  = recent.map(h => h.workoutsKm ? +(h.workoutsKm * 0.621371).toFixed(2) : 0);
   if (hrCanvas) {
     if (_allZero(workoutMins)) {
       actHRChartInst = _emptyChart(actHRChartInst, hrCanvas, 'No workout data yet');

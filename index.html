@@ -520,9 +520,16 @@
 
         <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" style="color:#2a8703">💤 Sleep</p>
-          <p class="kpi-value" style="color:#2a8703" id="act-sleep">—</p>
-          <p class="kpi-unit">hours</p>
-          <p class="kpi-sub" id="act-sleep-score"></p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:0.25rem">
+            <div>
+              <p class="kpi-value" style="color:#2a8703" id="act-sleep">—</p>
+              <p class="kpi-unit">hours</p>
+            </div>
+            <div style="text-align:right">
+              <p style="font-size:1.6rem;font-weight:800;line-height:1;color:#2a8703" id="act-sleep-score-val">—</p>
+              <p style="font-size:0.65rem;color:#6d7a95;margin-top:2px" id="act-sleep-score-label">score</p>
+            </div>
+          </div>
         </div>
 
         <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
@@ -541,7 +548,7 @@
         <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" style="color:#995213">📍 Distance</p>
           <p class="kpi-value" style="color:#995213" id="act-battery">—</p>
-          <p class="kpi-unit">km today</p>
+          <p class="kpi-unit">mi today</p>
         </div>
 
         <div class="kpi" id="act-fitness-age-card" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
