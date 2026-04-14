@@ -73,8 +73,10 @@ print("Launching Chrome with remote debugging...")
 proc = subprocess.Popen([
     chrome,
     f"--remote-debugging-port={CDP_PORT}",
+    f"--user-data-dir={Path.home() / 'AppData/Local/Temp/cdp-profile'}",
     "--no-first-run",
     "--no-default-browser-check",
+    "--disable-extensions",
     "https://connect.garmin.com/modern/"
 ])
 
