@@ -100,7 +100,7 @@ async function loadActivityData() {
 
   renderActivityKPIs(data);
   renderSleepBreakdown(data);
-  renderHRVSection(data);
+  renderHRVSection(data, allDays);
   renderActivities(data.activities);
   loadActivityCharts(allDays);
 
@@ -140,63 +140,29 @@ function renderActivityKPIs(data) {
   _set('act-sleep-score', scoreHtml);
 
   // Heart rate
-  _set('act-hr', data.restingHR || '—');
-  const hrSub = [];
-  if (data.minHR) hrSub.push('Min: ' + data.minHR);
-  if (data.maxHR) hrSub.push('Max: ' + data.maxHR);
-  if (data.avgHR) hrSub.push('Avg: ' + data.avgHR);
-  _set('act-hr-sub', hrSub.join(' · '));
+  _set('act-hr',  data.restingHR || '—');
+  _set('act-hr-sub', data.avgHR ? `Avg: ${data.avgHR} bpm` : '');
 
-  // Intensity
-  _set('act-intensity', data.intensityMinutes || '—');
+  // HRV (reuses act-intensity slot)
+  _set('act-intensity', data.hrv || '—');
 
-  // Stress
-  _set('act-stress', data.stressLevel || '—');
-  _set('act-stress-sub', _stressLabel(data.stressLevel));
+  // Floors (reuses act-stress slot)
+  _set('act-stress', data.floorsClimbed || '—');
+  _set('act-stress-sub', data.floorsClimbed ? `${data.floorsClimbed} floors` : '');
 
-  // Body battery
-  _set('act-battery', data.bodyBattery || '—');
+  // Max HR (reuses act-battery slot)
+  _set('act-battery', data.maxHR || '—');
 
-  // Calories
-  _set('act-total-cal', _fmtK(data.totalCalories));
-  _set('act-cal-breakdown',
-    `${_fmtK(data.activeCalories)} active · ${_fmtK(data.restingCalories || (data.totalCalories - data.activeCalories))} resting`);
+  // Avg HR (reuses act-fitness-age slot)
+  _set('act-fitness-age', data.avgHR || '—');
+  _set('act-fitness-age-sub', '');
 
-  // Fitness age — color code vs actual age; green = younger, red = older
-  const ACTUAL_AGE  = 44;
-  const fitnessAge  = data.fitnessAge ? +data.fitnessAge : null;
-  _set('act-fitness-age', fitnessAge ?? '—');
-  if (fitnessAge != null) {
-    const diff      = fitnessAge - ACTUAL_AGE;
-    const isGood    = diff <= 0;
-    const color     = isGood ? '#2a8703' : diff <= 3 ? '#995213' : '#ea1100';
-    const bgGrad    = isGood
-      ? 'linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)'
-      : diff <= 3
-        ? 'linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)'
-        : 'linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)';
-    const borderColor = isGood ? '#2a8703' : diff <= 3 ? '#ffc220' : '#ea1100';
-    const diffLabel   = diff === 0 ? 'Same as actual age'
-      : diff < 0  ? `${Math.abs(diff)} yr${Math.abs(diff) !== 1 ? 's' : ''} younger 🎉`
-      : `${diff} yr${diff !== 1 ? 's' : ''} older than actual`;
-    const card  = _el('act-fitness-age-card');
-    const label = _el('act-fitness-age-label');
-    const val   = _el('act-fitness-age');
-    const sub   = _el('act-fitness-age-sub');
-    if (card)  { card.style.borderTopColor = borderColor; card.style.background = bgGrad; }
-    if (label) { label.style.color = color; }
-    if (val)   { val.style.color   = color; }
-    if (sub)   { sub.textContent   = diffLabel; sub.style.color = color; }
-  }
+  // Active calories (reuses act-vo2max slot)
+  _set('act-vo2max', data.activeCalories ? _fmtK(data.activeCalories) : '—');
 
-  // VO2 Max — Bug 3 fix: show a contextual fallback instead of a silent '—'
-  if (data.vo2Max) {
-    _set('act-vo2max', data.vo2Max.toFixed(1));
-    _set('act-vo2max-unit', 'mL/kg/min');
-  } else {
-    _set('act-vo2max', '—');
-    _set('act-vo2max-unit', 'Needs outdoor GPS activity');
-  }
+  // Total calories (kept as-is)
+  _set('act-total-cal', _fmtK(data.totalCalories || data.activeCalories));
+  _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
 }
 
 // ── Sleep Breakdown ─────────────────────────────────────────────────────
@@ -236,25 +202,26 @@ function renderSleepBreakdown(data) {
   );
 }
 
-// ── HRV Section ────────────────────────────────────────────────────
-function renderHRVSection(data) {
+// ── HRV Section ──────────────────────────────────────────────────────
+function renderHRVSection(data, allDays = []) {
   const section = _el('hrv-section');
   if (!section) return;
 
-  if (!data.hrvLastNight && !data.hrvWeeklyAvg) {
-    section.style.display = 'none';
-    return;
-  }
+  // Support both flat `hrv` (from Exist.io) and legacy nested fields
+  const hrv = data.hrv || data.hrvLastNight || null;
+  if (!hrv) { section.style.display = 'none'; return; }
   section.style.display = 'block';
 
-  _set('hrv-last-night', data.hrvLastNight ? data.hrvLastNight + ' ms' : '—');
-  _set('hrv-weekly-avg', data.hrvWeeklyAvg ? data.hrvWeeklyAvg + ' ms' : '—');
-  _set('hrv-status', data.hrvStatus || '—');
+  // Weekly avg from history
+  const recent = allDays.slice(-7).map(d => d.hrv || d.hrvLastNight || 0).filter(Boolean);
+  const weeklyAvg = recent.length
+    ? Math.round(recent.reduce((a, b) => a + b, 0) / recent.length)
+    : null;
 
-  if (data.hrvBaseline) {
-    _set('hrv-baseline',
-      `Low: <${data.hrvBaseline.low || '?'} · Balanced: <${data.hrvBaseline.balanced || '?'}`);
-  }
+  _set('hrv-last-night', hrv + ' ms');
+  _set('hrv-weekly-avg', weeklyAvg ? weeklyAvg + ' ms' : '—');
+  _set('hrv-status', hrv >= 50 ? '🟢 Good' : hrv >= 35 ? '🟡 Moderate' : '🔴 Low');
+  _set('hrv-baseline', '');
 }
 
 // ── Activities List ─────────────────────────────────────────────────
