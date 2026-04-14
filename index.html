@@ -490,8 +490,11 @@
   <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
 
     <!-- Sync Now button -->
-    <div style="display:flex;justify-content:flex-end;padding:0.6rem 1rem 0;gap:0.5rem;align-items:center">
+    <div style="display:flex;justify-content:flex-end;padding:0.6rem 1rem 0;gap:0.5rem;align-items:center;flex-wrap:wrap">
       <span id="sync-status" style="font-size:0.72rem;color:#6d7a95"></span>
+      <button onclick="resetSyncToken()"
+        style="font-size:0.68rem;color:#6d7a95;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0"
+        title="Clear saved GitHub token">reset token</button>
       <button id="sync-now-btn"
         onclick="triggerSync()"
         style="font-size:0.75rem;font-weight:700;padding:0.35rem 0.85rem;border-radius:999px;
@@ -548,13 +551,6 @@
           <p class="kpi-unit">bpm today</p>
         </div>
 
-        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#ea1100">🔥 Calories</p>
-          <p class="kpi-value" style="color:#ea1100" id="act-total-cal">—</p>
-          <p class="kpi-unit">total burned</p>
-          <p class="kpi-sub" id="act-cal-breakdown"></p>
-        </div>
-
         <div class="kpi" id="act-fitness-age-card" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" id="act-fitness-age-label" style="color:#2a8703">🏃 Avg HR</p>
           <p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p>
@@ -562,9 +558,9 @@
           <p class="kpi-sub" id="act-fitness-age-sub"></p>
         </div>
 
-        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#0053e2">🔥 Active Cal</p>
-          <p class="kpi-value" style="color:#0053e2" id="act-vo2max">—</p>
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#ea1100">🔥 Active Cal</p>
+          <p class="kpi-value" style="color:#ea1100" id="act-vo2max">—</p>
           <p class="kpi-unit">kcal</p>
         </div>
 
@@ -619,20 +615,9 @@
           <div class="comp-chart-wrap" style="height:200px"><canvas id="actSleepChart"></canvas></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div>
-            <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">❤️ Heart Rate</p>
-            <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
-          </div>
-          <div>
-            <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">😐 Stress</p>
-            <div class="comp-chart-wrap" style="height:180px"><canvas id="actStressChart"></canvas></div>
-          </div>
-        </div>
-
         <div>
-          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🔋 Body Battery</p>
-          <div class="comp-chart-wrap" style="height:180px"><canvas id="actBatteryChart"></canvas></div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">❤️ Heart Rate</p>
+          <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
         </div>
 
       </div>
@@ -662,7 +647,12 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations()
       .then(regs => regs.forEach(r => r.unregister()));
-  }
+  function resetSyncToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  const status = document.getElementById('sync-status');
+  if (status) { status.textContent = 'Token cleared — will prompt on next sync'; }
+  setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+}
 </script>
 
 <script>
@@ -680,9 +670,12 @@ async function triggerSync() {
   let token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
     token = prompt(
-      'Enter a GitHub personal access token with the "workflow" scope.\n\n' +
-      'Create one at: https://github.com/settings/tokens\n\n' +
-      'It will be saved in your browser only.'
+      '🔑 One-time setup: GitHub token needed to trigger sync.\n\n' +
+      '1. Go to: https://github.com/settings/tokens/new\n' +
+      '2. Give it any name (e.g. "dashboard sync")\n' +
+      '3. Tick the "workflow" checkbox\n' +
+      '4. Click Generate token — copy it — paste below\n\n' +
+      'Saved in your browser only. Never leaves this page.'
     );
     if (!token) return;
     localStorage.setItem(TOKEN_KEY, token.trim());

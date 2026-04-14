@@ -8,10 +8,7 @@ const FIREBASE_GARMIN_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebas
 let actStepsChartInst = null;
 let actSleepChartInst = null;
 let actHRChartInst    = null;
-let actStressChartInst = null;
-let actBatteryChartInst = null;
 
-// Make charts globally accessible for tab-switch resize
 window.actStepsChartInst  = null;
 window.actSleepChartInst  = null;
 window.actHRChartInst     = null;
@@ -157,12 +154,8 @@ function renderActivityKPIs(data) {
   _set('act-fitness-age', data.avgHR || '—');
   _set('act-fitness-age-sub', '');
 
-  // Active calories (reuses act-vo2max slot)
+  // Active calories only — no redundant total cal
   _set('act-vo2max', data.activeCalories ? _fmtK(data.activeCalories) : '—');
-
-  // Total calories (kept as-is)
-  _set('act-total-cal', _fmtK(data.totalCalories || data.activeCalories));
-  _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
 }
 
 // ── Sleep Breakdown ─────────────────────────────────────────────────────
@@ -382,60 +375,6 @@ function loadActivityCharts(history = []) {
     }
   }
 
-  // Stress chart
-  const stressCanvas = _el('actStressChart');
-  if (stressCanvas) {
-    actStressChartInst = _destroyChart(actStressChartInst);
-    actStressChartInst = new Chart(stressCanvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          data: recent.map(h => h.stressLevel || 0),
-          backgroundColor: recent.map(h => {
-            const s = h.stressLevel || 0;
-            if (s <= 25) return 'rgba(42,135,3,0.6)';
-            if (s <= 50) return 'rgba(255,194,32,0.6)';
-            if (s <= 75) return 'rgba(249,115,22,0.6)';
-            return 'rgba(234,17,0,0.6)';
-          }),
-          borderRadius: 6,
-        }],
-      },
-      options: chartDefaults,
-    });
-  }
-
-  // Body battery chart
-  const batteryCanvas = _el('actBatteryChart');
-  if (batteryCanvas) {
-    actBatteryChartInst = _destroyChart(actBatteryChartInst);
-    actBatteryChartInst = new Chart(batteryCanvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Body Battery',
-          data: recent.map(h => h.bodyBattery || null),
-          borderColor: '#0891b2',
-          backgroundColor: 'rgba(8,145,178,0.1)',
-          fill: true,
-          tension: 0.35,
-          pointRadius: 5,
-          pointBackgroundColor: '#0891b2',
-          spanGaps: true,
-          borderWidth: 2.5,
-        }],
-      },
-      options: {
-        ...chartDefaults,
-        scales: {
-          ...chartDefaults.scales,
-          y: { ...chartDefaults.scales.y, min: 0, max: 100 },
-        },
-      },
-    });
-  }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────
