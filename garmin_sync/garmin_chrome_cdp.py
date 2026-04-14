@@ -77,7 +77,7 @@ proc = subprocess.Popen([
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-extensions",
-    "https://connect.garmin.com/modern/"
+    "about:blank"  # start blank so we navigate AFTER monitoring is active
 ])
 
 print("Waiting for Chrome to start...")
@@ -109,9 +109,12 @@ try:
 
         page.on("response", handle_response)
 
+        print("\nMonitoring active — navigating to Garmin login...")
+        page.goto(GARMIN_SSO, timeout=30000)
+
         print("\n" + "="*50)
-        print("Chrome is open — log OUT of Garmin if you're logged in,")
-        print("then log back in. The script will grab your tokens.")
+        print("Log in to Garmin in the browser window.")
+        print("The script will grab your tokens automatically.")
         print("Waiting up to 3 minutes...")
         print("="*50 + "\n")
 
