@@ -96,6 +96,7 @@ for date_str in sorted(by_date):
         "sleepLight":       mins_to_hrs(d.get("light_sleep")),
         "sleepRem":         mins_to_hrs(d.get("rem_sleep")),
         "sleepAwakenings":  int(d.get("sleep_awakenings") or 0),
+        "timeInBed":        mins_to_hrs(d.get("time_in_bed")),
         "activeCalories":   int(d.get("active_energy")    or 0),
         "floorsClimbed":    int(d.get("floors")           or 0),
         "workouts":         int(d.get("workouts")         or 0),

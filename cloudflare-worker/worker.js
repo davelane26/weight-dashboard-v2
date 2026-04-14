@@ -197,6 +197,7 @@ function buildHealthEntry(body) {
     sleepLight:       n(body.sleepLight),
     sleepRem:         n(body.sleepRem),
     sleepAwakenings:  n(body.sleepAwakenings),
+    timeInBed:        n(body.timeInBed),
     activeCalories:   n(body.activeCalories),
     floorsClimbed:    n(body.floorsClimbed),
     workouts:         n(body.workouts),

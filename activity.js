@@ -52,15 +52,46 @@ function _sleepQuality(score) {
   return '🔴 Poor';
 }
 
-// Estimate sleep score from duration alone (used when Garmin score unavailable)
-// Based on NSF adult guidelines: 7–9h optimal
-function _calcSleepScore(hours) {
-  if (!hours || hours <= 0) return null;
-  if (hours < 4)  return 20;
-  if (hours <= 6)  return Math.round(20 + (hours - 4) * 20);  // 20–60
-  if (hours <= 7)  return Math.round(60 + (hours - 6) * 20);  // 60–80
-  if (hours <= 9)  return Math.round(80 + (hours - 7) * 7.5); // 80–95
-  return Math.max(70, Math.round(95 - (hours - 9) * 10));     // penalise oversleep
+// Estimate sleep score using stage data when available, duration-only fallback
+// Factors: duration (35), efficiency (25), deep % (20), REM % (20), awakenings penalty (-15)
+function _calcSleepScore(data) {
+  const hours = (typeof data === 'number') ? data : (data.sleepHours || 0);
+  if (!hours) return null;
+
+  const totalMins    = hours * 60;
+  const deepMins     = ((typeof data === 'object' && data.sleepDeep)  || 0) * 60;
+  const remMins      = ((typeof data === 'object' && data.sleepRem)   || 0) * 60;
+  const tibMins      = ((typeof data === 'object' && data.timeInBed)  || 0) * 60 || totalMins * 1.05;
+  const awakenings   =  (typeof data === 'object' && data.sleepAwakenings) || 0;
+  const hasStages    = deepMins > 0 || remMins > 0;
+
+  // Duration (0–35)
+  let dur;
+  if      (hours < 5)  dur = Math.round(10 + hours * 2);
+  else if (hours <= 6) dur = Math.round(20 + (hours - 5) * 8);
+  else if (hours <= 7) dur = Math.round(28 + (hours - 6) * 7);
+  else if (hours <= 9) dur = 35;
+  else                 dur = Math.max(20, Math.round(35 - (hours - 9) * 5));
+
+  // Efficiency (0–25)
+  const eff = Math.min(100, (totalMins / tibMins) * 100);
+  const effScore = eff >= 90 ? 25 : eff >= 85 ? 20 : eff >= 80 ? 15 : eff >= 75 ? 10 : 5;
+
+  // Deep sleep % (0–20) — neutral if no stage data
+  const deepPct  = totalMins > 0 ? (deepMins / totalMins) * 100 : 0;
+  const deepScore = !hasStages ? 10
+    : deepPct >= 20 ? 20 : deepPct >= 15 ? 16 : deepPct >= 10 ? 12 : deepPct >= 5 ? 8 : 4;
+
+  // REM % (0–20) — neutral if no stage data
+  const remPct   = totalMins > 0 ? (remMins / totalMins) * 100 : 0;
+  const remScore  = !hasStages ? 10
+    : remPct >= 22 ? 20 : remPct >= 18 ? 16 : remPct >= 14 ? 12 : remPct >= 10 ? 8 : 4;
+
+  // Awakenings penalty (0 to −15)
+  const awakePenalty = awakenings > 20 ? -15 : awakenings > 15 ? -10
+    : awakenings > 10 ? -6 : awakenings > 5 ? -3 : 0;
+
+  return Math.min(100, Math.max(0, dur + effScore + deepScore + remScore + awakePenalty));
 }
 
 function _destroyChart(inst) {
@@ -142,7 +173,7 @@ function renderActivityKPIs(data) {
   // Sleep
   const sleepHours = data.sleepDuration || data.sleepHours || 0;
   _set('act-sleep', sleepHours || '—');
-  const score    = data.sleepScore || _calcSleepScore(sleepHours);
+  const score    = data.sleepScore || _calcSleepScore(data);
   const isCalc   = !data.sleepScore && score;
   _set('act-sleep-score',
     score ? `Score: ${score} ${_sleepQuality(score)}${isCalc ? ' · est.' : ''}` : ''
