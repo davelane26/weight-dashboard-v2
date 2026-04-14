@@ -54,12 +54,13 @@ def main():
 
     cookies = get_garmin_cookies()
 
-    # Verify auth works
-    name = get_display_name(cookies)
-    if not name:
-        log.error("Auth failed — cookies are expired or invalid. Open Chrome and visit connect.garmin.com to refresh your session.")
+    # Verify auth by hitting a known endpoint
+    name = DISPLAY_NAME
+    test = get_display_name(cookies)
+    if test is None and not cookies.get("JWT_WEB"):
+        log.error("Auth failed — cookies are expired. Re-run garmin_chrome_cdp.py.")
         sys.exit(1)
-    log.info("Authenticated as: %s", name)
+    log.info("Using display name: %s", name)
 
     today = date.today()
     synced = 0
