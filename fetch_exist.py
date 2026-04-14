@@ -54,7 +54,7 @@ print(f"Fetching {DAYS} days of Exist.io data (up to {TODAY})...")
 resp = requests.get(
     "https://exist.io/api/2/attributes/with-values/",
     headers={"Authorization": f"Token {EXIST_TOKEN}"},
-    params={"attributes": ATTRS, "date_max": TODAY, "days": DAYS},
+    params={"date_max": TODAY, "days": DAYS},  # no attr filter = return everything
     timeout=30,
 )
 
@@ -67,9 +67,13 @@ if resp.status_code != 200:
     sys.exit(1)
 
 # ── Reorganise: attr→[{date,value}] into date→{attr: value} ──────────────────
+print("\nAttributes returned by Exist.io:")
 by_date: dict = {}
 for attr in resp.json().get("results", []):
-    for entry in attr.get("values", []):
+    vals = attr.get("values", [])
+    first_val = vals[0].get("value") if vals else None
+    print(f"  {attr['name']:<35} latest={first_val}")
+    for entry in vals:
         d = entry["date"]
         if d not in by_date:
             by_date[d] = {}
