@@ -15,6 +15,7 @@ from playwright.sync_api import sync_playwright
 
 REPO = "davelane26/weight-dashboard-v2"
 CDP_PORT = 9222
+GARMIN_SSO = "https://sso.garmin.com/portal/sso/en-US/sign-in?clientId=GarminConnect&redirectAfterAccountLoginUrl=https://connect.garmin.com/modern/"
 
 CHROME_PATHS = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
