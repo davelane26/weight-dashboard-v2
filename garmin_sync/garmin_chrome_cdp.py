@@ -81,7 +81,7 @@ time.sleep(3)
 try:
     with sync_playwright() as p:
         print(f"Connecting to Chrome on port {CDP_PORT}...")
-        browser = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
+        browser = p.chromium.connect_over_cdp(f"http://127.0.0.1:{CDP_PORT}")
         ctx = browser.contexts[0] if browser.contexts else browser.new_context()
         pages = ctx.pages
         page = pages[0] if pages else ctx.new_page()
