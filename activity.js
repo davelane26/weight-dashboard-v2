@@ -175,8 +175,8 @@ function renderActivityKPIs(data) {
   _set('act-sleep', sleepHours || '—');
   const score  = data.sleepScore || _calcSleepScore(data);
   const isCalc = !data.sleepScore && score;
-  const scoreColor = score >= 80 ? '#2a8703' : score >= 60 ? '#995213' : score >= 40 ? '#f97316' : '#ea1100';
-  const scoreLabel = _sleepQuality(score).replace(/^\S+\s*/, '') + (isCalc ? ' · est.' : '');
+  const scoreColor = '#2a8703';
+  const scoreLabel = _sleepQuality(score) + (isCalc ? ' · est.' : '');
   if (_el('act-sleep-score-val')) {
     _el('act-sleep-score-val').textContent  = score ?? '—';
     _el('act-sleep-score-val').style.color  = scoreColor;
