@@ -1,10 +1,24 @@
-import json, requests
+import json, re, requests
 from datetime import date
 
 c = json.load(open(".garmin_cookies.json"))
-h = {"NK": "NT", "X-Requested-With": "XMLHttpRequest", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
 BASE = "https://connect.garmin.com/proxy"
 today = date.today().isoformat()
+
+# Grab CSRF token from the Connect page
+page = requests.get("https://connect.garmin.com/modern", cookies=c,
+    headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+csrf = re.search(r'csrf-token" content="([^"]+)"', page.text)
+csrf_token = csrf.group(1) if csrf else ""
+print(f"CSRF token: {csrf_token[:30]}..." if csrf_token else "No CSRF token found")
+
+h = {
+    "NK": "NT",
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0",
+    "X-CSRF-Token": csrf_token,
+}
 
 endpoints = [
     (f"usersummary-service/usersummary/daily/davelane26", {"calendarDate": today}),
