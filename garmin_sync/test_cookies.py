@@ -1,18 +1,19 @@
 import json, requests
+from datetime import date
+
 c = json.load(open(".garmin_cookies.json"))
 h = {"NK": "NT", "X-Requested-With": "XMLHttpRequest", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+BASE = "https://connect.garmin.com/proxy"
+today = date.today().isoformat()
 
-urls = [
-    "https://connect.garmin.com/proxy/userprofile-service/userprofile/user-settings",
-    "https://connect.garmin.com/modern/proxy/userprofile-service/userprofile/user-settings",
-    "https://connect.garmin.com/userprofile-service/userprofile/user-settings",
-    "https://connect.garmin.com/api/userprofile-service/userprofile/user-settings",
+endpoints = [
+    (f"usersummary-service/usersummary/daily/davelane26", {"calendarDate": today}),
+    (f"sleep-service/sleep/davelane26", {"date": today}),
+    (f"activitylist-service/activities/search/activities", {"startDate": today, "endDate": today, "limit": 5}),
 ]
 
-for url in urls:
-    r = requests.get(url, cookies=c, headers=h, timeout=15)
-    snippet = r.text[:80].replace("\n", " ")
-    print(f"{r.status_code} | {url.split('garmin.com')[1]}")
-    print(f"  -> {snippet}")
-    print()
+for path, params in endpoints:
+    r = requests.get(f"{BASE}/{path}", cookies=c, headers=h, params=params, timeout=15)
+    print(f"\n{r.status_code} | {path}")
+    print(r.text[:400])
 
