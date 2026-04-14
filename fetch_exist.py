@@ -16,18 +16,32 @@ from datetime import date
 
 import requests
 
-EXIST_TOKEN = os.environ.get("EXIST_TOKEN", "")
-WORKER_URL  = os.environ.get("WORKER_URL", "https://glucose-relay.djtwo6.workers.dev")
-TODAY       = date.today().isoformat()
+EXIST_TOKEN    = os.environ.get("EXIST_TOKEN", "")
+EXIST_USERNAME = os.environ.get("EXIST_USERNAME", "")
+EXIST_PASSWORD = os.environ.get("EXIST_PASSWORD", "")
+WORKER_URL     = os.environ.get("WORKER_URL", "https://glucose-relay.djtwo6.workers.dev")
+TODAY          = date.today().isoformat()
 
 ATTRS = "steps,sleep,sleep_start,sleep_end,heartrate_resting"
 
+# ── Auth: token or username+password ─────────────────────────────────────────
 if not EXIST_TOKEN:
-    print("ERROR: EXIST_TOKEN not set.", file=sys.stderr)
-    print("Get it from: https://exist.io/api/2/auth/simple-token/", file=sys.stderr)
-    sys.exit(1)
+    if not EXIST_USERNAME or not EXIST_PASSWORD:
+        print("ERROR: Set either EXIST_TOKEN or both EXIST_USERNAME + EXIST_PASSWORD.", file=sys.stderr)
+        sys.exit(1)
+    print("No token found — logging in with username/password...")
+    auth = requests.post(
+        "https://exist.io/api/2/auth/simple-token/",
+        data={"username": EXIST_USERNAME, "password": EXIST_PASSWORD},
+        timeout=15,
+    )
+    if auth.status_code != 200:
+        print(f"ERROR: Login failed {auth.status_code}: {auth.text}", file=sys.stderr)
+        sys.exit(1)
+    EXIST_TOKEN = auth.json()["token"]
+    print("Login OK ✓")
 
-# ── Fetch from Exist.io ───────────────────────────────────────────────────────
+# ── Fetch from Exist.io ───────────────────────────────────────────────
 print(f"Fetching Exist.io data for {TODAY}...")
 
 resp = requests.get(
@@ -38,7 +52,7 @@ resp = requests.get(
 )
 
 if resp.status_code == 401:
-    print("ERROR: EXIST_TOKEN is invalid or expired.", file=sys.stderr)
+    print("ERROR: Credentials rejected by Exist.io.", file=sys.stderr)
     sys.exit(1)
 
 if resp.status_code != 200:

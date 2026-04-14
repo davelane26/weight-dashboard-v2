@@ -17,6 +17,8 @@ jobs:
 
       - name: Fetch Exist.io → Cloudflare Worker
         env:
-          EXIST_TOKEN: ${{ secrets.EXIST_TOKEN }}
-          WORKER_URL:  https://glucose-relay.djtwo6.workers.dev
+          EXIST_USERNAME: ${{ secrets.EXIST_USERNAME }}
+          EXIST_PASSWORD: ${{ secrets.EXIST_PASSWORD }}
+          EXIST_TOKEN:    ${{ secrets.EXIST_TOKEN }}
+          WORKER_URL:     https://glucose-relay.djtwo6.workers.dev
         run: python fetch_exist.py
