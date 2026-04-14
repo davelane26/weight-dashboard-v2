@@ -65,6 +65,9 @@ if not chrome:
     sys.exit(1)
 
 print(f"\nFound Chrome: {chrome}")
+print("Closing any existing Chrome instances...")
+subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], capture_output=True)
+time.sleep(2)
 print("Launching Chrome with remote debugging...")
 
 proc = subprocess.Popen([
@@ -76,7 +79,7 @@ proc = subprocess.Popen([
 ])
 
 print("Waiting for Chrome to start...")
-time.sleep(3)
+time.sleep(5)
 
 try:
     with sync_playwright() as p:
