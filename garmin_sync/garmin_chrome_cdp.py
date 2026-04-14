@@ -129,9 +129,13 @@ try:
 
         if not oauth_tokens:
             print("[WARN] No OAuth tokens intercepted — grabbing cookies as fallback...")
-            cookies = ctx.cookies()
-            garmin_cookies = {c["name"]: c["value"] for c in cookies if "garmin" in c["domain"].lower()}
-            print(f"Cookies found: {list(garmin_cookies.keys())}")
+
+        # Always grab all cookies for local sync
+        all_cookies = ctx.cookies()
+        garmin_cookies = {c["name"]: c["value"] for c in all_cookies if "garmin" in c.get("domain", "").lower()}
+        print(f"Cookies found: {list(garmin_cookies.keys())}")
+
+        if not oauth_tokens:
             jwt = garmin_cookies.get("JWT_WEB", "")
             if not jwt:
                 print("[FAIL] No tokens or cookies found. Try logging out and back in.")
@@ -149,6 +153,11 @@ except Exception as e:
     sys.exit(1)
 
 proc.terminate()
+
+# Save cookies locally for garmin_local_sync.py
+cookies_file = Path(__file__).parent / ".garmin_cookies.json"
+cookies_file.write_text(json.dumps(garmin_cookies))
+print(f"[OK] Cookies saved to {cookies_file}")
 
 session = {"oauth2_token": oauth_tokens, "domain": "garmin.com"}
 session_b64 = base64.b64encode(json.dumps(session).encode()).decode()
