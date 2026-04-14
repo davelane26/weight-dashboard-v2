@@ -11,6 +11,7 @@ h = {
     "X-Requested-With": "XMLHttpRequest",
     "Accept": "application/json",
     "User-Agent": "Mozilla/5.0",
+    "Authorization": f"Bearer {c['JWT_WEB']}",
 }
 
 # Test data endpoints with UUID
