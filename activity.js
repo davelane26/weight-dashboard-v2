@@ -175,9 +175,8 @@ function renderSleepBreakdown(data) {
     deep:  data.sleepDeep  || data.sleepStages?.deep  || 0,
     light: data.sleepLight || data.sleepStages?.light || 0,
     rem:   data.sleepRem   || data.sleepStages?.rem   || 0,
-    awake: data.sleepAwake || data.sleepStages?.awake || 0,
   };
-  const total = stages.deep + stages.light + stages.rem + stages.awake;
+  const total = stages.deep + stages.light + stages.rem;
   if (total <= 0) return;
   container.style.display = 'block';
 
@@ -190,15 +189,13 @@ function renderSleepBreakdown(data) {
   _html('sleep-stage-bar',
     bar('#1e3a5f', stages.deep, 'Deep') +
     bar('#4a90d9', stages.light, 'Light') +
-    bar('#7c3aed', stages.rem, 'REM') +
-    bar('#f59e0b', stages.awake, 'Awake')
+    bar('#7c3aed', stages.rem, 'REM')
   );
 
   _html('sleep-stage-legend',
     `<span style="color:#1e3a5f">● Deep ${stages.deep.toFixed(1)}h (${pct(stages.deep)}%)</span>` +
     `<span style="color:#4a90d9">● Light ${stages.light.toFixed(1)}h (${pct(stages.light)}%)</span>` +
-    `<span style="color:#7c3aed">● REM ${stages.rem.toFixed(1)}h (${pct(stages.rem)}%)</span>` +
-    `<span style="color:#f59e0b">● Awake ${stages.awake.toFixed(1)}h (${pct(stages.awake)}%)</span>`
+    `<span style="color:#7c3aed">● REM ${stages.rem.toFixed(1)}h (${pct(stages.rem)}%)</span>`
   );
 }
 
@@ -320,9 +317,8 @@ function loadActivityCharts(history = []) {
   const sleepDeep  = recent.map(h => h.sleepDeep  || 0);
   const sleepLight = recent.map(h => h.sleepLight || 0);
   const sleepREM   = recent.map(h => h.sleepRem   || 0);
-  const sleepAwake = recent.map(h => h.sleepAwake || 0);
   if (sleepCanvas) {
-    if ([sleepDeep, sleepLight, sleepREM, sleepAwake].every(_allZero)) {
+    if ([sleepDeep, sleepLight, sleepREM].every(_allZero)) {
       actSleepChartInst = _emptyChart(actSleepChartInst, sleepCanvas, 'No sleep stage data yet');
       window.actSleepChartInst = null;
     } else {
@@ -335,7 +331,6 @@ function loadActivityCharts(history = []) {
             { label: 'Deep',  data: sleepDeep,  backgroundColor: '#1e3a5f', borderRadius: 3 },
             { label: 'Light', data: sleepLight, backgroundColor: '#4a90d9', borderRadius: 3 },
             { label: 'REM',   data: sleepREM,   backgroundColor: '#7c3aed', borderRadius: 3 },
-            { label: 'Awake', data: sleepAwake, backgroundColor: '#f59e0b', borderRadius: 3 },
           ],
         },
         options: {

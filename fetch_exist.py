@@ -88,8 +88,6 @@ batch = []
 for date_str in sorted(by_date):
     d = by_date[date_str]
     sleep_mins = int(d.get("sleep") or 0)
-    tib_mins   = int(d.get("time_in_bed") or 0)
-    awake_mins = max(0, tib_mins - sleep_mins)
     batch.append({
         "date":           date_str,
         "steps":          int(d.get("steps")                 or 0),
@@ -97,7 +95,6 @@ for date_str in sorted(by_date):
         "sleepDeep":      mins_to_hrs(d.get("sleep_deep")),
         "sleepLight":     mins_to_hrs(d.get("sleep_light")),
         "sleepRem":       mins_to_hrs(d.get("sleep_rem")),
-        "sleepAwake":     mins_to_hrs(awake_mins),
         "restingHR":      int(d.get("heartrate_resting")     or 0),
         "avgHR":          int(d.get("heartrate")             or 0),
         "maxHR":          int(d.get("heartrate_max")         or 0),

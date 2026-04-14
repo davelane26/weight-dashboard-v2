@@ -196,7 +196,6 @@ function buildHealthEntry(body) {
     sleepDeep:       n(body.sleepDeep),
     sleepLight:      n(body.sleepLight),
     sleepRem:        n(body.sleepRem),
-    sleepAwake:      n(body.sleepAwake),
     restingHR:       n(body.restingHR),
     avgHR:           n(body.avgHR),
     maxHR:           n(body.maxHR),
