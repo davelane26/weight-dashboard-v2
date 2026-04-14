@@ -175,8 +175,12 @@ function renderActivityKPIs(data) {
   _set('act-sleep', sleepHours || '—');
   const score  = data.sleepScore || _calcSleepScore(data);
   const isCalc = !data.sleepScore && score;
-  const scoreColor = '#2a8703';
-  const scoreLabel = _sleepQuality(score) + (isCalc ? ' · est.' : '');
+  const scoreColor = score >= 85 ? '#2a8703'   // Excellent — green
+    : score >= 70               ? '#0053e2'   // Good — blue
+    : score >= 50               ? '#995213'   // Fair — amber
+    :                             '#ea1100';  // Poor — red
+  const scoreLabel = (score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Fair' : 'Poor')
+    + (isCalc ? ' · est.' : '');
   if (_el('act-sleep-score-val')) {
     _el('act-sleep-score-val').textContent  = score ?? '—';
     _el('act-sleep-score-val').style.color  = scoreColor;
