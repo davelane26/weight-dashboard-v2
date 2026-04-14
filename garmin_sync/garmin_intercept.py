@@ -27,6 +27,9 @@ def find_chrome():
 
 def handle_response(response):
     url = response.url
+    # Log everything from garmin
+    if "garmin.com" in url and response.status == 200:
+        print(f"  [NET] {response.status} {url[:100]}")
     if "gc-api" not in url:
         return
     try:
@@ -119,8 +122,15 @@ def main():
             # Set up interceptor BEFORE navigating
             page.on("response", handle_response)
 
-            print("Loading Garmin Connect...")
+            # Navigate to a blank page first to unregister service workers
             page.goto("https://connect.garmin.com/modern", timeout=30000)
+            page.evaluate("""async () => {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let r of regs) await r.unregister();
+            }""")
+            print(f"Service workers cleared")
+            print("Reloading to force fresh API calls...")
+            page.reload(timeout=30000)
 
             for _ in range(120):
                 if "connect.garmin.com" in page.url and "sso" not in page.url:
