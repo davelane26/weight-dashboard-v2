@@ -1,0 +1,22 @@
+name: Sync Health via Exist.io
+
+on:
+  schedule:
+    - cron: '0 14 * * *'   # 8:00 AM CST (14:00 UTC) every day
+  workflow_dispatch:        # manual trigger anytime
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest  # plain cloud runner — no home PC needed!
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch Exist.io → Cloudflare Worker
+        env:
+          EXIST_TOKEN: ${{ secrets.EXIST_TOKEN }}
+          WORKER_URL:  https://glucose-relay.djtwo6.workers.dev
+        run: python fetch_exist.py
