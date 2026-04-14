@@ -204,43 +204,45 @@ function renderActivityKPIs(data) {
 // ── Sleep Breakdown ─────────────────────────────────────────────────────
 function renderSleepBreakdown(data) {
   const container = _el('sleep-breakdown');
-  if (!container) return;
+  const visual    = _el('sleep-stage-visual');
+  if (!container || !visual) return;
 
-  const stages = {
-    deep:  data.sleepDeep  || data.sleepStages?.deep  || 0,
-    light: data.sleepLight || data.sleepStages?.light || 0,
-    rem:   data.sleepRem   || data.sleepStages?.rem   || 0,
-  };
-  const total = stages.deep + stages.light + stages.rem;
+  const stages = [
+    { label: 'Deep',  val: data.sleepDeep  || data.sleepStages?.deep  || 0, color: '#1e3a5f' },
+    { label: 'Light', val: data.sleepLight || data.sleepStages?.light || 0, color: '#4a90d9' },
+    { label: 'REM',   val: data.sleepRem   || data.sleepStages?.rem   || 0, color: '#7c3aed' },
+  ];
+  const total = stages.reduce((s, st) => s + st.val, 0);
 
   container.style.display = 'block';
 
   if (total <= 0) {
-    _html('sleep-stage-bar', '');
-    _html('sleep-stage-legend',
-      '<span style="color:#6d7a95;font-size:0.72rem">Sleep stage breakdown not available — '
-      + 'Garmin does not share deep/REM/light data via Health Connect.</span>'
-    );
+    visual.innerHTML = '<span style="color:#6d7a95;font-size:0.72rem">'
+      + 'Sleep stage breakdown not available — Garmin does not share deep/REM/light data via Health Connect.</span>';
     return;
   }
 
-  const pct = (v) => Math.round((v / total) * 100);
-  const bar = (color, val, label) => {
-    const p = pct(val);
-    return `<div style="flex:${p};background:${color};height:100%;border-radius:4px;min-width:${p > 3 ? '0' : '4px'}" title="${label}: ${val.toFixed(1)}h (${p}%)"></div>`;
-  };
+  const pct = v => Math.round((v / total) * 100);
 
-  _html('sleep-stage-bar',
-    bar('#1e3a5f', stages.deep, 'Deep') +
-    bar('#4a90d9', stages.light, 'Light') +
-    bar('#7c3aed', stages.rem, 'REM')
-  );
+  // Bar row
+  const barSegs = stages.map(st => {
+    const p = pct(st.val);
+    return `<div style="flex:${p};background:${st.color};height:100%;border-radius:4px;min-width:4px"
+      title="${st.label}: ${st.val.toFixed(1)}h (${p}%)"></div>`;
+  }).join('');
 
-  _html('sleep-stage-legend',
-    `<span style="color:#1e3a5f">● Deep ${stages.deep.toFixed(1)}h (${pct(stages.deep)}%)</span>` +
-    `<span style="color:#4a90d9">● Light ${stages.light.toFixed(1)}h (${pct(stages.light)}%)</span>` +
-    `<span style="color:#7c3aed">● REM ${stages.rem.toFixed(1)}h (${pct(stages.rem)}%)</span>`
-  );
+  // Label row — same flex ratios so labels sit under their segment
+  const labelSegs = stages.map(st => {
+    const p = pct(st.val);
+    return `<div style="flex:${p};min-width:4px;display:flex;flex-direction:column;align-items:center;gap:1px">
+      <span style="font-size:0.7rem;font-weight:700;color:${st.color}">${st.label}</span>
+      <span style="font-size:0.65rem;color:#6d7a95">${st.val.toFixed(1)}h &middot; ${p}%</span>
+    </div>`;
+  }).join('');
+
+  visual.innerHTML =
+    `<div style="display:flex;height:24px;gap:3px;border-radius:6px;overflow:hidden;margin-bottom:6px">${barSegs}</div>` +
+    `<div style="display:flex;gap:3px">${labelSegs}</div>`;
 }
 
 // ── HRV Section ──────────────────────────────────────────────────────
