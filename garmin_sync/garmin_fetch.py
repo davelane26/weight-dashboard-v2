@@ -40,15 +40,15 @@ def fetch_day_via_browser(page, day: date) -> dict:
     js = f"""
     async () => {{
         const h = {{ 'NK': 'NT', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }};
-        const [summary, sleep, acts] = await Promise.allSettled([
-            fetch('{base}/usersummary-service/usersummary/daily/{UUID}?calendarDate={iso}', {{headers: h}}).then(r => r.json()),
-            fetch('{base}/sleep-service/sleep/{UUID}?date={iso}', {{headers: h}}).then(r => r.json()),
-            fetch('{base}/activitylist-service/activities/search/activities?startDate={iso}&endDate={iso}&limit=10', {{headers: h}}).then(r => r.json()),
-        ]);
+        const summaryResp = await fetch('{base}/usersummary-service/usersummary/daily/{UUID}?calendarDate={iso}', {{headers: h}});
+        const sleepResp = await fetch('{base}/sleep-service/sleep/{UUID}?date={iso}', {{headers: h}});
+        const summaryText = await summaryResp.text();
+        const sleepText = await sleepResp.text();
         return {{
-            summary: summary.status === 'fulfilled' ? summary.value : null,
-            sleep: sleep.status === 'fulfilled' ? sleep.value : null,
-            activities: acts.status === 'fulfilled' ? acts.value : null,
+            summaryStatus: summaryResp.status,
+            summaryBody: summaryText.substring(0, 300),
+            sleepStatus: sleepResp.status,
+            sleepBody: sleepText.substring(0, 300),
         }};
     }}
     """
@@ -150,19 +150,8 @@ def main():
                 day = today - timedelta(days=i)
                 print(f"Fetching {day.isoformat()}...")
                 raw = fetch_day_via_browser(page, day)
-                data = parse_summary(raw, day.isoformat())
-                print(f"  steps={data['steps']} sleep={data['sleepHours']}h battery={data['bodyBattery']}")
-
-                if data.get("steps") or data.get("sleepHours"):
-                    if push_day(FIREBASE_URL, day.isoformat(), data):
-                        print(f"  [OK] Pushed to Firebase")
-                        synced += 1
-                    if i == 0:
-                        push_latest(FIREBASE_URL, data)
-                else:
-                    print(f"  [WARN] No data for {day.isoformat()}")
-
-            print(f"\nDone — synced {synced} days")
+                print(f"  Summary {raw.get('summaryStatus')}: {raw.get('summaryBody', '')[:150]}")
+                print(f"  Sleep   {raw.get('sleepStatus')}: {raw.get('sleepBody', '')[:150]}")
             browser.close()
 
     except Exception as e:
