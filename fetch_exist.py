@@ -24,11 +24,11 @@ TODAY          = date.today().isoformat()
 
 ATTRS = ",".join([
     "steps",
-    "sleep", "sleep_deep", "sleep_light", "sleep_rem", "sleep_awakenings",
+    "sleep", "deep_sleep", "light_sleep", "rem_sleep", "sleep_awakenings",
     "sleep_start", "sleep_end", "time_in_bed",
-    "heartrate_resting", "heartrate", "heartrate_max", "heartrate_variability",
     "floors",
     "active_energy",
+    "workouts", "workouts_distance", "workouts_min",
 ])
 DAYS = 30  # fetch rolling 30-day history
 # ── Auth: token or username+password ─────────────────────────────────────────
