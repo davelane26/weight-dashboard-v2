@@ -52,6 +52,17 @@ function _sleepQuality(score) {
   return '🔴 Poor';
 }
 
+// Estimate sleep score from duration alone (used when Garmin score unavailable)
+// Based on NSF adult guidelines: 7–9h optimal
+function _calcSleepScore(hours) {
+  if (!hours || hours <= 0) return null;
+  if (hours < 4)  return 20;
+  if (hours <= 6)  return Math.round(20 + (hours - 4) * 20);  // 20–60
+  if (hours <= 7)  return Math.round(60 + (hours - 6) * 20);  // 60–80
+  if (hours <= 9)  return Math.round(80 + (hours - 7) * 7.5); // 80–95
+  return Math.max(70, Math.round(95 - (hours - 9) * 10));     // penalise oversleep
+}
+
 function _destroyChart(inst) {
   if (inst) inst.destroy();
   return null;
@@ -130,11 +141,13 @@ function renderActivityKPIs(data) {
     `${distMi} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
 
   // Sleep
-  _set('act-sleep', data.sleepDuration || data.sleepHours || '—');
-  const scoreHtml = data.sleepScore
-    ? `Score: ${data.sleepScore} ${_sleepQuality(data.sleepScore)}`
-    : '';
-  _set('act-sleep-score', scoreHtml);
+  const sleepHours = data.sleepDuration || data.sleepHours || 0;
+  _set('act-sleep', sleepHours || '—');
+  const score    = data.sleepScore || _calcSleepScore(sleepHours);
+  const isCalc   = !data.sleepScore && score;
+  _set('act-sleep-score',
+    score ? `Score: ${score} ${_sleepQuality(score)}${isCalc ? ' · est.' : ''}` : ''
+  );
 
   // Heart rate
   _set('act-hr',  data.restingHR || '—');
@@ -163,15 +176,23 @@ function renderSleepBreakdown(data) {
   const container = _el('sleep-breakdown');
   if (!container) return;
 
-  // Flat fields from Exist.io via Worker
   const stages = {
     deep:  data.sleepDeep  || data.sleepStages?.deep  || 0,
     light: data.sleepLight || data.sleepStages?.light || 0,
     rem:   data.sleepRem   || data.sleepStages?.rem   || 0,
   };
   const total = stages.deep + stages.light + stages.rem;
-  if (total <= 0) return;
+
   container.style.display = 'block';
+
+  if (total <= 0) {
+    _html('sleep-stage-bar', '');
+    _html('sleep-stage-legend',
+      '<span style="color:#6d7a95;font-size:0.72rem">Sleep stage breakdown not available — '
+      + 'Garmin does not share deep/REM/light data via Health Connect.</span>'
+    );
+    return;
+  }
 
   const pct = (v) => Math.round((v / total) * 100);
   const bar = (color, val, label) => {
