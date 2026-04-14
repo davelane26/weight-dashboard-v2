@@ -9,7 +9,7 @@ Install:
 Run:
     python garmin_playwright.py
 """
-import base64, getpass, json, requests
+import base64, json, requests, traceback
 from nacl import encoding, public
 from playwright.sync_api import sync_playwright
 
@@ -31,79 +31,65 @@ def push(token, session_b64):
     return r.status_code in (201, 204)
 
 
-github_token = getpass.getpass("GitHub token: ")
-
+github_token = input("GitHub token: ").strip()
 oauth_tokens = {}
 
-def handle_request(request):
-    """Intercept OAuth token exchange."""
-    if "oauth-service/oauth/exchange" in request.url or "oauth2/token" in request.url:
-        print(f"[DEBUG] Intercepted: {request.url}")
 
 def handle_response(response):
-    """Grab OAuth tokens from response."""
     if "oauth-service/oauth/exchange" in response.url or "oauth2/token" in response.url:
         try:
             data = response.json()
             oauth_tokens.update(data)
-            print(f"[OK] Got OAuth tokens!")
+            print("[OK] Got OAuth tokens!")
         except Exception:
             pass
 
-print("\nOpening browser — log in normally, then wait...")
-print("The script will grab your tokens automatically after login.\n")
 
-import traceback
+print("\nOpening browser — log in to Garmin normally, then wait...")
+
 try:
-    p_test = sync_playwright().start()
-    p_test.stop()
-    print("[OK] Playwright working")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=False,
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+        )
+        ctx = browser.new_context()
+        page = ctx.new_page()
+        page.on("response", handle_response)
+
+        print("Navigating to Garmin login...")
+        page.goto(GARMIN_SSO, timeout=30000)
+        print("Log in to Garmin in the browser. Waiting up to 2 minutes...")
+
+        try:
+            page.wait_for_url("*connect.garmin.com/modern/**", timeout=120000)
+            print("[OK] Login detected!")
+        except Exception:
+            print("[WARN] Timed out — grabbing whatever cookies exist...")
+
+        cookies = ctx.cookies()
+        garmin_cookies = {c["name"]: c["value"] for c in cookies if "garmin" in c["domain"].lower()}
+        jwt = garmin_cookies.get("JWT_WEB", "")
+        browser.close()
+
 except Exception as e:
-    print(f"[FAIL] Playwright init error: {e}")
+    print(f"\n[FAIL] Error: {e}")
     traceback.print_exc()
     exit(1)
 
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False, slow_mo=500, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    ctx = browser.new_context()
-    page = ctx.new_page()
-
-    page.on("request", handle_request)
-    page.on("response", handle_response)
-
-    page.goto(GARMIN_SSO, timeout=30000)
-    print("Log in to Garmin in the browser window that just opened.")
-    print("Waiting for you to complete login...")
-
-    # Wait for redirect to connect.garmin.com after successful login
-    try:
-        page.wait_for_url("*connect.garmin.com/modern/**", timeout=120000)
-        print("[OK] Login detected! Grabbing session...")
-    except Exception:
-        print("[WARN] Timed out waiting for login, trying anyway...")
-
-    # Extract cookies as fallback
-    cookies = ctx.cookies()
-    garmin_cookies = {c["name"]: c["value"] for c in cookies if "garmin" in c["domain"].lower()}
-    jwt = garmin_cookies.get("JWT_WEB", "")
-
-    browser.close()
-
 if not oauth_tokens and not jwt:
-    print("[FAIL] Could not extract tokens. Try again.")
+    print("[FAIL] No tokens found. Try again.")
     exit(1)
 
-# Build a minimal garth-compatible session
 session = {
     "oauth2_token": oauth_tokens if oauth_tokens else {"access_token": jwt, "token_type": "Bearer"},
     "domain": "garmin.com"
 }
 
 session_b64 = base64.b64encode(json.dumps(session).encode()).decode()
-
-print("Pushing session to GitHub...")
+print("Pushing to GitHub...")
 if push(github_token, session_b64):
-    print("[OK] Done! Garmin sync will start working within 15 minutes.")
+    print("[OK] Done! Sync will start working within 15 minutes.")
 else:
-    print("[FAIL] Could not push automatically.")
-    print(f"\nSet GARMIN_SESSION in GitHub secrets to:\n{session_b64}")
+    print("[FAIL] Could not push. Set GARMIN_SESSION manually in GitHub secrets.")
+    print(f"\nValue:\n{session_b64}")
