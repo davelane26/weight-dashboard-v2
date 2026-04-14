@@ -108,7 +108,6 @@ async function loadActivityData() {
 
   renderActivityKPIs(data);
   renderSleepBreakdown(data);
-  renderHRVSection(data, allDays);
   renderActivities(data.activities);
   loadActivityCharts(allDays);
 
@@ -149,25 +148,25 @@ function renderActivityKPIs(data) {
     score ? `Score: ${score} ${_sleepQuality(score)}${isCalc ? ' · est.' : ''}` : ''
   );
 
-  // Heart rate
-  _set('act-hr',  data.restingHR || '—');
-  _set('act-hr-sub', data.avgHR ? `Avg: ${data.avgHR} bpm` : '');
+  // Workouts
+  _set('act-hr', data.workouts ?? '—');
+  _set('act-hr-sub', data.workoutsMins ? `${data.workoutsMins} min active` : '');
 
-  // HRV (reuses act-intensity slot)
-  _set('act-intensity', data.hrv || '—');
+  // Workout mins
+  _set('act-intensity', data.workoutsMins || '—');
 
-  // Floors (reuses act-stress slot)
+  // Floors
   _set('act-stress', data.floorsClimbed || '—');
-  _set('act-stress-sub', data.floorsClimbed ? `${data.floorsClimbed} floors` : '');
+  _set('act-stress-sub', '');
 
-  // Max HR (reuses act-battery slot)
-  _set('act-battery', data.maxHR || '—');
+  // Distance
+  _set('act-battery', data.workoutsKm ? `${data.workoutsKm}` : '—');
 
-  // Avg HR (reuses act-fitness-age slot)
-  _set('act-fitness-age', data.avgHR || '—');
+  // Awakenings
+  _set('act-fitness-age', data.sleepAwakenings ?? '—');
   _set('act-fitness-age-sub', '');
 
-  // Active calories only — no redundant total cal
+  // Active calories
   _set('act-vo2max', data.activeCalories ? _fmtK(data.activeCalories) : '—');
 }
 
@@ -364,31 +363,32 @@ function loadActivityCharts(history = []) {
     }
   }
 
-  // Heart rate chart — Bug 4 fix: check for real HR data first
-  const hrCanvas    = _el('actHRChart');
-  const hrData      = recent.map(h => h.restingHR || null);
-  const avgHRData   = recent.map(h => h.avgHR     || null);
+  // Workouts chart (replaces HR — we don't have HR from Exist.io)
+  const hrCanvas      = _el('actHRChart');
+  const workoutMins   = recent.map(h => h.workoutsMins || 0);
+  const workoutKm     = recent.map(h => h.workoutsKm   || 0);
   if (hrCanvas) {
-    if (_allZero(hrData.map(v => v || 0)) && _allZero(avgHRData.map(v => v || 0))) {
-      actHRChartInst = _emptyChart(actHRChartInst, hrCanvas, 'No heart rate data yet');
+    if (_allZero(workoutMins)) {
+      actHRChartInst = _emptyChart(actHRChartInst, hrCanvas, 'No workout data yet');
       window.actHRChartInst = null;
     } else {
       actHRChartInst = _destroyChart(actHRChartInst);
       actHRChartInst = new Chart(hrCanvas.getContext('2d'), {
-        type: 'line',
+        type: 'bar',
         data: {
           labels,
           datasets: [
-            { label: 'Resting HR', data: hrData,    borderColor: '#ea1100', backgroundColor: 'rgba(234,17,0,0.08)', fill: true,  tension: 0.3, pointRadius: 5, pointBackgroundColor: '#ea1100', spanGaps: true, borderWidth: 2.5 },
-            { label: 'Avg HR',     data: avgHRData, borderColor: '#f59e0b', backgroundColor: 'transparent',         fill: false, tension: 0.3, pointRadius: 3, spanGaps: true, borderWidth: 1.5, borderDash: [4, 3] },
+            { label: 'Mins',     data: workoutMins, backgroundColor: 'rgba(124,58,237,0.7)', borderRadius: 4, yAxisID: 'y' },
+            { label: 'Km',       data: workoutKm,   backgroundColor: 'rgba(8,145,178,0.7)',  borderRadius: 4, yAxisID: 'y2' },
           ],
         },
         options: {
           ...chartDefaults,
           plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } } },
           scales: {
-            ...chartDefaults.scales,
-            y: { ...chartDefaults.scales.y, beginAtZero: false, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + ' bpm' } },
+            x:  { ...chartDefaults.scales.x },
+            y:  { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'm' } },
+            y2: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + 'km' } },
           },
         },
       });

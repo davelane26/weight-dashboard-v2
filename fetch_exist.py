@@ -54,7 +54,7 @@ print(f"Fetching {DAYS} days of Exist.io data (up to {TODAY})...")
 resp = requests.get(
     "https://exist.io/api/2/attributes/with-values/",
     headers={"Authorization": f"Token {EXIST_TOKEN}"},
-    params={"date_max": TODAY, "days": DAYS},  # no attr filter = return everything
+    params={"attributes": ATTRS, "date_max": TODAY, "days": DAYS},
     timeout=30,
 )
 
@@ -67,13 +67,9 @@ if resp.status_code != 200:
     sys.exit(1)
 
 # ── Reorganise: attr→[{date,value}] into date→{attr: value} ──────────────────
-print("\nAttributes returned by Exist.io:")
 by_date: dict = {}
 for attr in resp.json().get("results", []):
-    vals = attr.get("values", [])
-    first_val = vals[0].get("value") if vals else None
-    print(f"  {attr['name']:<35} latest={first_val}")
-    for entry in vals:
+    for entry in attr.get("values", []):
         d = entry["date"]
         if d not in by_date:
             by_date[d] = {}
@@ -93,26 +89,26 @@ for date_str in sorted(by_date):
     d = by_date[date_str]
     sleep_mins = int(d.get("sleep") or 0)
     batch.append({
-        "date":           date_str,
-        "steps":          int(d.get("steps")                 or 0),
-        "sleepHours":     mins_to_hrs(sleep_mins),
-        "sleepDeep":      mins_to_hrs(d.get("sleep_deep")),
-        "sleepLight":     mins_to_hrs(d.get("sleep_light")),
-        "sleepRem":       mins_to_hrs(d.get("sleep_rem")),
-        "restingHR":      int(d.get("heartrate_resting")     or 0),
-        "avgHR":          int(d.get("heartrate")             or 0),
-        "maxHR":          int(d.get("heartrate_max")         or 0),
-        "hrv":            int(d.get("heartrate_variability") or 0),
-        "activeCalories": int(d.get("active_energy")         or 0),
-        "floorsClimbed":  int(d.get("floors")                or 0),
-        "stressLevel":    0,
+        "date":             date_str,
+        "steps":            int(d.get("steps")            or 0),
+        "sleepHours":       mins_to_hrs(sleep_mins),
+        "sleepDeep":        mins_to_hrs(d.get("deep_sleep")),
+        "sleepLight":       mins_to_hrs(d.get("light_sleep")),
+        "sleepRem":         mins_to_hrs(d.get("rem_sleep")),
+        "sleepAwakenings":  int(d.get("sleep_awakenings") or 0),
+        "activeCalories":   int(d.get("active_energy")    or 0),
+        "floorsClimbed":    int(d.get("floors")           or 0),
+        "workouts":         int(d.get("workouts")         or 0),
+        "workoutsMins":     int(d.get("workouts_min")     or 0),
+        "workoutsKm":       round(float(d.get("workouts_distance") or 0), 2),
+        "stressLevel":      0,
     })
 
 print(f"  Built {len(batch)} entries ({batch[0]['date']} → {batch[-1]['date']})")
 today_e = next((b for b in reversed(batch) if b["date"] == TODAY), batch[-1])
-print(f"  Today — Steps: {today_e['steps']:,} | Sleep: {today_e['sleepHours']}h | "
-      f"HR: {today_e['restingHR']} bpm | HRV: {today_e['hrv']} | "
-      f"Floors: {today_e['floorsClimbed']}")
+print(f"  Today — Steps: {today_e['steps']:,} | Sleep: {today_e['sleepHours']}h "
+      f"(D:{today_e['sleepDeep']}h L:{today_e['sleepLight']}h R:{today_e['sleepRem']}h) | "
+      f"Active Cal: {today_e['activeCalories']} | Workouts: {today_e['workouts']} ({today_e['workoutsMins']}min)")
 
 # ── Push batch to Cloudflare Worker ──────────────────────────────────────────
 print(f"\nPushing {len(batch)} days to Worker...")

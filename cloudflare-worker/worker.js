@@ -186,24 +186,23 @@ export default {
   },
 };
 
-// ── Normalise a raw health payload into a stored entry ────────────────────
+// ── Normalise a raw health payload into a stored entry ──────────────────────
 function buildHealthEntry(body) {
   const n = (v, d = 0) => { const x = Number(v); return isNaN(x) ? d : x; };
   return {
-    date:            body.date ?? new Date().toISOString().slice(0, 10),
-    steps:           n(body.steps),
-    sleepHours:      n(body.sleepHours),
-    sleepDeep:       n(body.sleepDeep),
-    sleepLight:      n(body.sleepLight),
-    sleepRem:        n(body.sleepRem),
-    restingHR:       n(body.restingHR),
-    avgHR:           n(body.avgHR),
-    maxHR:           n(body.maxHR),
-    hrv:             n(body.hrv),
-    activeCalories:  n(body.activeCalories),
-    floorsClimbed:   n(body.floorsClimbed),
-    stressLevel:     n(body.stressLevel),
-    updatedAt:       new Date().toISOString(),
+    date:             body.date ?? new Date().toISOString().slice(0, 10),
+    steps:            n(body.steps),
+    sleepHours:       n(body.sleepHours),
+    sleepDeep:        n(body.sleepDeep),
+    sleepLight:       n(body.sleepLight),
+    sleepRem:         n(body.sleepRem),
+    sleepAwakenings:  n(body.sleepAwakenings),
+    activeCalories:   n(body.activeCalories),
+    floorsClimbed:    n(body.floorsClimbed),
+    workouts:         n(body.workouts),
+    workoutsMins:     n(body.workoutsMins),
+    workoutsKm:       n(body.workoutsKm),
+    updatedAt:        new Date().toISOString(),
   };
 }
 

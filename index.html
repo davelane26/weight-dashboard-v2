@@ -526,16 +526,16 @@
         </div>
 
         <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#ea1100">❤️ Resting HR</p>
+          <p class="kpi-label" style="color:#ea1100">🏃 Workouts</p>
           <p class="kpi-value" style="color:#ea1100" id="act-hr">—</p>
-          <p class="kpi-unit">bpm</p>
+          <p class="kpi-unit">today</p>
           <p class="kpi-sub" id="act-hr-sub"></p>
         </div>
 
         <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#7c3aed">💚 HRV</p>
+          <p class="kpi-label" style="color:#7c3aed">⏱️ Workout Mins</p>
           <p class="kpi-value" style="color:#7c3aed" id="act-intensity">—</p>
-          <p class="kpi-unit">ms last night</p>
+          <p class="kpi-unit">minutes</p>
         </div>
 
         <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)">
@@ -546,15 +546,15 @@
         </div>
 
         <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#995213">📈 Max HR</p>
+          <p class="kpi-label" style="color:#995213">📍 Distance</p>
           <p class="kpi-value" style="color:#995213" id="act-battery">—</p>
-          <p class="kpi-unit">bpm today</p>
+          <p class="kpi-unit">km today</p>
         </div>
 
         <div class="kpi" id="act-fitness-age-card" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" id="act-fitness-age-label" style="color:#2a8703">🏃 Avg HR</p>
+          <p class="kpi-label" id="act-fitness-age-label" style="color:#2a8703">💤 Awakenings</p>
           <p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p>
-          <p class="kpi-unit">bpm today</p>
+          <p class="kpi-unit">last night</p>
           <p class="kpi-sub" id="act-fitness-age-sub"></p>
         </div>
 
@@ -572,26 +572,6 @@
       <h2 class="card-title">💤 Sleep Stages</h2>
       <div id="sleep-stage-bar" style="display:flex;height:28px;border-radius:8px;overflow:hidden;gap:2px;margin-bottom:0.6rem"></div>
       <div id="sleep-stage-legend" style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.75rem;font-weight:600"></div>
-    </section>
-
-    <!-- HRV Section -->
-    <section class="card fade-in" id="hrv-section" style="display:none;border-left:4px solid #2a8703" aria-label="HRV data">
-      <h2 class="card-title">💚 Heart Rate Variability</h2>
-      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-box" style="background:#f0fdf4">
-          <p class="label" style="color:#2a8703">Last Night</p>
-          <p class="val" style="color:#2a8703" id="hrv-last-night">—</p>
-        </div>
-        <div class="stat-box" style="background:#eff4ff">
-          <p class="label" style="color:#0053e2">Weekly Avg</p>
-          <p class="val" style="color:#0053e2" id="hrv-weekly-avg">—</p>
-        </div>
-        <div class="stat-box" style="background:#f5f6f8">
-          <p class="label" style="color:#6d7a95">Status</p>
-          <p class="val" style="color:#374151" id="hrv-status">—</p>
-        </div>
-      </div>
-      <p style="font-size:0.7rem;color:#6d7a95;margin-top:0.5rem" id="hrv-baseline"></p>
     </section>
 
     <!-- Today's Activities -->
@@ -616,7 +596,7 @@
         </div>
 
         <div>
-          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">❤️ Heart Rate</p>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🏃 Workouts (mins)</p>
           <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
         </div>
 
