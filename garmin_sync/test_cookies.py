@@ -2,32 +2,29 @@ import json, re, requests
 from datetime import date
 
 c = json.load(open(".garmin_cookies.json"))
-BASE = "https://connect.garmin.com/proxy"
+BASE = "https://connect.garmin.com/gc-api"
 today = date.today().isoformat()
-
-# Grab CSRF token from the Connect page
-page = requests.get("https://connect.garmin.com/modern", cookies=c,
-    headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-csrf = re.search(r'csrf-token" content="([^"]+)"', page.text)
-csrf_token = csrf.group(1) if csrf else ""
-print(f"CSRF token: {csrf_token[:30]}..." if csrf_token else "No CSRF token found")
+UUID = "3d8b29e7-c9fc-40db-b7a5-a5609741229f"  # found from DevTools
 
 h = {
     "NK": "NT",
     "X-Requested-With": "XMLHttpRequest",
     "Accept": "application/json",
     "User-Agent": "Mozilla/5.0",
-    "X-CSRF-Token": csrf_token,
 }
 
+# Test data endpoints with UUID
 endpoints = [
-    (f"usersummary-service/usersummary/daily/davelane26", {"calendarDate": today}),
-    (f"sleep-service/sleep/davelane26", {"date": today}),
+    (f"usersummary-service/usersummary/daily/{UUID}", {"calendarDate": today}),
+    (f"sleep-service/sleep/{UUID}", {"date": today}),
     (f"activitylist-service/activities/search/activities", {"startDate": today, "endDate": today, "limit": 5}),
+    # Try to find the profile endpoint that returns the UUID
+    (f"userprofile-service/userprofile/user-settings", {}),
+    (f"userprofile-service/socialProfile/displayName/davelane26", {}),
 ]
 
 for path, params in endpoints:
-    r = requests.get(f"{BASE}/{path}", cookies=c, headers=h, params=params, timeout=15)
+    r = requests.get(f"{BASE}/{path}", cookies=c, headers=h, params=params or None, timeout=15)
     print(f"\n{r.status_code} | {path}")
-    print(r.text[:400])
+    print(r.text[:300])
 
