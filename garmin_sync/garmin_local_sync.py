@@ -16,7 +16,7 @@ from pathlib import Path
 FIREBASE_URL = "https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com"
 DISPLAY_NAME = "davelane26"
 DAYS_BACK = 2  # sync today + yesterday in case yesterday wasn't captured
-LOG_FILE = Path(__file__).parent / "local_sync.log"
+LOG_FILE = Path.home() / "AppData" / "Local" / "Temp" / "garmin_local_sync.log"
 
 logging.basicConfig(
     level=logging.INFO,
