@@ -10,7 +10,7 @@ on:
 
 jobs:
   backfill:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, home-pc, garmin]
     timeout-minutes: 15
 
     steps:
@@ -21,16 +21,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+        continue-on-error: true
 
       - name: Install dependencies
         run: pip install -r garmin_sync/requirements.txt
 
-      - name: Restore Garmin session cache
-        uses: actions/cache@v4
-        with:
-          path: garmin_sync/.garmin_session
-          key: garmin-session-${{ github.run_id }}
-          restore-keys: garmin-session-
+      # Session persists on self-hosted runner between runs
 
       - name: Backfill Garmin data
         working-directory: garmin_sync
