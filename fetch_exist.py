@@ -22,8 +22,15 @@ EXIST_PASSWORD = os.environ.get("EXIST_PASSWORD", "")
 WORKER_URL     = os.environ.get("WORKER_URL", "https://glucose-relay.djtwo6.workers.dev")
 TODAY          = date.today().isoformat()
 
-ATTRS = "steps,sleep,sleep_start,sleep_end,heartrate_resting"
-
+ATTRS = ",".join([
+    "steps",
+    "sleep", "sleep_deep", "sleep_light", "sleep_rem", "sleep_awakenings",
+    "sleep_start", "sleep_end", "time_in_bed",
+    "heartrate_resting", "heartrate", "heartrate_max", "heartrate_variability",
+    "floors",
+    "active_energy",
+])
+DAYS = 30  # fetch rolling 30-day history
 # ── Auth: token or username+password ─────────────────────────────────────────
 if not EXIST_TOKEN:
     if not EXIST_USERNAME or not EXIST_PASSWORD:
@@ -41,13 +48,13 @@ if not EXIST_TOKEN:
     EXIST_TOKEN = auth.json()["token"]
     print("Login OK ✓")
 
-# ── Fetch from Exist.io ───────────────────────────────────────────────
-print(f"Fetching Exist.io data for {TODAY}...")
+# ── Fetch 30 days from Exist.io ──────────────────────────────────────────────
+print(f"Fetching {DAYS} days of Exist.io data (up to {TODAY})...")
 
 resp = requests.get(
     "https://exist.io/api/2/attributes/with-values/",
     headers={"Authorization": f"Token {EXIST_TOKEN}"},
-    params={"attributes": ATTRS, "date_max": TODAY, "days": 1},
+    params={"attributes": ATTRS, "date_max": TODAY, "days": DAYS},
     timeout=30,
 )
 
@@ -59,50 +66,60 @@ if resp.status_code != 200:
     print(f"ERROR: Exist.io returned {resp.status_code}: {resp.text}", file=sys.stderr)
     sys.exit(1)
 
-# ── Parse response ────────────────────────────────────────────────────────────
-values: dict = {}
+# ── Reorganise: attr→[{date,value}] into date→{attr: value} ──────────────────
+by_date: dict = {}
 for attr in resp.json().get("results", []):
-    entries = attr.get("values", [])
-    if entries and entries[0].get("value") is not None:
-        values[attr["name"]] = entries[0]["value"]
+    for entry in attr.get("values", []):
+        d = entry["date"]
+        if d not in by_date:
+            by_date[d] = {}
+        if entry["value"] is not None:
+            by_date[d][attr["name"]] = entry["value"]
 
-steps       = int(values.get("steps") or 0)
-sleep_mins  = int(values.get("sleep") or 0)
-sleep_hours = round(sleep_mins / 60, 2)
-resting_hr  = int(values.get("heartrate_resting") or 0)
-sleep_start = values.get("sleep_start")   # ISO timestamp or None
-sleep_end   = values.get("sleep_end")     # ISO timestamp or None
-
-# ── Build payload for Cloudflare Worker /health ───────────────────────────────
-payload = {
-    "date":           TODAY,
-    "steps":          steps,
-    "sleepHours":     sleep_hours,
-    "sleepScore":     0,       # not available outside Garmin
-    "restingHR":      resting_hr,
-    "activeCalories": 0,       # not available via Exist.io free tier
-    "floorsClimbed":  0,
-    "stressLevel":    0,
-}
-
-print(f"  Steps:      {steps:,}")
-print(f"  Sleep:      {sleep_hours}h ({sleep_mins} min)")
-print(f"  Resting HR: {resting_hr} bpm")
-
-if not steps and not sleep_hours and not resting_hr:
-    print("WARNING: All values are zero — Exist.io may not have synced yet.")
-    print("  Check https://exist.io/dashboard/ to confirm Garmin is connected.")
-    # Still push zeros so the dashboard date entry exists
-    # Exit 0 so the workflow doesn't fail on days with no data yet
+if not by_date:
+    print("WARNING: No data returned — Exist.io may not have synced yet.", file=sys.stderr)
     sys.exit(0)
 
-# ── Push to Cloudflare Worker ─────────────────────────────────────────────────
-print(f"\nPushing to Worker...")
-push = requests.post(f"{WORKER_URL}/health", json=payload, timeout=15)
+# ── Build normalised entries ──────────────────────────────────────────────────
+def mins_to_hrs(v):
+    return round(int(v) / 60, 2) if v else 0
+
+batch = []
+for date_str in sorted(by_date):
+    d = by_date[date_str]
+    sleep_mins = int(d.get("sleep") or 0)
+    tib_mins   = int(d.get("time_in_bed") or 0)
+    awake_mins = max(0, tib_mins - sleep_mins)
+    batch.append({
+        "date":           date_str,
+        "steps":          int(d.get("steps")                 or 0),
+        "sleepHours":     mins_to_hrs(sleep_mins),
+        "sleepDeep":      mins_to_hrs(d.get("sleep_deep")),
+        "sleepLight":     mins_to_hrs(d.get("sleep_light")),
+        "sleepRem":       mins_to_hrs(d.get("sleep_rem")),
+        "sleepAwake":     mins_to_hrs(awake_mins),
+        "restingHR":      int(d.get("heartrate_resting")     or 0),
+        "avgHR":          int(d.get("heartrate")             or 0),
+        "maxHR":          int(d.get("heartrate_max")         or 0),
+        "hrv":            int(d.get("heartrate_variability") or 0),
+        "activeCalories": int(d.get("active_energy")         or 0),
+        "floorsClimbed":  int(d.get("floors")                or 0),
+        "stressLevel":    0,
+    })
+
+print(f"  Built {len(batch)} entries ({batch[0]['date']} → {batch[-1]['date']})")
+today_e = next((b for b in reversed(batch) if b["date"] == TODAY), batch[-1])
+print(f"  Today — Steps: {today_e['steps']:,} | Sleep: {today_e['sleepHours']}h | "
+      f"HR: {today_e['restingHR']} bpm | HRV: {today_e['hrv']} | "
+      f"Floors: {today_e['floorsClimbed']}")
+
+# ── Push batch to Cloudflare Worker ──────────────────────────────────────────
+print(f"\nPushing {len(batch)} days to Worker...")
+push = requests.post(f"{WORKER_URL}/health/batch", json={"days": batch}, timeout=20)
 print(f"  HTTP {push.status_code} — {push.text}")
 
 if push.status_code != 200:
-    print("ERROR: Worker rejected the payload.", file=sys.stderr)
+    print("ERROR: Worker rejected the batch.", file=sys.stderr)
     sys.exit(1)
 
 print("\nDone ✓")

@@ -144,36 +144,36 @@ export default {
       return cors(JSON.stringify(payload));
     }
 
-    // ── POST /health  (Tasker upload) ────────────────────────────────────
+    // ── POST /health  (single day upsert) ───────────────────────────────
     if (method === 'POST' && url.pathname === '/health') {
       if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
-
       let body;
       try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
-
-      const date = body.date ?? new Date().toISOString().slice(0, 10);
-      const entry = {
-        date,
-        steps:          Number(body.steps          ?? 0),
-        sleepHours:     Number(body.sleepHours     ?? 0),
-        sleepScore:     Number(body.sleepScore     ?? 0),
-        restingHR:      Number(body.restingHR      ?? 0),
-        activeCalories: Number(body.activeCalories ?? 0),
-        floorsClimbed:  Number(body.floorsClimbed  ?? 0),
-        stressLevel:    Number(body.stressLevel    ?? 0),
-        updatedAt:      new Date().toISOString(),
-      };
-
-      const stored  = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
+      const stored   = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
       const dedupMap = new Map();
       for (const r of stored) dedupMap.set(r.date, r);
-      dedupMap.set(date, entry); // upsert today
-      const sorted  = [...dedupMap.values()]
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(-90); // keep 90 days
-
+      const entry = buildHealthEntry(body);
+      dedupMap.set(entry.date, entry);
+      const sorted = [...dedupMap.values()]
+        .sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
       await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
-      return cors(JSON.stringify({ ok: true, date }));
+      return cors(JSON.stringify({ ok: true, date: entry.date }));
+    }
+
+    // ── POST /health/batch  (bulk upsert — 30-day backfill) ──────────────
+    if (method === 'POST' && url.pathname === '/health/batch') {
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const days     = Array.isArray(body.days) ? body.days : [];
+      const stored   = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
+      const dedupMap = new Map();
+      for (const r of stored) dedupMap.set(r.date, r);
+      for (const day of days) { const e = buildHealthEntry(day); dedupMap.set(e.date, e); }
+      const sorted = [...dedupMap.values()]
+        .sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
+      await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
+      return cors(JSON.stringify({ ok: true, count: days.length }));
     }
 
     // ── GET /health.json  (dashboard fetch) ───────────────────────────────
@@ -186,7 +186,29 @@ export default {
   },
 };
 
-// ── Build the payload our dashboard expects ───────────────────────────────
+// ── Normalise a raw health payload into a stored entry ────────────────────
+function buildHealthEntry(body) {
+  const n = (v, d = 0) => { const x = Number(v); return isNaN(x) ? d : x; };
+  return {
+    date:            body.date ?? new Date().toISOString().slice(0, 10),
+    steps:           n(body.steps),
+    sleepHours:      n(body.sleepHours),
+    sleepDeep:       n(body.sleepDeep),
+    sleepLight:      n(body.sleepLight),
+    sleepRem:        n(body.sleepRem),
+    sleepAwake:      n(body.sleepAwake),
+    restingHR:       n(body.restingHR),
+    avgHR:           n(body.avgHR),
+    maxHR:           n(body.maxHR),
+    hrv:             n(body.hrv),
+    activeCalories:  n(body.activeCalories),
+    floorsClimbed:   n(body.floorsClimbed),
+    stressLevel:     n(body.stressLevel),
+    updatedAt:       new Date().toISOString(),
+  };
+}
+
+// ── Build the payload our dashboard expects ─────────────────────────────────
 function buildPayload(latest, readings) {
   return {
     current: latest ? {

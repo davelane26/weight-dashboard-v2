@@ -63,19 +63,20 @@ function _destroyChart(inst) {
 // ── Load today's data ───────────────────────────────────────────────
 // Tries Cloudflare Worker /health.json first, falls back to Firebase
 async function loadActivityData() {
-  let data = null;
-  let source = '';
+  let data    = null;
+  let allDays = [];   // full 30-day history for charts
+  let source  = '';
 
   // 1. Try Cloudflare Worker (fed by Exist.io via GitHub Actions)
   try {
     const workerBase = (window.GLUCOSE_WORKER_URL || '').replace('/glucose.json', '');
     if (workerBase) {
-      const res = await fetch(`${workerBase}/health.json`);
+      const res  = await fetch(`${workerBase}/health.json`);
       const json = await res.json();
-      // Worker returns { days: [...], updatedAt } — grab the latest entry
       if (json?.days?.length) {
-        data = json.days[json.days.length - 1];
-        source = 'Exist.io via Cloudflare';
+        allDays = json.days;
+        data    = allDays[allDays.length - 1];
+        source  = 'Exist.io via Cloudflare';
       }
     }
   } catch (e) {
@@ -86,8 +87,9 @@ async function loadActivityData() {
   if (!data) {
     try {
       const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json`);
-      data = await res.json();
-      source = 'Garmin via Firebase';
+      data    = await res.json();
+      allDays = [data];
+      source  = 'Garmin via Firebase';
     } catch (e) {
       console.error('Both data sources failed:', e);
       return;
@@ -100,7 +102,7 @@ async function loadActivityData() {
   renderSleepBreakdown(data);
   renderHRVSection(data);
   renderActivities(data.activities);
-  loadActivityCharts();
+  loadActivityCharts(allDays);
 
   // Hide setup prompt
   const setup = _el('act-setup');
@@ -197,15 +199,21 @@ function renderActivityKPIs(data) {
   }
 }
 
-// ── Sleep Breakdown ─────────────────────────────────────────────────
+// ── Sleep Breakdown ─────────────────────────────────────────────────────
 function renderSleepBreakdown(data) {
   const container = _el('sleep-breakdown');
-  if (!container || !data.sleepStages) return;
-  container.style.display = 'block';
+  if (!container) return;
 
-  const stages = data.sleepStages;
-  const total = (stages.deep || 0) + (stages.light || 0) + (stages.rem || 0) + (stages.awake || 0);
+  // Flat fields from Exist.io via Worker
+  const stages = {
+    deep:  data.sleepDeep  || data.sleepStages?.deep  || 0,
+    light: data.sleepLight || data.sleepStages?.light || 0,
+    rem:   data.sleepRem   || data.sleepStages?.rem   || 0,
+    awake: data.sleepAwake || data.sleepStages?.awake || 0,
+  };
+  const total = stages.deep + stages.light + stages.rem + stages.awake;
   if (total <= 0) return;
+  container.style.display = 'block';
 
   const pct = (v) => Math.round((v / total) * 100);
   const bar = (color, val, label) => {
@@ -286,30 +294,14 @@ function renderActivities(activities) {
   }).join('');
 }
 
-// ── 7-Day History Charts ────────────────────────────────────────────
-async function loadActivityCharts() {
-  const days = [];
-  const today = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
-  }
-
-  const history = [];
-  for (const day of days) {
-    try {
-      const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/${day}.json`);
-      const data = await res.json();
-      history.push({ date: day, ...(data || {}) });
-    } catch {
-      history.push({ date: day });
-    }
-  }
-
-  const labels = history.map(h => {
+// ── History Charts (30-day) ───────────────────────────────────────────────
+// history = array of day entries from the Worker (already sorted oldest→newest)
+function loadActivityCharts(history = []) {
+  // Use last 30 days, show MM/DD labels
+  const recent = history.slice(-30);
+  const labels = recent.map(h => {
     const d = new Date(h.date + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'short' });
+    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
   });
 
   const chartDefaults = {
@@ -317,14 +309,14 @@ async function loadActivityCharts() {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 11 } } },
+      x: { grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 9 }, maxTicksLimit: 10 } },
       y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6d7a95', font: { size: 10 } } },
     },
   };
 
   // Steps chart — Bug 4 fix: show empty state instead of ghost zero bars
   const stepsCanvas = _el('actStepsChart');
-  const stepsData = history.map(h => h.steps || 0);
+  const stepsData = recent.map(h => h.steps || 0);
   if (stepsCanvas) {
     if (_allZero(stepsData)) {
       actStepsChartInst = _emptyChart(actStepsChartInst, stepsCanvas, 'No step data yet — keep moving! 🚶');
@@ -358,10 +350,10 @@ async function loadActivityCharts() {
 
   // Sleep chart (stacked bar) — Bug 4 fix: check for real data first
   const sleepCanvas = _el('actSleepChart');
-  const sleepDeep  = history.map(h => h.sleepStages?.deep  || 0);
-  const sleepLight = history.map(h => h.sleepStages?.light || 0);
-  const sleepREM   = history.map(h => h.sleepStages?.rem   || 0);
-  const sleepAwake = history.map(h => h.sleepStages?.awake || 0);
+  const sleepDeep  = recent.map(h => h.sleepDeep  || 0);
+  const sleepLight = recent.map(h => h.sleepLight || 0);
+  const sleepREM   = recent.map(h => h.sleepRem   || 0);
+  const sleepAwake = recent.map(h => h.sleepAwake || 0);
   if (sleepCanvas) {
     if ([sleepDeep, sleepLight, sleepREM, sleepAwake].every(_allZero)) {
       actSleepChartInst = _emptyChart(actSleepChartInst, sleepCanvas, 'No sleep stage data yet');
@@ -398,8 +390,8 @@ async function loadActivityCharts() {
 
   // Heart rate chart — Bug 4 fix: check for real HR data first
   const hrCanvas    = _el('actHRChart');
-  const hrData      = history.map(h => h.restingHR || null);
-  const avgHRData   = history.map(h => h.avgHR    || null);
+  const hrData      = recent.map(h => h.restingHR || null);
+  const avgHRData   = recent.map(h => h.avgHR     || null);
   if (hrCanvas) {
     if (_allZero(hrData.map(v => v || 0)) && _allZero(avgHRData.map(v => v || 0))) {
       actHRChartInst = _emptyChart(actHRChartInst, hrCanvas, 'No heart rate data yet');
@@ -437,8 +429,8 @@ async function loadActivityCharts() {
       data: {
         labels,
         datasets: [{
-          data: history.map(h => h.stressLevel || 0),
-          backgroundColor: history.map(h => {
+          data: recent.map(h => h.stressLevel || 0),
+          backgroundColor: recent.map(h => {
             const s = h.stressLevel || 0;
             if (s <= 25) return 'rgba(42,135,3,0.6)';
             if (s <= 50) return 'rgba(255,194,32,0.6)';
@@ -462,7 +454,7 @@ async function loadActivityCharts() {
         labels,
         datasets: [{
           label: 'Body Battery',
-          data: history.map(h => h.bodyBattery || null),
+          data: recent.map(h => h.bodyBattery || null),
           borderColor: '#0891b2',
           backgroundColor: 'rgba(8,145,178,0.1)',
           fill: true,
