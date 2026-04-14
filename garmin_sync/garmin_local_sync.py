@@ -34,23 +34,18 @@ from garmin_cookie_client import fetch_all_for_day, get_display_name
 from firebase_push import push_day, push_latest
 
 
+COOKIES_FILE = Path(__file__).parent / ".garmin_cookies.json"
+
+
 def get_garmin_cookies() -> dict:
-    """Extract Garmin cookies from Chrome automatically."""
-    try:
-        import browser_cookie3
-        jar = browser_cookie3.chrome(domain_name=".garmin.com")
-        cookies = {c.name: c.value for c in jar}
-        if not cookies:
-            raise RuntimeError("No Garmin cookies found in Chrome — are you logged in to connect.garmin.com?")
-        log.info("Got %d Garmin cookies from Chrome", len(cookies))
-        return cookies
-    except ImportError:
-        log.error("browser-cookie3 not installed — run: pip install browser-cookie3")
+    """Load Garmin cookies from local file saved by garmin_chrome_cdp.py."""
+    if not COOKIES_FILE.exists():
+        log.error("No cookies file found at %s", COOKIES_FILE)
+        log.error("Run garmin_chrome_cdp.py first to save your cookies.")
         sys.exit(1)
-    except Exception as e:
-        log.error("Could not get cookies from Chrome: %s", e)
-        log.error("Make sure you're logged into connect.garmin.com in Chrome.")
-        sys.exit(1)
+    cookies = json.loads(COOKIES_FILE.read_text())
+    log.info("Loaded %d cookies from %s", len(cookies), COOKIES_FILE)
+    return cookies
 
 
 def main():
