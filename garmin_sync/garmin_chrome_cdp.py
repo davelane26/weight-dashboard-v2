@@ -83,6 +83,22 @@ proc = subprocess.Popen([
 print("Waiting for Chrome to start...")
 time.sleep(5)
 
+# Verify Chrome debug port is actually ready
+import socket
+for attempt in range(15):
+    try:
+        s = socket.create_connection(("127.0.0.1", CDP_PORT), timeout=1)
+        s.close()
+        print(f"[OK] Chrome debug port ready (attempt {attempt+1})")
+        break
+    except (ConnectionRefusedError, OSError):
+        print(f"Waiting for debug port... ({attempt+1}/15)")
+        time.sleep(1)
+else:
+    print("[FAIL] Chrome debug port never opened. Is Chrome blocked by antivirus?")
+    proc.terminate()
+    sys.exit(1)
+
 try:
     with sync_playwright() as p:
         print(f"Connecting to Chrome on port {CDP_PORT}...")
