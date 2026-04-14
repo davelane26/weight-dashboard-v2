@@ -12,6 +12,7 @@ Run:
 import base64, json, requests, traceback
 from nacl import encoding, public
 from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 
 REPO = "davelane26/weight-dashboard-v2"
 GARMIN_SSO = "https://sso.garmin.com/portal/sso/en-US/sign-in?clientId=GarminConnect&redirectAfterAccountLoginUrl=https://connect.garmin.com/modern/"
@@ -66,13 +67,8 @@ try:
             locale="en-US",
         )
         page = ctx.new_page()
-        # Hide automation signals
-        page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        page.add_init_script("window.chrome = { runtime: {} }")
-        page.add_init_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]})")
-        page.add_init_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})")
+        stealth_sync(page)  # bypass bot detection
         page.on("response", handle_response)
-
         print("Navigating to Garmin login...")
         page.goto(GARMIN_SSO, timeout=30000)
         print("Log in to Garmin in the browser. Waiting up to 2 minutes...")
