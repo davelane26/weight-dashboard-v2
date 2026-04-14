@@ -53,8 +53,18 @@ def handle_response(response):
 print("\nOpening browser — log in normally, then wait...")
 print("The script will grab your tokens automatically after login.\n")
 
+import traceback
+try:
+    p_test = sync_playwright().start()
+    p_test.stop()
+    print("[OK] Playwright working")
+except Exception as e:
+    print(f"[FAIL] Playwright init error: {e}")
+    traceback.print_exc()
+    exit(1)
+
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=False, slow_mo=500)
+    browser = p.chromium.launch(headless=False, slow_mo=500, args=["--no-sandbox", "--disable-dev-shm-usage"])
     ctx = browser.new_context()
     page = ctx.new_page()
 
