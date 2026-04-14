@@ -49,12 +49,28 @@ print("\nOpening browser — log in to Garmin normally, then wait...")
 
 try:
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=False,
-            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+        # Try real Chrome first, fall back to Chromium
+        try:
+            browser = p.chromium.launch(channel="chrome", headless=False)
+            print("Using real Chrome")
+        except Exception:
+            browser = p.chromium.launch(
+                headless=False,
+                args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+            )
+            print("Using Chromium")
+
+        ctx = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800},
+            locale="en-US",
         )
-        ctx = browser.new_context()
         page = ctx.new_page()
+        # Hide automation signals
+        page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        page.add_init_script("window.chrome = { runtime: {} }")
+        page.add_init_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]})")
+        page.add_init_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})")
         page.on("response", handle_response)
 
         print("Navigating to Garmin login...")
