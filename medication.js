@@ -170,6 +170,23 @@ function renderAll() {
 }
 
 // ── Edit Panel ────────────────────────────────────────────────────────────────
+
+// Reads current phase rows out of the live DOM (preserves unsaved edits)
+function readPhasesFromDOM() {
+  const phases = [];
+  let i = 0;
+  while (document.getElementById(`med-p-dose-${i}`)) {
+    const endVal = document.getElementById(`med-p-end-${i}`).value.trim();
+    phases.push({
+      dose:        parseFloat(document.getElementById(`med-p-dose-${i}`).value)  || 0,
+      weightStart: parseFloat(document.getElementById(`med-p-start-${i}`).value) || 0,
+      weightEnd:   endVal === '' ? null : parseFloat(endVal),
+    });
+    i++;
+  }
+  return phases;
+}
+
 function toggleMedEdit() {
   const panel = _mEl('med-edit-panel');
   if (!panel) return;
@@ -188,69 +205,90 @@ function populateEditForm() {
 function renderEditPhases(phases) {
   const container = _mEl('med-edit-phases');
   if (!container) return;
-
-  container.innerHTML = phases.map((p, i) => `
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:0.6rem 0.75rem;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end">
-      <div>
-        <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block">DOSE (mg)</label>
-        <input type="number" step="2.5" value="${p.dose}" id="med-p-dose-${i}"
-          style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:0.3rem 0.4rem;font-size:0.85rem;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block">START WT (lbs)</label>
-        <input type="number" step="0.1" value="${p.weightStart}" id="med-p-start-${i}"
-          style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:0.3rem 0.4rem;font-size:0.85rem;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block">END WT (lbs)</label>
-        <input type="number" step="0.1" value="${p.weightEnd ?? ''}" id="med-p-end-${i}"
-          placeholder="Current" style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:0.3rem 0.4rem;font-size:0.85rem;box-sizing:border-box">
-      </div>
-      <button onclick="medRemovePhase(${i})" title="Remove phase"
-        style="background:#fff1f0;color:#ea1100;border:1px solid #ea110033;border-radius:5px;padding:0.3rem 0.5rem;font-size:0.8rem;cursor:pointer;line-height:1">✕</button>
-    </div>`).join('');
+  container.innerHTML = phases.map((p, i) => [
+    `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;`,
+    `padding:0.6rem 0.75rem;display:grid;grid-template-columns:1fr 1fr 1fr auto;`,
+    `gap:0.5rem;align-items:end">`,
+      `<div><label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block">DOSE (mg)</label>`,
+      `<input type="number" step="2.5" value="${p.dose}" id="med-p-dose-${i}"`,
+      ` style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:0.3rem 0.4rem;font-size:0.85rem;box-sizing:border-box"></div>`,
+      `<div><label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block">START WT (lbs)</label>`,
+      `<input type="number" step="0.1" value="${p.weightStart}" id="med-p-start-${i}"`,
+      ` style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:0.3rem 0.4rem;font-size:0.85rem;box-sizing:border-box"></div>`,
+      `<div><label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block">END WT (lbs)</label>`,
+      `<input type="number" step="0.1" value="${p.weightEnd != null ? p.weightEnd : ''}" id="med-p-end-${i}"`,
+      ` placeholder="Current" style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:0.3rem 0.4rem;font-size:0.85rem;box-sizing:border-box"></div>`,
+      `<button onclick="medRemovePhase(${i})" title="Remove"`,
+      ` style="background:#fff1f0;color:#ea1100;border:1px solid #fecaca;border-radius:5px;`,
+      `padding:0.3rem 0.5rem;font-size:0.8rem;cursor:pointer;line-height:1">✕</button>`,
+    `</div>`,
+  ].join('')).join('');
 }
 
+// Add Phase: reads current DOM state first so unsaved edits are preserved
 function medAddPhase() {
-  const data = loadMedData();
-  const last = data.phases[data.phases.length - 1];
-  // Close out the current phase first (set its end weight to live weight)
-  if (last.weightEnd === null) last.weightEnd = currentWeight();
-  data.phases.push({ dose: last.dose, weightStart: last.weightEnd, weightEnd: null });
-  renderEditPhases(data.phases);
+  const phases = readPhasesFromDOM();
+  if (!phases.length) return;
+  const last = phases[phases.length - 1];
+  const lastEnd = last.weightEnd !== null ? last.weightEnd : currentWeight();
+  last.weightEnd = lastEnd;  // close out current phase in form
+  phases.push({ dose: last.dose, weightStart: lastEnd, weightEnd: null });
+  renderEditPhases(phases);
 }
 
-function medRemovePhase(i) {
-  const data = loadMedData();
-  if (data.phases.length <= 1) return;  // must keep at least one
-  data.phases.splice(i, 1);
-  // Ensure last phase has weightEnd = null (marks it as current)
-  data.phases[data.phases.length - 1].weightEnd = null;
-  renderEditPhases(data.phases);
+// Remove Phase: reads current DOM state so unsaved edits are preserved
+function medRemovePhase(idx) {
+  const phases = readPhasesFromDOM();
+  if (phases.length <= 1) return;
+  phases.splice(idx, 1);
+  phases[phases.length - 1].weightEnd = null;  // last phase always open
+  renderEditPhases(phases);
+}
+
+function showMedToast(msg, isError) {
+  let t = _mEl('med-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'med-toast';
+    t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;' +
+      'padding:0.6rem 1.1rem;border-radius:8px;font-size:0.82rem;font-weight:700;' +
+      'box-shadow:0 4px 16px rgba(0,0,0,0.15);transition:opacity 0.4s;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent  = msg;
+  t.style.background = isError ? '#ea1100' : '#2a8703';
+  t.style.color      = '#fff';
+  t.style.opacity    = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2500);
 }
 
 function saveMedData() {
-  const startEl = _mEl('med-edit-start');
-  const data = { startDate: startEl?.value || MJ_DEFAULTS.startDate, phases: [] };
+  try {
+    const startEl = _mEl('med-edit-start');
+    const phases  = readPhasesFromDOM();
 
-  let i = 0;
-  while (_mEl(`med-p-dose-${i}`)) {
-    const endVal = _mEl(`med-p-end-${i}`).value;
-    data.phases.push({
-      dose:        parseFloat(_mEl(`med-p-dose-${i}`).value)  || 0,
-      weightStart: parseFloat(_mEl(`med-p-start-${i}`).value) || 0,
-      weightEnd:   endVal === '' ? null : parseFloat(endVal),
-    });
-    i++;
+    if (!phases.length) {
+      showMedToast('No phases found — open the panel first', true);
+      return;
+    }
+
+    // Last phase is always the active one (no end weight)
+    phases[phases.length - 1].weightEnd = null;
+
+    const data = {
+      startDate: startEl ? startEl.value || MJ_DEFAULTS.startDate : MJ_DEFAULTS.startDate,
+      phases,
+    };
+
+    persistMedData(data);
+    toggleMedEdit();
+    renderAll();
+    showMedToast('\u2713 Saved!');
+  } catch (err) {
+    console.error('[medication] save error:', err);
+    showMedToast('Save failed: ' + err.message, true);
   }
-
-  if (!data.phases.length) return;
-  // Always ensure the last phase is "current" (no end weight)
-  data.phases[data.phases.length - 1].weightEnd = null;
-
-  persistMedData(data);
-  toggleMedEdit();
-  renderAll();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
