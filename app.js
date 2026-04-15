@@ -57,7 +57,7 @@ function syncActivityUI() {
 window.setActivityLevel = setActivityLevel;
 
 // -- Tab switching ---------------------------------------------------------────
-const TABS = ['weight', 'projector', 'glucose', 'activity'];
+const TABS = ['weight', 'glucose', 'activity', 'projector'];
 function switchTab(name) {
   TABS.forEach(t => {
     const panel = el('tab-' + t);
@@ -69,7 +69,19 @@ function switchTab(name) {
     }
   });
   localStorage.setItem('wt_v2_tab', name);
-  // Chart.js needs a nudge when its canvas becomes visible
+  // When switching to the weight tab, fully re-render the charts.
+  // resize() alone isn't enough — if renderAll() fired while the tab
+  // was hidden (e.g. the 30s interval refresh), Chart.js created new
+  // instances into 0px canvases. A fresh render into the now-visible
+  // panel is the only reliable fix.
+  if (name === 'weight') {
+    setTimeout(() => {
+      if (allData.length) {
+        renderWeightChart(allData);
+        renderCompositionCharts(allData);
+      }
+    }, 0);
+  }
   if (name === 'glucose') {
     setTimeout(() => {
       if (window.glucoseChartInstance) window.glucoseChartInstance.resize();
@@ -101,15 +113,21 @@ function toggleDark() {
   localStorage.setItem('wt_v2_dark', isDark ? '1' : '0');
   const btn = el('dark-btn');
   if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+  // Bug 1 fix: theme change must never disturb active tab state
+  const currentTab = localStorage.getItem('wt_v2_tab') || 'weight';
+  if (TABS.includes(currentTab)) switchTab(currentTab);
 }
 
-// ── State ───────────────────────────────────────────────────────────
-let allData       = [];
-let goalWeight    = null;
-let calLog        = {};
-let charts        = {};
-let chartRange    = 'all';
-let activityLevel = 'moderate';
+// ── State ──────────────────────────────────────────────────────────
+let allData            = [];
+let goalWeight         = null;
+let charts             = {};
+let chartRange         = 'all';
+let activityLevel      = 'moderate';
+// Projection calculator — updated by renderJourney on every data load
+let projSlopeLbsPerDay = null;   // negative = losing weight
+let projLatestWeight   = null;
+let projLatestDate     = null;
 
 // ── Formatters ─────────────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
@@ -301,6 +319,15 @@ function renderJourney(latest, data) {
   if (bar) {
     bar.style.width = pct + '%';
     bar.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
+    // Progress bar gradient: red → amber → yellow → green as journey advances
+    // We scale the gradient so the colour at the leading edge always matches progress
+    const pctSafe = Math.max(1, pct);
+    bar.style.background = `linear-gradient(
+      90deg,
+      #ea1100 0%,
+      #ffc220 ${Math.min(100, (50 / pctSafe) * 100)}%,
+      #2a8703 ${Math.min(100, (100 / pctSafe) * 100)}%
+    )`;
   }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
@@ -310,6 +337,40 @@ function renderJourney(latest, data) {
   data.forEach(r => { byDay30[r.date.toDateString()] = r; });
   const dailyPts = Object.values(byDay30).sort((a, b) => a.date - b.date).slice(-30);
   const slopePerDay = weightTrendSlope(data);
+  // Expose to projection calculator — updated every data refresh
+  projSlopeLbsPerDay = slopePerDay;
+  projLatestWeight   = latest.weight;
+  projLatestDate     = latest.date;
+
+  // Initialise slider bounds now that we know the current weight
+  const slider = document.getElementById('proj-weight-input');
+  if (slider) {
+    const maxVal = Math.floor(projLatestWeight) - 1;
+    slider.max   = maxVal;
+    const maxLbl = document.getElementById('proj-slider-max');
+    if (maxLbl) maxLbl.textContent = maxVal;
+    // Clamp the current slider value if it crept above the new max
+    if (parseFloat(slider.value) >= projLatestWeight) {
+      slider.value = goalWeight && goalWeight < projLatestWeight
+        ? goalWeight
+        : Math.round(projLatestWeight - 20);
+    }
+    const disp = document.getElementById('proj-slider-display');
+    if (disp) disp.textContent = parseFloat(slider.value).toFixed(1);
+  }
+
+  // Update projector blurb with current trend rate
+  const blurb = document.getElementById('proj-trend-blurb');
+  if (blurb) {
+    if (slopePerDay !== null) {
+      const wkRate = Math.abs(slopePerDay * 7).toFixed(1);
+      const dir    = slopePerDay < 0 ? 'losing' : 'gaining';
+      blurb.textContent = `Based on your 30-day trend — currently ${dir} ~${wkRate} lbs/week`;
+    } else {
+      blurb.textContent = 'Not enough data yet for a trend (need ~30 days of readings)';
+    }
+  }
+
   if (slopePerDay !== null) {
     const lbsPerWeek = Math.abs(slopePerDay * 7);
     countUp('journey-rate', lbsPerWeek, 1);
@@ -339,6 +400,8 @@ function renderJourney(latest, data) {
   } else {
     setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : '🎉 All done!');
   }
+  // Refresh projector if user already has inputs filled
+  computeProjection();
 }
 
 // ── Milestones ──────────────────────────────────────────────────────
@@ -625,49 +688,105 @@ function renderCompositionCharts(data) {
   });
 }
 
-// ── Render week-over-week table ─────────────────────────────────────────────
+// ── Render week-over-week table ──────────────────────────────────────────
 function renderWoW(data) {
   if (data.length < 2) return;
 
-  // Group readings by calendar week (Sun–Sat)
+  // Group by Mon-Sun week
+  const weekKey = d => {
+    const dt = new Date(d);
+    const day = (dt.getDay() + 6) % 7; // Mon=0
+    dt.setDate(dt.getDate() - day);
+    return dt.toDateString();
+  };
   const weeks = {};
   data.forEach(r => {
-    const d = new Date(r.date);
-    d.setDate(d.getDate() - d.getDay());
-    const k = d.toDateString();
-    if (!weeks[k]) weeks[k] = { sun: d, rows: [] };
+    const k = weekKey(r.date);
+    if (!weeks[k]) weeks[k] = { mon: new Date(r.date), rows: [] };
+    // rewind stored date to Monday
+    const dt = new Date(r.date);
+    dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    weeks[k].mon = dt;
     weeks[k].rows.push(r);
   });
 
-  const sorted = Object.values(weeks).sort((a, b) => a.sun - b.sun);
-  const tbody  = el('wow-body');
+  const currentKey = weekKey(new Date());
+  const sorted     = Object.entries(weeks).sort((a, b) =>
+    new Date(b[0]) - new Date(a[0])  // newest first
+  );
+
+  const tbody = el('wow-body');
   tbody.innerHTML = '';
 
-  sorted.forEach(wk => {
-    const rs      = wk.rows.sort((a, b) => a.date - b.date);
-    const first   = rs[0].weight;
-    const last    = rs[rs.length - 1].weight;
-    const lost    = first - last;  // positive = lost weight ✓
-    const weekEnd = new Date(wk.sun);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+  sorted.forEach(([key, wk], idx) => {
+    const isCurrent = key === currentKey;
+    const rs        = wk.rows.sort((a, b) => a.date - b.date);
+    const first     = rs[0].weight;
+    const last      = rs[rs.length - 1].weight;
+    const withinLost = first - last; // positive = lost within this week
 
-    const weekLabel = wk.sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      + '–' + weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Week label: Mon – Sun
+    const monDate = new Date(key);
+    const sunDate = new Date(key);
+    sunDate.setDate(sunDate.getDate() + 6);
+    const weekLabel = monDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      + '–' + sunDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-    let lostHtml;
-    if (rs.length === 1) {
-      lostHtml = '<span style="color:#c5c9d5">one reading</span>';
-    } else if (lost > 0) {
-      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(lost)} lbs</span>`;
-    } else if (lost < 0) {
-      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(lost))} lbs</span>`;
-    } else {
-      lostHtml = '<span style="color:#6d7a95">no change</span>';
+    // Cross-week delta: this week's latest vs previous week's latest
+    let vsLastHtml = '';
+    if (isCurrent && sorted.length > 1) {
+      const prevRs      = sorted[1][1].rows.sort((a, b) => a.date - b.date);
+      const prevLatest  = prevRs[prevRs.length - 1].weight;
+      const crossDelta  = prevLatest - last; // positive = lost vs end of last week
+      const crossColor  = crossDelta > 0 ? '#2a8703' : crossDelta < 0 ? '#ea1100' : '#6d7a95';
+      const crossText   = crossDelta > 0
+        ? `▼ ${fmt(crossDelta)} vs last wk`
+        : crossDelta < 0
+          ? `▲ ${fmt(Math.abs(crossDelta))} vs last wk`
+          : 'flat vs last wk';
+      vsLastHtml = `<br><span style="font-size:0.68rem;color:${crossColor};font-weight:600">${crossText}</span>`;
     }
 
+    // Within-week Lost cell
+    let lostHtml;
+    if (isCurrent && rs.length === 1) {
+      // Single reading this week — skip the meaningless within-week delta,
+      // show the cross-week comparison as the primary number instead
+      const prevRs     = sorted.length > 1 ? sorted[1][1].rows.sort((a, b) => a.date - b.date) : null;
+      const prevLatest = prevRs ? prevRs[prevRs.length - 1].weight : null;
+      if (prevLatest != null) {
+        const crossDelta = prevLatest - last;
+        const crossColor = crossDelta > 0 ? '#2a8703' : crossDelta < 0 ? '#ea1100' : '#6d7a95';
+        lostHtml = crossDelta > 0
+          ? `<span style="color:${crossColor};font-size:1.1rem;font-weight:800">▼ ${fmt(crossDelta)} lbs</span><br><span style="font-size:0.65rem;color:#6d7a95">vs end of last week</span>`
+          : crossDelta < 0
+            ? `<span style="color:${crossColor};font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(crossDelta))} lbs</span><br><span style="font-size:0.65rem;color:#6d7a95">vs end of last week</span>`
+            : `<span style="color:#6d7a95">flat vs last week</span>`;
+      } else {
+        lostHtml = '<span style="color:#c5c9d5">1 reading</span>';
+      }
+    } else if (rs.length === 1) {
+      lostHtml = '<span style="color:#c5c9d5">1 reading</span>';
+    } else if (withinLost > 0) {
+      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(withinLost)} lbs</span>${vsLastHtml}`;
+    } else if (withinLost < 0) {
+      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(withinLost))} lbs</span>${vsLastHtml}`;
+    } else {
+      lostHtml = `<span style="color:#6d7a95">no change</span>${vsLastHtml}`;
+    }
+
+    const nowBadge = isCurrent
+      ? '<span style="background:#0053e2;color:#fff;font-size:0.58rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:9999px;margin-right:0.35rem">NOW</span>'
+      : '';
+
     const tr = document.createElement('tr');
+    if (isCurrent) {
+      tr.style.background    = '#eff4ff';
+      tr.style.fontWeight    = '700';
+      tr.style.borderLeft    = '3px solid #0053e2';
+    }
     tr.innerHTML = `
-      <td style="font-weight:600;white-space:nowrap">${weekLabel}</td>
+      <td style="font-weight:600;white-space:nowrap">${nowBadge}${weekLabel}</td>
       <td style="color:#6d7a95">${fmt(first)} lbs</td>
       <td style="color:#6d7a95">${fmt(last)} lbs</td>
       <td>${lostHtml}</td>
@@ -705,28 +824,7 @@ function renderGoal(latest, data = []) {
   if (remaining <= 0) {
     setText('goal-eta', '🎉 Goal reached!');
     return;
-  }
-
-  // Calorie-based projection using 7-day rolling average
-  const avgCals = calAvg();
-  const energy = calcTDEE(latest);
-  if (avgCals && energy?.tdee) {
-    const deficit = energy.tdee - avgCals;
-    if (deficit > 0) {
-      const lbsPerWeek = (deficit * 7) / 3500;
-      const daysLeft   = remaining / (lbsPerWeek / 7);
-      const projDate   = new Date(latest.date.getTime() + daysLeft * 86400000);
-      const loggedDays = Object.keys(calLog).length;
-      setText('goal-eta',
-        `avg ${Math.round(avgCals).toLocaleString()} kcal (${loggedDays}d) · ${Math.round(deficit).toLocaleString()} deficit · ~${lbsPerWeek.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
-      return;
-    } else {
-      setText('goal-eta', '⚠️ Eating at or above TDEE — no deficit to project from');
-      return;
-    }
-  }
-
-  // Fallback: linear regression on last 30 days
+  }  // Fallback: linear regression on last 30 days
   const slopePerDay = weightTrendSlope(data);
   if (slopePerDay !== null && slopePerDay < 0) {
     const daysLeft    = remaining / Math.abs(slopePerDay);
@@ -770,98 +868,104 @@ function clearGoal() {
 
 // ── Calorie log ───────────────────────────────────────────────────
 const todayKey = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-
-function calAvg(days = 7) {
-  const entries = Object.entries(calLog)
-    .sort((a, b) => b[0].localeCompare(a[0]))
-    .slice(0, days)
-    .map(([, v]) => v);
-  return entries.length ? entries.reduce((a, b) => a + b, 0) / entries.length : null;
-}
-
-function loadCalLog() {
-  try {
-    const stored = localStorage.getItem('wt_v2_cal_log');
-    calLog = stored ? JSON.parse(stored) : {};
-    // Migrate old single-value entry if present
-    const old = localStorage.getItem('wt_v2_calories');
-    if (old && !calLog[todayKey()]) {
-      calLog[todayKey()] = parseFloat(old);
-      localStorage.removeItem('wt_v2_calories');
-      saveCalLog();
-    }
-    // Pre-fill today's input if already logged
-    const todayVal = calLog[todayKey()];
-    if (todayVal) el('cal-input').value = todayVal;
-  } catch {}
-}
-
-function saveCalLog() {
-  try { localStorage.setItem('wt_v2_cal_log', JSON.stringify(calLog)); } catch {}
-}
-
-function logCalories() {
-  const v = parseFloat(el('cal-input').value);
-  if (isNaN(v) || v <= 0) return;
-  calLog[todayKey()] = v;
-  // Keep only last 30 days
-  const keys = Object.keys(calLog).sort().slice(-30);
-  calLog = Object.fromEntries(keys.map(k => [k, calLog[k]]));
-  saveCalLog();
-  if (allData.length) {
-    const latest = allData[allData.length - 1];
-    renderCalLog(latest);
-    renderGoal(latest, allData);
-  renderCalLog(latest);
-  }
-}
-
-function deleteCalEntry(dateKey) {
-  delete calLog[dateKey];
-  saveCalLog();
-  if (allData.length) {
-    const latest = allData[allData.length - 1];
-    renderCalLog(latest);
-    renderGoal(latest, allData);
-  }
-}
-
-function renderCalLog(latest) {
-  const content = el('cal-log-content');
-  const body    = el('cal-log-body');
-  if (!content || !body) return;
-
-  const entries = Object.entries(calLog).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
-  if (!entries.length) { content.style.display = 'none'; return; }
-  content.style.display = 'block';
-
-  const avg = calAvg();
-  const avgBadge = el('cal-avg-badge');
-  if (avgBadge) avgBadge.textContent = avg ? Math.round(avg).toLocaleString() + ' kcal' : '—';
-
-  const tdee = calcTDEE(latest)?.tdee || 0;
-  body.innerHTML = entries.map(([dateKey, cals]) => {
-    const d       = new Date(dateKey + 'T12:00:00');
-    const label   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const deficit = tdee ? Math.round(tdee - cals) : null;
-    const defHtml = deficit != null
-      ? deficit > 0
-        ? `<span style="color:#2a8703;font-weight:600">−${deficit.toLocaleString()}</span>`
-        : `<span style="color:#ea1100;font-weight:600">+${Math.abs(deficit).toLocaleString()} surplus</span>`
-      : '—';
-    const isToday = dateKey === todayKey();
-    return `<tr class="${isToday ? 'today-row' : ''}">
-      <td>${label}${isToday ? ' <span style="font-size:0.65rem;color:#0053e2">(today)</span>' : ''}</td>
-      <td>${Math.round(cals).toLocaleString()} kcal</td>
-      <td>${defHtml}</td>
-      <td><button class="cal-log-delete" onclick="deleteCalEntry('${dateKey}')" aria-label="Delete">&#x2715;</button></td>
-    </tr>`;
-  }).join('');
-}
+function calAvg() { return null; } // stub — calorie logger removed
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
+window.setRange  = setRange;
 
-// ── Master render ───────────────────────────────────────────────────────
+// ── Monthly Summary
+
+// ── Weight Projector ────────────────────────────────────────────────────
+function computeProjection() {
+  const dateInput   = document.getElementById('proj-date-input');
+  const weightInput = document.getElementById('proj-weight-input');
+  const dateResult  = document.getElementById('proj-date-result');
+  const weightResult= document.getElementById('proj-weight-result');
+
+  const noTrend = () => {
+    if (dateResult)   dateResult.textContent   = 'Need more data (< 30 days of readings)';
+    if (weightResult) weightResult.textContent = 'Need more data (< 30 days of readings)';
+  };
+
+  if (!projSlopeLbsPerDay || !projLatestWeight || !projLatestDate) {
+    noTrend(); return;
+  }
+
+  const MS_PER_DAY = 86_400_000;
+
+  // ── Date → Projected weight ───────────────────────────────────
+  if (dateInput && dateResult) {
+    const targetDate = dateInput.value ? new Date(dateInput.value + 'T12:00:00') : null;
+    if (!targetDate || isNaN(targetDate)) {
+      dateResult.textContent = 'Pick a date above';
+    } else {
+      const daysDiff    = (targetDate - projLatestDate) / MS_PER_DAY;
+      const projected   = projLatestWeight + projSlopeLbsPerDay * daysDiff;
+      const isFuture    = daysDiff > 0;
+      const rounded     = Math.round(projected * 10) / 10;
+      if (!isFuture) {
+        dateResult.textContent = 'Pick a future date';
+      } else if (rounded < 100) {
+        dateResult.textContent = 'Way beyond goal — you’d be a ghost 👻';
+      } else {
+        const dateLabel  = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const lostNow    = projLatestWeight - rounded;          // change from current
+        const lostTotal  = START_WEIGHT - rounded;              // total from 315.0
+        const lostNowStr = lostNow > 0
+          ? `▼ ${fmt(lostNow)} lbs from now`
+          : `▲ ${fmt(Math.abs(lostNow))} lbs from now`;
+        dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
+        dateResult.style.color = lostNow > 0 ? '#2a8703' : '#ea1100';
+      }
+    }
+  }
+
+  // ── Weight slider → Projected date + countdown card ────────────────
+  if (weightInput && weightResult) {
+    const targetW   = parseFloat(weightInput.value);
+    const disp      = document.getElementById('proj-slider-display');
+    const countdown = document.getElementById('proj-countdown');
+
+    if (disp) disp.textContent = isNaN(targetW) ? '—' : targetW.toFixed(1);
+
+    const hide = (msg, color = '#ea1100') => {
+      if (countdown) countdown.style.display = 'none';
+      weightResult.textContent  = msg;
+      weightResult.style.color  = color;
+    };
+
+    if (isNaN(targetW)) {
+      hide('', '#6d7a95');
+    } else if (targetW >= projLatestWeight) {
+      hide('Slide below your current weight');
+    } else if (projSlopeLbsPerDay >= 0) {
+      hide('Trend is flat or gaining — projection unavailable');
+    } else {
+      const daysNeeded = (projLatestWeight - targetW) / Math.abs(projSlopeLbsPerDay);
+      const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
+      const dateLabel   = arrivalDate.toLocaleDateString('en-US',
+        { month: 'long', day: 'numeric', year: 'numeric' });
+      const daysRounded = Math.round(daysNeeded);
+      const totalLost   = START_WEIGHT - targetW;
+      const stillToGo   = projLatestWeight - targetW;
+
+      if (countdown) {
+        countdown.style.display = 'block';
+        document.getElementById('proj-cd-date').textContent  = dateLabel;
+        document.getElementById('proj-cd-days').textContent  =
+          `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
+        document.getElementById('proj-cd-total').textContent =
+          `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
+        document.getElementById('proj-cd-togo').textContent  =
+          `${fmt(stillToGo)} lbs`;
+      }
+      weightResult.textContent = '';
+    }
+  }
+}
+window.computeProjection = computeProjection;
+
+// ── Master render
 function renderAll() {
   if (!allData.length) return;
   const latest = allData[allData.length - 1];
@@ -909,11 +1013,13 @@ async function loadData() {
 
 async function init() {
   loadDark();
-  restoreTab();
   loadActivityLevel();
   loadGoal();
-  loadCalLog();
+  // Load data FIRST while the weight tab is still visible so Chart.js
+  // can measure the canvas at its real size. Switch to the saved tab
+  // only after the initial render is done.
   const ok = await loadData();
+  restoreTab(); // ← charts are already drawn at correct dimensions
   if (!ok) {
     // Fall back to cached localStorage data
     try {
@@ -921,6 +1027,7 @@ async function init() {
       if (saved) {
         allData = JSON.parse(saved).map(r => ({ ...r, date: new Date(r.date) })).filter(r => r.weight);
         renderAll();
+        restoreTab(); // ← same here
         el('status-bar').textContent = '⚠ Showing cached data — live fetch failed';
         el('status-bar').style.display = 'block';
       }
