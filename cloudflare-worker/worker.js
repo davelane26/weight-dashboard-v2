@@ -182,17 +182,47 @@ export default {
       return cors(JSON.stringify({ days: data, updatedAt: new Date().toISOString() }));
     }
 
+    // ── PATCH /health/patch  (merge specific fields into an existing day) ──
+    // Used by the local Garmin sync to add sleepScore + precise sleepHours
+    // without clobbering the richer Exist.io data already stored.
+    if (method === 'POST' && url.pathname === '/health/patch') {
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const date = body.date;
+      if (!date) return cors('{"error":"date required"}', 400);
+      const stored   = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
+      const dedupMap = new Map();
+      for (const r of stored) dedupMap.set(r.date, r);
+      const existing = dedupMap.get(date) ?? { date };
+      // Merge: only overwrite fields that are explicitly provided and non-null
+      const patched = { ...existing };
+      const allowed = ['sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
+                       'sleepAwakenings','timeInBed','restingHR','stressLevel','bodyBattery'];
+      for (const key of allowed) {
+        if (body[key] !== undefined && body[key] !== null) patched[key] = body[key];
+      }
+      patched.updatedAt = new Date().toISOString();
+      dedupMap.set(date, patched);
+      const sorted = [...dedupMap.values()]
+        .sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
+      await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
+      return cors(JSON.stringify({ ok: true, date, patched: Object.keys(body).filter(k => allowed.includes(k)) }));
+    }
+
     return cors('{"error":"Not found"}', 404);
   },
 };
 
 // ── Normalise a raw health payload into a stored entry ──────────────────────
 function buildHealthEntry(body) {
-  const n = (v, d = 0) => { const x = Number(v); return isNaN(x) ? d : x; };
+  const n  = (v, d = 0)    => { const x = Number(v); return isNaN(x) ? d : x; };
+  const nn = (v, d = null) => { const x = Number(v); return isNaN(x) ? d : x; };
   return {
     date:             body.date ?? new Date().toISOString().slice(0, 10),
     steps:            n(body.steps),
     sleepHours:       n(body.sleepHours),
+    sleepScore:       nn(body.sleepScore),   // Garmin sleep quality score (0-100)
     sleepDeep:        n(body.sleepDeep),
     sleepLight:       n(body.sleepLight),
     sleepRem:         n(body.sleepRem),

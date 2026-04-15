@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 sys.path.insert(0, str(Path(__file__).parent))
 from garmin_cookie_client import fetch_all_for_day, get_display_name
 from firebase_push import push_day, push_latest
+from push_worker import patch_sleep
 
 
 COOKIES_FILE = Path(__file__).parent / ".garmin_cookies.json"
@@ -82,6 +83,8 @@ def main():
                      data.get("sleepHours", 0),
                      data.get("bodyBattery"))
             synced += 1
+            # Also patch the Cloudflare Worker with Garmin's precise sleep data
+            patch_sleep(day, data)
         else:
             log.warning("Failed to push %s to Firebase", date_key)
 
