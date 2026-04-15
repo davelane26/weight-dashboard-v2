@@ -35,7 +35,7 @@ function persistMedData(data) {
 function resetMedData() {
   localStorage.removeItem(LS_KEY);
   if (_mEl('med-edit-panel')) toggleMedEdit();
-  renderAll();
+  renderMedAll();
   showMedToast('Reset to defaults');
 }
 
@@ -174,7 +174,7 @@ function renderMedChart() {
   });
 }
 
-function renderAll() {
+function renderMedAll() {
   try { renderMedKPIs();   } catch(e) { console.error('[med] renderMedKPIs',   e); }
   try { renderMedPhases(); } catch(e) { console.error('[med] renderMedPhases', e); }
   try { renderMedChart();  } catch(e) { console.error('[med] renderMedChart',  e); }
@@ -294,8 +294,8 @@ function saveMedData() {
 
     persistMedData(data);
     toggleMedEdit();
-    renderAll();
-    showMedToast('\u2713 Saved!');
+    renderMedAll();
+    showMedToast('✓ Saved!');
   } catch (err) {
     console.error('[medication] save error:', err);
     showMedToast('Save failed: ' + err.message, true);
@@ -304,7 +304,7 @@ function saveMedData() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 function initMedication() {
-  renderAll();
+  renderMedAll();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
