@@ -86,6 +86,7 @@ function renderMedPhases() {
 
 // ── Render progress chart ─────────────────────────────────────────────────────
 let medChartInst = null;
+window.medChartInst = null;
 
 function renderMedChart() {
   const canvas = _el('medWeightChart');
@@ -100,7 +101,7 @@ function renderMedChart() {
 
   if (medChartInst) { medChartInst.destroy(); medChartInst = null; }
 
-  medChartInst = new Chart(canvas.getContext('2d'), {
+  medChartInst = window.medChartInst = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
       labels,

@@ -57,7 +57,7 @@ function syncActivityUI() {
 window.setActivityLevel = setActivityLevel;
 
 // -- Tab switching ---------------------------------------------------------────
-const TABS = ['weight', 'glucose', 'activity', 'projector'];
+const TABS = ['weight', 'glucose', 'activity', 'projector', 'medication'];
 function switchTab(name) {
   TABS.forEach(t => {
     const panel = el('tab-' + t);
@@ -92,6 +92,12 @@ function switchTab(name) {
       ['actStepsChartInst','actSleepChartInst','actHRChartInst'].forEach(k => {
         if (window[k]) window[k].resize();
       });
+    }, 50);
+  }
+  if (name === 'medication') {
+    setTimeout(() => {
+      if (window.medChartInst) window.medChartInst.resize();
+      else if (typeof initMedication === 'function') initMedication();
     }, 50);
   }
 }
