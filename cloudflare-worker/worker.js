@@ -160,7 +160,7 @@ export default {
       return cors(JSON.stringify({ ok: true, date: entry.date }));
     }
 
-    // ── POST /health/batch  (bulk upsert — 30-day backfill) ──────────────
+    // ── POST /health/batch  (bulk upsert — 30-day backfill) ────────────────────
     if (method === 'POST' && url.pathname === '/health/batch') {
       if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
       let body;
@@ -169,7 +169,19 @@ export default {
       const stored   = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
       const dedupMap = new Map();
       for (const r of stored) dedupMap.set(r.date, r);
-      for (const day of days) { const e = buildHealthEntry(day); dedupMap.set(e.date, e); }
+      for (const day of days) {
+        const incoming = buildHealthEntry(day);
+        const existing = dedupMap.get(incoming.date) ?? {};
+        // Merge: never overwrite a non-null existing value with null/0.
+        // This protects Garmin-patched fields (sleepScore, restingHR, etc.)
+        // from being wiped out by Exist.io batch pushes that lack those fields.
+        const merged = { ...existing };
+        for (const [k, v] of Object.entries(incoming)) {
+          if (k === 'date' || k === 'updatedAt') { merged[k] = v; continue; }
+          if (v !== null && v !== undefined) merged[k] = v; // only update with real values
+        }
+        dedupMap.set(incoming.date, merged);
+      }
       const sorted = [...dedupMap.values()]
         .sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
       await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
