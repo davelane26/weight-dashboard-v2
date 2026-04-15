@@ -1053,8 +1053,12 @@ function renderAll() {
 
   // Header meta
   setText('last-updated', `${fmtDate(latest.date)} · ${fmtTime(latest.date)}`);
-  const todayCount = allData.filter(r => r.date.toDateString() === latest.date.toDateString()).length;
-  setText('readings-count', `${todayCount} reading${todayCount !== 1 ? 's' : ''} today · ${allData.length} total`);
+  const todayStr    = new Date().toDateString();
+  const todayCount  = allData.filter(r => r.date.toDateString() === todayStr).length;
+  const countLabel  = todayCount > 0
+    ? `${todayCount} reading${todayCount !== 1 ? 's' : ''} today · ${allData.length} total`
+    : `no readings yet today · ${allData.length} total`;
+  setText('readings-count', countLabel);
 
   renderTrendHero(allData);
   renderMilestones(latest, allData);
