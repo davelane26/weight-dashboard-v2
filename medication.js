@@ -19,13 +19,24 @@ const LS_KEY = 'mj_journey_v1';
 function loadMedData() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return JSON.parse(JSON.stringify(MJ_DEFAULTS));  // deep copy defaults
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Guard against corrupted saves: phases must be a non-empty array
+      if (Array.isArray(parsed.phases) && parsed.phases.length > 0) return parsed;
+    }
+  } catch(e) { console.warn('[medication] bad localStorage, using defaults', e); }
+  return JSON.parse(JSON.stringify(MJ_DEFAULTS));
 }
 
 function persistMedData(data) {
   localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+
+function resetMedData() {
+  localStorage.removeItem(LS_KEY);
+  if (_mEl('med-edit-panel')) toggleMedEdit();
+  renderAll();
+  showMedToast('Reset to defaults');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -164,9 +175,9 @@ function renderMedChart() {
 }
 
 function renderAll() {
-  renderMedKPIs();
-  renderMedPhases();
-  renderMedChart();
+  try { renderMedKPIs();   } catch(e) { console.error('[med] renderMedKPIs',   e); }
+  try { renderMedPhases(); } catch(e) { console.error('[med] renderMedPhases', e); }
+  try { renderMedChart();  } catch(e) { console.error('[med] renderMedChart',  e); }
 }
 
 // ── Edit Panel ────────────────────────────────────────────────────────────────

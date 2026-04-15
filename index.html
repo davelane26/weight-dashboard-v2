@@ -666,9 +666,12 @@
       </div>
       <div id="med-edit-phases" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem"></div>
 
-      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
-        <button onclick="toggleMedEdit()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
-        <button onclick="saveMedData()" style="background:#2a8703;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save</button>
+      <div style="display:flex;gap:0.5rem;justify-content:space-between;align-items:center">
+        <button onclick="resetMedData()" style="background:none;color:#ea1100;border:none;font-size:0.72rem;font-weight:600;cursor:pointer;padding:0">Reset to defaults</button>
+        <div style="display:flex;gap:0.5rem">
+          <button onclick="toggleMedEdit()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
+          <button onclick="saveMedData()" style="background:#2a8703;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save</button>
+        </div>
       </div>
     </section>
 
