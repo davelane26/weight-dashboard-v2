@@ -60,6 +60,10 @@
             onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">
       ⚖️ Weight
     </button>
+    <button class="tab-btn" role="tab" id="tab-btn-projector"
+            onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">
+      🔮 Projector
+    </button>
     <button class="tab-btn" role="tab" id="tab-btn-glucose"
             onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
       🩸 Glucose
@@ -351,7 +355,94 @@
 
   </div><!-- /tab-weight -->
 
-  <!-- ── Glucose tab panel ─────────────────────────────────────── -->
+  <!-- ── Projector tab panel ──────────────────────────────────── -->
+  <div id="tab-projector" role="tabpanel" aria-labelledby="tab-btn-projector" hidden>
+
+    <section class="card fade-in" aria-label="Weight projector" style="border-left:4px solid #7c3aed">
+      <h2 class="card-title">🔮 Weight Projector</h2>
+      <p id="proj-trend-blurb" style="font-size:0.72rem;color:#6d7a95;margin-bottom:1.1rem">Loading trend…</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+
+        <!-- Date → Weight -->
+        <div>
+          <label for="proj-date-input" style="display:block;font-size:0.65rem;font-weight:700;
+                 text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.4rem">
+            📅 Pick a date — see your projected weight
+          </label>
+          <input type="date" id="proj-date-input" oninput="computeProjection()"
+                 style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;
+                        font-size:0.9rem;font-weight:600;color:#1a2340"
+                 aria-label="Target date for weight projection" />
+          <p id="proj-date-result"
+             style="margin-top:0.75rem;font-size:0.95rem;font-weight:700;color:#6d7a95;min-height:1.4rem">
+            Pick a date above
+          </p>
+        </div>
+
+        <!-- Weight slider → Date -->
+        <div>
+          <label style="display:block;font-size:0.65rem;font-weight:700;
+                 text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">
+            🎯 Drag to a target — see your arrival date
+          </label>
+
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+            <span id="proj-slider-min" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">150</span>
+            <input type="range" id="proj-weight-input" oninput="computeProjection()"
+                   min="150" max="314" step="0.5" value="250"
+                   style="flex:1;accent-color:#7c3aed;cursor:pointer"
+                   aria-label="Target weight slider" />
+            <span id="proj-slider-max" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">314</span>
+          </div>
+
+          <div style="text-align:center;margin-bottom:0.85rem">
+            <span id="proj-slider-display"
+                  style="font-size:2.1rem;font-weight:900;color:#7c3aed;line-height:1">250.0</span>
+            <span style="font-size:0.85rem;color:#6d7a95;margin-left:0.3rem">lbs</span>
+          </div>
+
+          <div id="proj-countdown"
+               style="display:none;background:#f5f0ff;border-radius:12px;
+                      padding:0.9rem;border:1.5px solid #c4b5fd">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;text-align:center">
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">📅 Arrival Date</p>
+                <p id="proj-cd-date"
+                   style="font-size:0.92rem;font-weight:800;color:#1a2340;line-height:1.2"></p>
+              </div>
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">⏳ Days Away</p>
+                <p id="proj-cd-days"
+                   style="font-size:0.92rem;font-weight:800;color:#1a2340"></p>
+              </div>
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#2a8703;margin-bottom:0.2rem">✅ Total Lost</p>
+                <p id="proj-cd-total"
+                   style="font-size:0.92rem;font-weight:800;color:#2a8703"></p>
+              </div>
+              <div>
+                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:0.07em;color:#0053e2;margin-bottom:0.2rem">▼ Still To Go</p>
+                <p id="proj-cd-togo"
+                   style="font-size:0.92rem;font-weight:800;color:#0053e2"></p>
+              </div>
+            </div>
+          </div>
+
+          <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;
+             color:#ea1100;min-height:1.2rem"></p>
+        </div>
+
+      </div>
+    </section>
+
+  </div><!-- /tab-projector -->
+
+  <!-- ── Glucose tab panel ──────────────────────────────────── -->
   <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
     <section class="card fade-in glucose-card" id="glucose-section" style="border-left:4px solid #2a8703" aria-label="Dexcom G7 glucose">
       <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
