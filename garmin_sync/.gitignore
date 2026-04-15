@@ -1,5 +1,7 @@
 .env
 .garmin_session
+.garmin_cookies
+.garmin_cookies.json
 .venv/
 __pycache__/
 *.pyc
