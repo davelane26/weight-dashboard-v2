@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 COOKIES_FILE = Path(__file__).parent / ".garmin_cookies"
 BASE = "https://connect.garmin.com/gc-api"
 
+PROXIES = {
+    "http":  "http://sysproxy.wal-mart.com:8080",
+    "https": "http://sysproxy.wal-mart.com:8080",
+}
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
     "NK": "NT",
@@ -45,7 +50,7 @@ def _get(path: str, cookies: dict, params: dict | None = None) -> dict | list | 
     """Make an authenticated GET request to the Garmin web proxy."""
     url = f"{BASE}/{path}"
     try:
-        r = requests.get(url, cookies=cookies, headers=HEADERS, params=params, timeout=15)
+        r = requests.get(url, cookies=cookies, headers=HEADERS, params=params, proxies=PROXIES, timeout=15)
         logger.debug("GET %s -> %d", url, r.status_code)
         if r.status_code in (401, 403):
             logger.warning("Auth failed (%d) for %s — cookies may be expired or IP-bound", r.status_code, path)
