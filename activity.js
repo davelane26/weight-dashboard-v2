@@ -244,8 +244,8 @@ function renderSleepBreakdown(data) {
   const labelSegs = stages.map(st => {
     const p = pct(st.val);
     return `<div style="flex:${p};min-width:4px;display:flex;flex-direction:column;align-items:center;gap:1px">
-      <span style="font-size:0.7rem;font-weight:700;color:${st.color}">${st.label}</span>
-      <span style="font-size:0.65rem;color:#6d7a95">${st.val.toFixed(1)}h &middot; ${p}%</span>
+      <span style="font-size:0.85rem;font-weight:700;color:${st.color}">${st.label}</span>
+      <span style="font-size:0.75rem;color:#6d7a95">${st.val.toFixed(1)}h &middot; ${p}%</span>
     </div>`;
   }).join('');
 
