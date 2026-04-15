@@ -170,21 +170,30 @@ function renderActivityKPIs(data) {
   _set('act-steps-sub',
     `${distMi} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
 
-  // Sleep — hours left, score right
-  const sleepHours = data.sleepDuration || data.sleepHours || 0;
-  _set('act-sleep', sleepHours || '—');
-  const score  = data.sleepScore || _calcSleepScore(data);
-  const isCalc = !data.sleepScore && score;
-  const scoreColor = score >= 85 ? '#2a8703'   // Excellent — green
-    : score >= 70               ? '#0053e2'   // Good — blue
-    : score >= 50               ? '#995213'   // Fair — amber
-    :                             '#ea1100';  // Poor — red
-  const scoreLabel = (score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Fair' : 'Poor')
-    + (isCalc ? ' · est.' : '');
+  // Sleep — format decimal hours as "Xh Ym"
+  const rawSleepH = data.sleepHours || 0;
+  const sleepDisplay = rawSleepH
+    ? (() => { const h = Math.floor(rawSleepH); const m = Math.round((rawSleepH - h) * 60); return m > 0 ? `${h}h ${m}m` : `${h}h`; })()
+    : '—';
+  _set('act-sleep', sleepDisplay);
+
+  // Sleep score — only show if we have Garmin's actual score, not our estimate
+  const score    = data.sleepScore ?? null;
+  const hasScore = score !== null && score !== undefined;
+  const scoreColor = !hasScore ? '#6d7a95'
+    : score >= 85 ? '#2a8703'
+    : score >= 70 ? '#0053e2'
+    : score >= 50 ? '#995213'
+    : '#ea1100';
+  const scoreLabel = !hasScore ? 'not in sync data'
+    : score >= 85 ? 'Excellent'
+    : score >= 70 ? 'Good'
+    : score >= 50 ? 'Fair'
+    : 'Poor';
   if (_el('act-sleep-score-val')) {
-    _el('act-sleep-score-val').textContent  = score ?? '—';
-    _el('act-sleep-score-val').style.color  = scoreColor;
-    _el('act-sleep-score-label').textContent = scoreLabel || 'score';
+    _el('act-sleep-score-val').textContent   = hasScore ? score : '—';
+    _el('act-sleep-score-val').style.color   = scoreColor;
+    _el('act-sleep-score-label').textContent = scoreLabel;
   }
 
   // Workouts
