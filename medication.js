@@ -12,8 +12,8 @@ const MJ_PHASES  = [
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const _el  = id => document.getElementById(id);
-const _set = (id, v) => { const e = _el(id); if (e) e.textContent = v; };
+const _mEl  = id => document.getElementById(id);
+const _mSet = (id, v) => { const e = _mEl(id); if (e) e.textContent = v; };
 
 function weeksOn() {
   return Math.floor((Date.now() - MJ_START) / (7 * 24 * 60 * 60 * 1000));
@@ -21,7 +21,7 @@ function weeksOn() {
 
 function currentWeight() {
   // Try to pull from the live weight data already on the page
-  const liveEl = _el('kpi-weight');
+  const liveEl = _mEl('kpi-weight');
   if (liveEl && liveEl.textContent && !isNaN(parseFloat(liveEl.textContent))) {
     return parseFloat(liveEl.textContent);
   }
@@ -39,17 +39,17 @@ function renderMedKPIs() {
   const avgPerWeek  = weeks > 0 ? +(totalLost / weeks).toFixed(2) : 0;
   const curDose     = MJ_PHASES[MJ_PHASES.length - 1].dose;
 
-  _set('med-current-dose',   curDose);
-  _set('med-start-weight',   startWeight);
-  _set('med-current-weight', curWeight);
-  _set('med-total-lost',     totalLost);
-  _set('med-weeks-on',       weeks);
-  _set('med-avg-per-week',   avgPerWeek);
+  _mSet('med-current-dose',   curDose);
+  _mSet('med-start-weight',   startWeight);
+  _mSet('med-current-weight', curWeight);
+  _mSet('med-total-lost',     totalLost);
+  _mSet('med-weeks-on',       weeks);
+  _mSet('med-avg-per-week',   avgPerWeek);
 }
 
 // ── Render dosage phase timeline ──────────────────────────────────────────────
 function renderMedPhases() {
-  const container = _el('med-phases');
+  const container = _mEl('med-phases');
   if (!container) return;
 
   const startWeight = MJ_PHASES[0].weightStart;
@@ -89,7 +89,7 @@ let medChartInst = null;
 window.medChartInst = null;
 
 function renderMedChart() {
-  const canvas = _el('medWeightChart');
+  const canvas = _mEl('medWeightChart');
   if (!canvas) return;
 
   const curWeight = currentWeight();
