@@ -2,7 +2,9 @@ name: Sync Health via Exist.io
 
 on:
   schedule:
-    - cron: '0 14 * * *'   # 8:00 AM CST (14:00 UTC) every day
+    - cron: '0 14 * * *'   # 8:00 AM CST
+    - cron: '0 18 * * *'   # 12:00 PM CST
+    - cron: '0 2  * * *'   # 8:00 PM CST
   workflow_dispatch:        # manual trigger anytime
 
 jobs:
