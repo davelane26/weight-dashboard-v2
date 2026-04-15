@@ -519,6 +519,27 @@
       </div>
     </section>
 
+    <!-- Edit Panel (hidden by default) -->
+    <section id="med-edit-panel" class="card fade-in" style="display:none;border-left:4px solid #7c3aed;background:#faf5ff">
+      <h3 style="font-size:0.9rem;font-weight:800;color:#7c3aed;margin-bottom:1rem">✏️ Edit Journey Data</h3>
+
+      <div style="margin-bottom:1rem">
+        <label style="font-size:0.72rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.3rem">START DATE</label>
+        <input type="date" id="med-edit-start" style="border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.85rem;width:100%;box-sizing:border-box">
+      </div>
+
+      <div style="margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-size:0.72rem;font-weight:700;color:#6d7a95">PHASES</p>
+        <button onclick="medAddPhase()" style="background:#0053e2;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer">+ Add Phase</button>
+      </div>
+      <div id="med-edit-phases" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem"></div>
+
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button onclick="toggleMedEdit()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
+        <button onclick="saveMedData()" style="background:#2a8703;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save</button>
+      </div>
+    </section>
+
     <!-- KPI row -->
     <section class="fade-in" style="margin-top:1rem" aria-label="Activity stats">
       <div class="kpi-grid">
@@ -635,12 +656,18 @@
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
         <div>
           <h2 class="card-title" style="margin-bottom:0.2rem">💊 Mounjaro (Tirzepatide)</h2>
-          <p style="font-size:0.78rem;color:#6d7a95">Started January 29, 2026 &middot; GLP-1/GIP receptor agonist</p>
+          <p style="font-size:0.78rem;color:#6d7a95" id="med-start-label">Started January 29, 2026 &middot; GLP-1/GIP receptor agonist</p>
         </div>
-        <div style="text-align:right">
-          <p style="font-size:0.7rem;color:#6d7a95;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Current Dose</p>
-          <p style="font-size:1.8rem;font-weight:900;color:#7c3aed;line-height:1" id="med-current-dose">—</p>
-          <p style="font-size:0.72rem;color:#6d7a95">mg / week</p>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <div style="text-align:right">
+            <p style="font-size:0.7rem;color:#6d7a95;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Current Dose</p>
+            <p style="font-size:1.8rem;font-weight:900;color:#7c3aed;line-height:1" id="med-current-dose">—</p>
+            <p style="font-size:0.72rem;color:#6d7a95">mg / week</p>
+          </div>
+          <button onclick="toggleMedEdit()" title="Edit journey data"
+            style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">
+            ✏️ Edit
+          </button>
         </div>
       </div>
     </section>
