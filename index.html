@@ -212,29 +212,7 @@
       <button class="btn-primary" onclick="setGoal()">Set Goal</button>
       <button class="btn-secondary" onclick="clearGoal()">Clear</button>
     </div>
-    <div class="goal-input-row" style="margin-top:0.5rem">
-      <label for="cal-input">🍔 Today's Calories</label>
-      <input type="number" id="cal-input" placeholder="e.g. 2500" step="10" aria-label="Today's calorie intake" />
-      <button class="btn-primary" onclick="logCalories()">Log</button>
-    </div>
-    <div id="cal-log-content" style="display:none;margin-top:0.75rem">
-      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem">
-        <span style="font-size:0.72rem;color:#6d7a95;font-weight:600">7-day avg:</span>
-        <span id="cal-avg-badge" style="background:#eff4ff;color:#0053e2;font-weight:700;padding:0.18rem 0.65rem;border-radius:9999px;font-size:0.8rem">—</span>
-        <span style="font-size:0.7rem;color:#6d7a95">· used for projection</span>
-      </div>
-      <table class="cal-log-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Calories</th>
-            <th>Deficit</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="cal-log-body"></tbody>
-      </table>
-    </div>
+
     <div id="goal-content" style="display:none">
       <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
         <div class="stat-box" style="background:#eff4ff">
@@ -258,6 +236,39 @@
       </div>
     </div>
     <p id="goal-empty" style="font-size:0.8rem;color:#6d7a95;padding:0.5rem 0">Enter a target weight above to track your progress</p>
+
+    <!-- ── Calorie targets (folded in from standalone card) ── -->
+    <hr style="border:none;border-top:1px solid #e5e9f5;margin:1rem 0" />
+    <div style="margin-bottom:0.75rem">
+      <p style="font-size:0.7rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">
+        ⚡ Activity Level <span style="font-weight:400">· used for TDEE calculation</span>
+      </p>
+      <div class="activity-pills" role="group" aria-label="Activity level">
+        <button class="activity-pill" data-level="sedentary"   onclick="setActivityLevel('sedentary')">Sedentary</button>
+        <button class="activity-pill" data-level="light"       onclick="setActivityLevel('light')">Light</button>
+        <button class="activity-pill" data-level="moderate"    onclick="setActivityLevel('moderate')">Moderate</button>
+        <button class="activity-pill" data-level="active"      onclick="setActivityLevel('active')">Active</button>
+        <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
+      </div>
+      <p id="activity-desc" style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem"></p>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-box" style="background:#eff4ff">
+        <p class="cal-label" style="color:#0053e2">Maintain</p>
+        <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
+        <p class="cal-sub">kcal/day</p>
+      </div>
+      <div class="cal-box" style="background:#f0fdf4">
+        <p class="cal-label" style="color:#2a8703">Lose 1 lb/wk</p>
+        <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
+        <p class="cal-sub">kcal/day</p>
+      </div>
+      <div class="cal-box" style="background:#fef9ec">
+        <p class="cal-label" style="color:#995213">Lose 2 lbs/wk</p>
+        <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
+        <p class="cal-sub">kcal/day</p>
+      </div>
+    </div>
   </section>
 
   <!-- ── Weight Trend Chart ───────────────────────────────── -->
@@ -295,45 +306,9 @@
     </div>
   </section>
 
-  <!-- ── Calorie Insights ───────────────────────────────────────────── -->
-  <section class="card fade-in" aria-label="Calorie insights">
-    <h2 class="card-title">Calorie &amp; Goal Insights</h2>
 
-    <!-- Activity level picker -->
-    <div style="margin-bottom:1rem">
-      <p style="font-size:0.72rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">
-        ⚡ Activity Level <span style="font-weight:400">· used to calculate your real TDEE from scale data</span>
-      </p>
-      <div class="activity-pills" role="group" aria-label="Activity level">
-        <button class="activity-pill" data-level="sedentary"  onclick="setActivityLevel('sedentary')">Sedentary</button>
-        <button class="activity-pill" data-level="light"      onclick="setActivityLevel('light')">Light</button>
-        <button class="activity-pill" data-level="moderate"   onclick="setActivityLevel('moderate')">Moderate</button>
-        <button class="activity-pill" data-level="active"     onclick="setActivityLevel('active')">Active</button>
-        <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
-      </div>
-      <p id="activity-desc" style="font-size:0.7rem;color:#6d7a95;margin-top:0.4rem"></p>
-    </div>
 
-    <div class="cal-grid">
-      <div class="cal-box" style="background:#eff4ff">
-        <p class="cal-label" style="color:#0053e2">Maintain Weight</p>
-        <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
-        <p class="cal-sub">kcal/day = TDEE</p>
-      </div>
-      <div class="cal-box" style="background:#f0fdf4">
-        <p class="cal-label" style="color:#2a8703">Lose 1 lb/week</p>
-        <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
-        <p class="cal-sub">kcal/day (−500 deficit)</p>
-      </div>
-      <div class="cal-box" style="background:#fef9ec">
-        <p class="cal-label" style="color:#995213">Lose 2 lbs/week</p>
-        <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
-        <p class="cal-sub">kcal/day (−1,000 deficit)</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Week Over Week Table ───────────────────────────────────────── -->
+  <!-- ── Week Over Week Table ───────────────────────────────────── -->
   <section class="card fade-in" aria-label="Week over week breakdown">
     <h2 class="card-title">Week-Over-Week</h2>
     <div class="overflow-x">
@@ -355,7 +330,7 @@
 
   </div><!-- /tab-weight -->
 
-  <!-- ── Projector tab panel ──────────────────────────────────── -->
+  <!-- ── Projector tab panel ─────────────────────────────────────── -->
   <div id="tab-projector" role="tabpanel" aria-labelledby="tab-btn-projector" hidden>
 
     <section class="card fade-in" aria-label="Weight projector" style="border-left:4px solid #7c3aed">
@@ -387,6 +362,7 @@
             🎯 Drag to a target — see your arrival date
           </label>
 
+          <!-- slider row -->
           <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
             <span id="proj-slider-min" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">150</span>
             <input type="range" id="proj-weight-input" oninput="computeProjection()"
@@ -396,12 +372,14 @@
             <span id="proj-slider-max" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">314</span>
           </div>
 
+          <!-- big number readout -->
           <div style="text-align:center;margin-bottom:0.85rem">
             <span id="proj-slider-display"
                   style="font-size:2.1rem;font-weight:900;color:#7c3aed;line-height:1">250.0</span>
             <span style="font-size:0.85rem;color:#6d7a95;margin-left:0.3rem">lbs</span>
           </div>
 
+          <!-- countdown card -->
           <div id="proj-countdown"
                style="display:none;background:#f5f0ff;border-radius:12px;
                       padding:0.9rem;border:1.5px solid #c4b5fd">
@@ -433,6 +411,7 @@
             </div>
           </div>
 
+          <!-- hidden compat element (computeProjection still writes here for error states) -->
           <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;
              color:#ea1100;min-height:1.2rem"></p>
         </div>
@@ -442,7 +421,7 @@
 
   </div><!-- /tab-projector -->
 
-  <!-- ── Glucose tab panel ──────────────────────────────────── -->
+  <!-- ── Glucose tab panel ─────────────────────────────────────── -->
   <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
     <section class="card fade-in glucose-card" id="glucose-section" style="border-left:4px solid #2a8703" aria-label="Dexcom G7 glucose">
       <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
@@ -510,6 +489,21 @@
   <!-- ── Activity tab panel (overhauled) ─────────────────────────── -->
   <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
 
+    <!-- Sync Now button -->
+    <div style="display:flex;justify-content:flex-end;padding:0.6rem 1rem 0;gap:0.5rem;align-items:center;flex-wrap:wrap">
+      <span id="sync-status" style="font-size:0.72rem;color:#6d7a95"></span>
+      <button onclick="resetSyncToken()"
+        style="font-size:0.68rem;color:#6d7a95;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0"
+        title="Clear saved GitHub token">reset token</button>
+      <button id="sync-now-btn"
+        onclick="triggerSync()"
+        style="font-size:0.75rem;font-weight:700;padding:0.35rem 0.85rem;border-radius:999px;
+               background:#0053e2;color:white;border:none;cursor:pointer;display:flex;align-items:center;gap:0.4rem"
+        aria-label="Sync health data now">
+        <span id="sync-icon">⚡</span> Sync Now
+      </button>
+    </div>
+
     <!-- Today hero -->
     <section class="trend-hero fade-in" aria-label="Today's activity"
              style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%);color:white">
@@ -526,62 +520,48 @@
 
         <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
           <p class="kpi-label" style="color:#2a8703">💤 Sleep</p>
-          <div style="display:flex;gap:0.5rem;justify-content:space-around;align-items:flex-end;margin:0.2rem 0">
-            <div style="text-align:center">
-              <p class="kpi-value" style="color:#2a8703;font-size:1.55rem" id="act-sleep">—</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:0.25rem">
+            <div>
+              <p class="kpi-value" style="color:#2a8703;font-size:1.6rem" id="act-sleep">—</p>
               <p class="kpi-unit">hours</p>
             </div>
-            <div style="text-align:center" id="act-sleep-score-wrap">
-              <p class="kpi-value" style="color:#2a8703;font-size:1.55rem" id="act-sleep-score">—</p>
-              <p class="kpi-unit">score</p>
+            <div style="text-align:right">
+              <p class="kpi-value" style="color:#2a8703;font-size:1.6rem" id="act-sleep-score-val">—</p>
+              <p class="kpi-unit" id="act-sleep-score-label">score</p>
             </div>
           </div>
         </div>
 
         <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#ea1100">❤️ Resting HR</p>
+          <p class="kpi-label" style="color:#ea1100">🏃 Workouts</p>
           <p class="kpi-value" style="color:#ea1100" id="act-hr">—</p>
-          <p class="kpi-unit">bpm</p>
+          <p class="kpi-unit">today</p>
           <p class="kpi-sub" id="act-hr-sub"></p>
         </div>
 
         <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#7c3aed">💪 Intensity</p>
+          <p class="kpi-label" style="color:#7c3aed">⏱️ Workout Mins</p>
           <p class="kpi-value" style="color:#7c3aed" id="act-intensity">—</p>
           <p class="kpi-unit">minutes</p>
         </div>
 
-        <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#0891b2">🧠 Stress</p>
-          <p class="kpi-value" style="color:#0891b2" id="act-stress">—</p>
-          <p class="kpi-unit">avg level</p>
-          <p class="kpi-sub" id="act-stress-sub"></p>
+        <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#995213">📍 Distance</p>
+          <p class="kpi-value" style="color:#995213" id="act-battery">—</p>
+          <p class="kpi-unit">mi today</p>
         </div>
 
-        <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#995213">🔋 Body Battery</p>
-          <p class="kpi-value" style="color:#995213" id="act-battery">—</p>
-          <p class="kpi-unit">current level</p>
+        <div class="kpi" id="act-fitness-age-card" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" id="act-fitness-age-label" style="color:#2a8703">💤 Awakenings</p>
+          <p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p>
+          <p class="kpi-unit">last night</p>
+          <p class="kpi-sub" id="act-fitness-age-sub"></p>
         </div>
 
         <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#ea1100">🔥 Calories</p>
-          <p class="kpi-value" style="color:#ea1100" id="act-total-cal">—</p>
-          <p class="kpi-unit">total burned</p>
-          <p class="kpi-sub" id="act-cal-breakdown"></p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#2a8703">🏃 Fitness Age</p>
-          <p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p>
-          <p class="kpi-unit">years</p>
-          <p class="kpi-sub">Actual age: 44</p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#0053e2">🎯 VO2 Max</p>
-          <p class="kpi-value" style="color:#0053e2" id="act-vo2max">—</p>
-          <p class="kpi-unit">mL/kg/min</p>
+          <p class="kpi-label" style="color:#ea1100">🔥 Active Cal</p>
+          <p class="kpi-value" style="color:#ea1100" id="act-vo2max">—</p>
+          <p class="kpi-unit">kcal</p>
         </div>
 
       </div>
@@ -590,28 +570,7 @@
     <!-- Sleep Breakdown -->
     <section class="card fade-in" id="sleep-breakdown" style="display:none;border-left:4px solid #7c3aed" aria-label="Sleep stages">
       <h2 class="card-title">💤 Sleep Stages</h2>
-      <div id="sleep-stage-bar" style="display:flex;height:28px;border-radius:8px;overflow:hidden;gap:2px;margin-bottom:0.6rem"></div>
-      <div id="sleep-stage-legend" style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.75rem;font-weight:600"></div>
-    </section>
-
-    <!-- HRV Section -->
-    <section class="card fade-in" id="hrv-section" style="display:none;border-left:4px solid #2a8703" aria-label="HRV data">
-      <h2 class="card-title">💚 Heart Rate Variability</h2>
-      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-box" style="background:#f0fdf4">
-          <p class="label" style="color:#2a8703">Last Night</p>
-          <p class="val" style="color:#2a8703" id="hrv-last-night">—</p>
-        </div>
-        <div class="stat-box" style="background:#eff4ff">
-          <p class="label" style="color:#0053e2">Weekly Avg</p>
-          <p class="val" style="color:#0053e2" id="hrv-weekly-avg">—</p>
-        </div>
-        <div class="stat-box" style="background:#f5f6f8">
-          <p class="label" style="color:#6d7a95">Status</p>
-          <p class="val" style="color:#374151" id="hrv-status">—</p>
-        </div>
-      </div>
-      <p style="font-size:0.7rem;color:#6d7a95;margin-top:0.5rem" id="hrv-baseline"></p>
+      <div id="sleep-stage-visual"></div>
     </section>
 
     <!-- Today's Activities -->
@@ -620,9 +579,9 @@
       <div id="act-list"></div>
     </section>
 
-    <!-- 7-Day Charts -->
-    <section class="card fade-in" aria-label="7-day activity charts">
-      <h2 class="card-title">📈 7-Day Trends</h2>
+    <!-- 30-Day Charts -->
+    <section class="card fade-in" aria-label="30-day activity charts">
+      <h2 class="card-title">📈 30-Day Trends</h2>
       <div class="comp-charts" style="grid-template-columns:1fr">
 
         <div>
@@ -635,20 +594,9 @@
           <div class="comp-chart-wrap" style="height:200px"><canvas id="actSleepChart"></canvas></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div>
-            <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">❤️ Heart Rate</p>
-            <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
-          </div>
-          <div>
-            <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">😐 Stress</p>
-            <div class="comp-chart-wrap" style="height:180px"><canvas id="actStressChart"></canvas></div>
-          </div>
-        </div>
-
         <div>
-          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🔋 Body Battery</p>
-          <div class="comp-chart-wrap" style="height:180px"><canvas id="actBatteryChart"></canvas></div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🏃 Workouts (mins)</p>
+          <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
         </div>
 
       </div>
@@ -656,9 +604,9 @@
 
     <!-- Setup prompt (hidden once data arrives) -->
     <section class="card fade-in" id="act-setup" style="border-left:4px solid #ffc220;text-align:center;padding:2rem">
-      <p style="font-size:2rem">⚡</p>
-      <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">Waiting for Garmin data…</h2>
-      <p style="font-size:0.82rem;color:#6d7a95">Run <code style="background:#f5f6f8;padding:2px 6px;border-radius:4px">python sync_garmin.py</code> to fetch your data from Garmin Connect, or trigger the GitHub Action.</p>
+      <p style="font-size:2rem">⏳</p>
+      <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">No activity data yet</h2>
+      <p style="font-size:0.82rem;color:#6d7a95">Data syncs automatically via Exist.io every day. To force a refresh, trigger the <a href="https://github.com/davelane26/weight-dashboard-v2/actions/workflows/sync-exist.yml" target="_blank" style="color:#0053e2">GitHub Action</a>.</p>
     </section>
 
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
@@ -670,48 +618,91 @@
   Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s
 </footer>
 
-<!-- Update toast -->
-<div id="update-toast" class="update-toast" style="display:none" role="alert">
-  <span>🔄 New version available</span>
-  <button onclick="applyUpdate()">Update now</button>
 </div>
 
 <script>
-  let _waitingSW = null;
-
+  // Unregister any lingering service workers — they caused stale cached
+  // assets to be served on soft refresh, breaking the dashboard.
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/weight-dashboard-v2/sw.js')
-        .then(reg => {
-          // Already waiting on first load?
-          if (reg.waiting) showUpdateToast(reg.waiting);
+    navigator.serviceWorker.getRegistrations()
+      .then(regs => regs.forEach(r => r.unregister()));
+  function resetSyncToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  const status = document.getElementById('sync-status');
+  if (status) { status.textContent = 'Token cleared — will prompt on next sync'; }
+  setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+}
+</script>
 
-          // New SW found during this session
-          reg.addEventListener('updatefound', () => {
-            const newSW = reg.installing;
-            newSW.addEventListener('statechange', () => {
-              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                showUpdateToast(newSW);
-              }
-            });
-          });
-        })
-        .catch(err => console.warn('SW registration failed:', err));
+<script>
+// ── Sync Now button ────────────────────────────────────────────────────
+const REPO        = 'davelane26/weight-dashboard-v2';
+const WORKFLOW    = 'sync-exist.yml';
+const TOKEN_KEY   = 'gh_sync_token';
 
-      // When SW takes over, reload to get fresh assets
-      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
-    });
+async function triggerSync() {
+  const btn    = document.getElementById('sync-now-btn');
+  const status = document.getElementById('sync-status');
+  const icon   = document.getElementById('sync-icon');
+
+  // Get or prompt for GitHub token
+  let token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    token = prompt(
+      '🔑 One-time setup: GitHub token needed to trigger sync.\n\n' +
+      '1. Go to: https://github.com/settings/tokens/new\n' +
+      '2. Give it any name (e.g. "dashboard sync")\n' +
+      '3. Tick the "workflow" checkbox\n' +
+      '4. Click Generate token — copy it — paste below\n\n' +
+      'Saved in your browser only. Never leaves this page.'
+    );
+    if (!token) return;
+    localStorage.setItem(TOKEN_KEY, token.trim());
   }
 
-  function showUpdateToast(sw) {
-    _waitingSW = sw;
-    const toast = document.getElementById('update-toast');
-    if (toast) toast.style.display = 'flex';
-  }
+  // Disable button + show spinner
+  btn.disabled = true;
+  icon.textContent = '⏳';
+  status.textContent = 'Triggering sync…';
 
-  function applyUpdate() {
-    if (_waitingSW) _waitingSW.postMessage({ type: 'SKIP_WAITING' });
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      }
+    );
+
+    if (res.status === 204) {
+      icon.textContent = '✅';
+      status.textContent = 'Sync started — data updates in ~30s';
+      // Reload data after 35 seconds
+      setTimeout(() => {
+        if (typeof loadActivityData === 'function') loadActivityData();
+        icon.textContent = '⚡';
+        status.textContent = '';
+        btn.disabled = false;
+      }, 35000);
+    } else if (res.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      icon.textContent = '❌';
+      status.textContent = 'Token invalid — click again to re-enter';
+      btn.disabled = false;
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (e) {
+    icon.textContent = '⚠️';
+    status.textContent = `Failed: ${e.message}`;
+    btn.disabled = false;
   }
+}
 </script>
 </body>
 </html>
