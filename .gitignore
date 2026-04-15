@@ -1,0 +1,25 @@
+# Secrets — never commit these
+.github_token
+.env
+*.env
+garmin_sync/.env
+garmin_sync/cookies.json
+garmin_sync/.garth/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
