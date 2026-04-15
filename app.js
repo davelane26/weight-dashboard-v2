@@ -106,6 +106,80 @@ function restoreTab() {
   if (saved && TABS.includes(saved)) switchTab(saved);
 }
 
+// ── Tab drag-to-reorder ─────────────────────────────────────────────────
+const TAB_ORDER_KEY = 'wt_v2_tab_order';
+
+function saveTabOrder() {
+  const nav = document.querySelector('.tab-nav');
+  if (!nav) return;
+  const order = [...nav.querySelectorAll('[id^="tab-btn-"]')]
+    .map(b => b.id.replace('tab-btn-', ''));
+  localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order));
+}
+
+function restoreTabOrder() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TAB_ORDER_KEY) || 'null');
+    if (!Array.isArray(saved) || !saved.length) return;
+    const nav = document.querySelector('.tab-nav');
+    if (!nav) return;
+    // appendChild moves existing nodes — cheap reorder with no cloning
+    saved.forEach(name => {
+      const btn = document.getElementById('tab-btn-' + name);
+      if (btn) nav.appendChild(btn);
+    });
+  } catch(e) { /* bad stored data, ignore */ }
+}
+
+function initTabDrag() {
+  const nav = document.querySelector('.tab-nav');
+  if (!nav) return;
+  let dragSrc = null;
+
+  nav.addEventListener('dragstart', e => {
+    const btn = e.target.closest('[id^="tab-btn-"]');
+    if (!btn) return;
+    dragSrc = btn;
+    btn.classList.add('tab-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', btn.id);
+  });
+
+  nav.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const btn = e.target.closest('[id^="tab-btn-"]');
+    if (!btn || btn === dragSrc) return;
+    nav.querySelectorAll('.tab-drag-over-left,.tab-drag-over-right')
+       .forEach(b => b.classList.remove('tab-drag-over-left', 'tab-drag-over-right'));
+    const mid = btn.getBoundingClientRect().left + btn.getBoundingClientRect().width / 2;
+    btn.classList.add(e.clientX < mid ? 'tab-drag-over-left' : 'tab-drag-over-right');
+  });
+
+  nav.addEventListener('dragleave', e => {
+    const btn = e.target.closest('[id^="tab-btn-"]');
+    if (btn) btn.classList.remove('tab-drag-over-left', 'tab-drag-over-right');
+  });
+
+  nav.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('[id^="tab-btn-"]');
+    if (!target || target === dragSrc) return;
+    const mid = target.getBoundingClientRect().left + target.getBoundingClientRect().width / 2;
+    nav.insertBefore(dragSrc, e.clientX < mid ? target : target.nextSibling);
+    nav.querySelectorAll('.tab-drag-over-left,.tab-drag-over-right')
+       .forEach(b => b.classList.remove('tab-drag-over-left', 'tab-drag-over-right'));
+    saveTabOrder();
+  });
+
+  nav.addEventListener('dragend', () => {
+    if (dragSrc) dragSrc.classList.remove('tab-dragging');
+    nav.querySelectorAll('.tab-drag-over-left,.tab-drag-over-right')
+       .forEach(b => b.classList.remove('tab-drag-over-left', 'tab-drag-over-right'));
+    dragSrc = null;
+  });
+}
+
 // ── Dark mode ──────────────────────────────────────────────────────
 function loadDark() {
   const dark = localStorage.getItem('wt_v2_dark') === '1';
@@ -1018,6 +1092,8 @@ async function loadData() {
 }
 
 async function init() {
+  restoreTabOrder();
+  initTabDrag();
   loadDark();
   loadActivityLevel();
   loadGoal();

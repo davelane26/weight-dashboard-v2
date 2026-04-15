@@ -867,3 +867,10 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   background: #1e2535;
   color: #60a5fa;
 }
+
+/* ── Tab drag-to-reorder ─────────────────────────────────────────────── */
+.tab-btn[draggable="true"] { cursor: grab; }
+.tab-btn[draggable="true"]:active { cursor: grabbing; }
+.tab-btn.tab-dragging { opacity: 0.4; transform: scale(0.97); }
+.tab-btn.tab-drag-over-left  { box-shadow: -3px 0 0 0 #ffc220; }
+.tab-btn.tab-drag-over-right { box-shadow:  3px 0 0 0 #ffc220; }
