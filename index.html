@@ -25,6 +25,7 @@
   <script src="app.js" defer></script>
   <script src="glucose.js" defer></script>
   <script src="activity.js" defer></script>
+  <script src="medication.js" defer></script>
 </head>
 <body>
 
@@ -71,6 +72,10 @@
     <button class="tab-btn" role="tab" id="tab-btn-activity"
             onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">
       🏃 Activity
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-medication"
+            onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">
+      💊 Medication
     </button>
   </nav>
 
@@ -614,6 +619,76 @@
 
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
   </div><!-- /tab-activity -->
+
+  <!-- ── Medication tab panel ──────────────────────────────────────────── -->
+  <div id="tab-medication" role="tabpanel" aria-labelledby="tab-btn-medication" hidden>
+
+    <!-- Header -->
+    <section class="card fade-in" style="border-left:4px solid #7c3aed">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+        <div>
+          <h2 class="card-title" style="margin-bottom:0.2rem">💊 Mounjaro (Tirzepatide)</h2>
+          <p style="font-size:0.78rem;color:#6d7a95">Started January 29, 2026 &middot; GLP-1/GIP receptor agonist</p>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:0.7rem;color:#6d7a95;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Current Dose</p>
+          <p style="font-size:1.8rem;font-weight:900;color:#7c3aed;line-height:1" id="med-current-dose">—</p>
+          <p style="font-size:0.72rem;color:#6d7a95">mg / week</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI row -->
+    <section class="fade-in" style="margin-top:1rem" aria-label="Medication stats">
+      <div class="kpi-grid">
+
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#ea1100">🏁 Start Weight</p>
+          <p class="kpi-value" style="color:#ea1100" id="med-start-weight">—</p>
+          <p class="kpi-unit">lbs</p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0053e2">📊 Current Weight</p>
+          <p class="kpi-value" style="color:#0053e2" id="med-current-weight">—</p>
+          <p class="kpi-unit">lbs</p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#2a8703">📉 Total Lost</p>
+          <p class="kpi-value" style="color:#2a8703" id="med-total-lost">—</p>
+          <p class="kpi-unit">lbs</p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#7c3aed">📅 Weeks On</p>
+          <p class="kpi-value" style="color:#7c3aed" id="med-weeks-on">—</p>
+          <p class="kpi-unit">weeks</p>
+        </div>
+
+        <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#995213">⚡ Avg/Week</p>
+          <p class="kpi-value" style="color:#995213" id="med-avg-per-week">—</p>
+          <p class="kpi-unit">lbs lost/week</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Phase Timeline -->
+    <section class="card fade-in" style="border-left:4px solid #7c3aed" aria-label="Dosage phases">
+      <h2 class="card-title">📈 Dosage Phases</h2>
+      <div id="med-phases" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+    </section>
+
+    <!-- Progress Chart -->
+    <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Weight progress chart">
+      <h2 class="card-title">📉 Weight Progress by Phase</h2>
+      <div style="height:280px"><canvas id="medWeightChart"></canvas></div>
+    </section>
+
+    <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right">Data from your Mounjaro journey tracker &middot; Updates when you edit the spreadsheet</p>
+  </div><!-- /tab-medication -->
 
 </main>
 
