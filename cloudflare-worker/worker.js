@@ -178,7 +178,17 @@ export default {
         const merged = { ...existing };
         for (const [k, v] of Object.entries(incoming)) {
           if (k === 'date' || k === 'updatedAt') { merged[k] = v; continue; }
-          if (v !== null && v !== undefined) merged[k] = v; // only update with real values
+          if (v !== null && v !== undefined) {
+            // For sleepHours: keep the more precise (non-integer) value.
+            // Exist.io sends whole numbers; Garmin patches send e.g. 6.3.
+            // If existing has decimals and incoming is a whole number with
+            // the same integer part, the existing value is more accurate.
+            if (k === 'sleepHours' && merged[k] != null) {
+              const ex = Number(merged[k]), inc = Number(v);
+              if (ex % 1 !== 0 && inc % 1 === 0 && Math.floor(ex) === Math.floor(inc)) continue;
+            }
+            merged[k] = v;
+          }
         }
         dedupMap.set(incoming.date, merged);
       }
