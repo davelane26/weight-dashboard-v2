@@ -197,8 +197,15 @@ export default {
       const existing = dedupMap.get(date) ?? { date };
       // Merge: only overwrite fields that are explicitly provided and non-null
       const patched = { ...existing };
-      const allowed = ['sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
-                       'sleepAwakenings','timeInBed','restingHR','stressLevel','bodyBattery'];
+      const allowed = [
+        // Sleep
+        'sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
+        'sleepAwakenings','timeInBed',
+        // Heart / stress / battery
+        'restingHR','minHR','maxHR','avgHR','stressLevel','bodyBattery',
+        // Activity
+        'steps','intensityMinutes','activeCalories','totalCalories','floorsClimbed',
+      ];
       for (const key of allowed) {
         if (body[key] !== undefined && body[key] !== null) patched[key] = body[key];
       }

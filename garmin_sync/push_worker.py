@@ -1,7 +1,12 @@
-"""Push precise Garmin sleep data to the Cloudflare Worker.
+"""Push precise Garmin data to the Cloudflare Worker.
 
-Patches only sleep-specific fields so the richer Exist.io data
-(workouts, deep/light/rem stages) is preserved — not overwritten.
+Patches fields that Exist.io either doesn't have or approximates:
+  - sleepScore, precise sleepHours, sleep stages
+  - restingHR, stressLevel, bodyBattery
+  - intensityMinutes, steps, activeCalories, floorsClimbed
+
+The Worker merges these into the existing record — Exist.io's
+workout/distance data is preserved, not overwritten.
 """
 
 import logging
@@ -12,10 +17,29 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-WORKER_URL = os.environ.get(
-    "WORKER_URL", "https://glucose-relay.djtwo6.workers.dev"
-)
+WORKER_URL = os.environ.get("WORKER_URL", "https://glucose-relay.djtwo6.workers.dev")
 API_SECRET = os.environ.get("WORKER_API_SECRET", "")
+
+# Garmin cookie client field → Worker field (when names differ)
+_FIELD_MAP = {
+    "deepSleep":  "sleepDeep",
+    "lightSleep": "sleepLight",
+    "remSleep":   "sleepRem",
+}
+
+# All fields we want to patch (Worker field names)
+_PATCH_FIELDS = [
+    # Sleep
+    "sleepScore", "sleepHours",
+    "sleepDeep", "sleepLight", "sleepRem",
+    "sleepAwakenings", "timeInBed",
+    # Heart / stress / battery
+    "restingHR", "minHR", "maxHR", "avgHR",
+    "stressLevel", "bodyBattery",
+    # Activity
+    "steps", "intensityMinutes", "activeCalories",
+    "totalCalories", "floorsClimbed",
+]
 
 
 def _headers() -> dict:
@@ -25,34 +49,46 @@ def _headers() -> dict:
     return h
 
 
-def patch_sleep(day: date, sleep_data: dict) -> bool:
-    """PATCH sleepScore + precise sleepHours into the Worker for a given day.
+def _coerce(v):
+    """Return a clean number or None — never NaN / empty string."""
+    if v is None:
+        return None
+    try:
+        f = float(v)
+        return int(f) if f == int(f) else round(f, 2)
+    except (TypeError, ValueError):
+        return None
 
-    ``sleep_data`` should come straight from garmin_cookie_client.fetch_sleep().
-    Only non-None values are sent — the Worker merges them into the existing record.
+
+def patch_garmin(day: date, garmin_data: dict) -> bool:
+    """Patch all available Garmin fields into the Worker for a given day.
+
+    ``garmin_data`` is the combined dict from fetch_all_for_day()
+    (daily summary + sleep merged together).
     """
-    score = sleep_data.get("sleepScore")
-    hours = sleep_data.get("sleepHours")
-
-    if score is None and hours is None:
-        logger.warning("patch_sleep: nothing to patch for %s — skipping", day)
-        return False
-
     payload: dict = {"date": day.isoformat()}
-    if score is not None:
-        payload["sleepScore"] = int(score)
-    if hours is not None:
-        # Store to 2dp so 6h 18m → 6.30, not 6.3 (avoids float weirdness)
-        payload["sleepHours"] = round(float(hours), 2)
+
+    # Remap any field names that differ between Garmin client and Worker
+    normalised = {}
+    for k, v in garmin_data.items():
+        worker_key = _FIELD_MAP.get(k, k)
+        normalised[worker_key] = v
+
+    for field in _PATCH_FIELDS:
+        val = _coerce(normalised.get(field))
+        if val is not None:
+            payload[field] = val
+
+    if len(payload) <= 1:  # only "date" key — nothing to patch
+        logger.warning("patch_garmin: no patchable fields found for %s", day)
+        return False
 
     url = f"{WORKER_URL}/health/patch"
     try:
         resp = requests.post(url, json=payload, headers=_headers(), timeout=15)
         if resp.ok:
-            logger.info(
-                "Worker patched %s — sleepScore=%s sleepHours=%s",
-                day, payload.get("sleepScore"), payload.get("sleepHours"),
-            )
+            patched = resp.json().get("patched", [])
+            logger.info("Worker patched %s — %d fields: %s", day, len(patched), patched)
             return True
         logger.error(
             "Worker PATCH failed for %s: %s %s", day, resp.status_code, resp.text
@@ -61,3 +97,8 @@ def patch_sleep(day: date, sleep_data: dict) -> bool:
         logger.error("Worker PATCH error for %s: %s", day, e)
 
     return False
+
+
+# ── Backwards-compat alias (garmin_local_sync still calls this) ───────────────
+def patch_sleep(day: date, data: dict) -> bool:
+    return patch_garmin(day, data)
