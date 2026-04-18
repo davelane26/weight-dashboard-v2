@@ -35,10 +35,7 @@
                       radial-gradient(ellipse at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 50%);
   }
 
-  .header {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
+  .header { text-align: center; margin-bottom: 2rem; }
 
   .header h1 {
     font-family: 'Syne', sans-serif;
@@ -69,23 +66,10 @@
     max-width: 400px;
   }
 
-  .instructions p {
-    font-size: 0.72rem;
-    color: var(--muted);
-    line-height: 1.6;
-  }
+  .instructions p { font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
+  .instructions strong { color: var(--accent); }
 
-  .instructions strong {
-    color: var(--accent);
-  }
-
-  .btn-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
-    max-width: 400px;
-  }
+  .btn-group { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; max-width: 400px; }
 
   .btn {
     display: flex;
@@ -100,56 +84,24 @@
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s;
-    text-decoration: none;
     position: relative;
     overflow: hidden;
   }
 
-  .btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
+  .btn::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.2s; }
   .btn-activity::before { background: linear-gradient(135deg, rgba(0,212,255,0.08), transparent); }
   .btn-sleep::before { background: linear-gradient(135deg, rgba(124,58,237,0.08), transparent); }
-
   .btn:hover::before { opacity: 1; }
   .btn:hover { border-color: var(--accent); transform: translateY(-1px); }
   .btn-sleep:hover { border-color: var(--accent2); }
   .btn:active { transform: translateY(0); }
 
-  .btn-left {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    text-align: left;
-  }
+  .btn-left { display: flex; flex-direction: column; gap: 0.2rem; text-align: left; }
+  .btn-title { font-weight: 500; font-size: 0.9rem; }
+  .btn-sub { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.03em; }
+  .btn-icon { font-size: 1.4rem; flex-shrink: 0; }
 
-  .btn-title {
-    font-weight: 500;
-    font-size: 0.9rem;
-  }
-
-  .btn-sub {
-    font-size: 0.65rem;
-    color: var(--muted);
-    letter-spacing: 0.03em;
-  }
-
-  .btn-icon {
-    font-size: 1.4rem;
-    flex-shrink: 0;
-  }
-
-  .status {
-    margin-top: 1.5rem;
-    width: 100%;
-    max-width: 400px;
-    min-height: 80px;
-  }
+  .status { margin-top: 1.5rem; width: 100%; max-width: 400px; min-height: 80px; }
 
   .status-card {
     background: var(--surface);
@@ -163,31 +115,16 @@
   .status-card.success { border-color: var(--green); }
   .status-card.error { border-color: var(--red); }
 
-  .status-title {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 0.5rem;
-  }
-
+  .status-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
   .status-card.success .status-title { color: var(--green); }
   .status-card.error .status-title { color: var(--red); }
 
-  .status-data {
-    font-size: 0.72rem;
-    color: var(--muted);
-    line-height: 1.8;
-  }
-
-  .status-data span {
-    color: var(--text);
-    font-weight: 500;
-  }
+  .status-data { font-size: 0.72rem; color: var(--muted); line-height: 1.8; }
+  .status-data span { color: var(--text); font-weight: 500; }
 
   .spinner {
     display: inline-block;
-    width: 12px;
-    height: 12px;
+    width: 12px; height: 12px;
     border: 2px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
@@ -198,14 +135,7 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .footer {
-    margin-top: 2rem;
-    font-size: 0.65rem;
-    color: var(--muted);
-    text-align: center;
-    letter-spacing: 0.05em;
-  }
-
+  .footer { margin-top: 2rem; font-size: 0.65rem; color: var(--muted); text-align: center; }
   .footer a { color: var(--accent); text-decoration: none; }
 </style>
 </head>
@@ -258,20 +188,7 @@ const F = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
 const W = 'https://glucose-relay.djtwo6.workers.dev';
 const GARMIN = 'https://connect.garmin.com';
 
-function getToday() {
-  return new Date().toISOString().split('T')[0];
-}
-
-function parseTime(s) {
-  if (!s) return 0;
-  const hm = s.match(/(\d+)h\s*(\d+)m/);
-  if (hm) return parseFloat((parseInt(hm[1]) + parseInt(hm[2]) / 60).toFixed(2));
-  const honly = s.match(/(\d+)h/);
-  if (honly) return parseInt(honly[1]);
-  const monly = s.match(/(\d+)m/);
-  if (monly) return parseFloat((parseInt(monly[1]) / 60).toFixed(2));
-  return 0;
-}
+function getToday() { return new Date().toISOString().split('T')[0]; }
 
 function showStatus(type, title, lines) {
   const card = document.getElementById('statusCard');
@@ -303,7 +220,6 @@ async function pushData(data) {
 async function syncActivity() {
   showLoading('Fetching from Garmin Connect...');
   const d = getToday();
-
   try {
     const data = { date: d, lastUpdated: new Date().toISOString(), source: 'garmin-web-sync' };
 
@@ -318,22 +234,13 @@ async function syncActivity() {
     }
 
     const hrRes = await fetch(`${GARMIN}/gc-api/wellness-service/wellness/dailyHeartRate?date=${d}`, { credentials: 'include' });
-    if (hrRes.ok) {
-      const hr = await hrRes.json();
-      data.restingHR = hr.restingHeartRate || 0;
-    }
+    if (hrRes.ok) { const hr = await hrRes.json(); data.restingHR = hr.restingHeartRate || 0; }
 
     const stressRes = await fetch(`${GARMIN}/gc-api/wellness-service/wellness/dailyStress/${d}`, { credentials: 'include' });
-    if (stressRes.ok) {
-      const stress = await stressRes.json();
-      data.stressLevel = stress.avgStressLevel || 0;
-    }
+    if (stressRes.ok) { const stress = await stressRes.json(); data.stressLevel = stress.avgStressLevel || 0; }
 
     const bbRes = await fetch(`${GARMIN}/gc-api/wellness-service/wellness/bodyBattery/messagingToday`, { credentials: 'include' });
-    if (bbRes.ok) {
-      const bb = await bbRes.json();
-      data.bodyBattery = bb.deltaValue || 0;
-    }
+    if (bbRes.ok) { const bb = await bbRes.json(); data.bodyBattery = bb.deltaValue || 0; }
 
     await pushData(data);
 
@@ -354,7 +261,6 @@ async function syncSleep() {
   showLoading('Fetching sleep data...');
   const d = getToday();
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
   try {
     const data = { date: d, lastUpdated: new Date().toISOString(), source: 'garmin-web-sync' };
 
