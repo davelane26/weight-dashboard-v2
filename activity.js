@@ -217,9 +217,6 @@ function renderActivityKPIs(data) {
   _set('act-fitness-age', data.fitnessAge ?? '—');
   _set('act-fitness-age-sub', data.fitnessAge ? `Actual age: 44` : '');
 
-  // 🎯 VO2 Max
-  _set('act-vo2max', data.vo2max ?? '—');
-
   // 🔥 Calories
   _set('act-total-cal', data.totalCalories ? _fmtK(data.totalCalories) : '—');
   _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
