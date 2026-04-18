@@ -452,9 +452,11 @@ function renderJourney(latest, data) {
   }
 
   if (slopePerDay !== null) {
-    const lbsPerWeek = Math.abs(slopePerDay * 7);
+    const totalDays = (dailyPts[dailyPts.length-1].date - dailyPts[0].date) / 86400000;
+    const totalLost = dailyPts[0].weight - dailyPts[dailyPts.length-1].weight;
+    const lbsPerWeek = totalDays > 0 ? Math.max(0, (totalLost/totalDays)*7) : 0;
     countUp('journey-rate', lbsPerWeek, 1);
-    setText('journey-rate-sub', `lbs/wk · ${dailyPts.length} day${dailyPts.length !== 1 ? 's' : ''} of data`);
+    setText('journey-rate-sub', `lbs/wk · ${dailyPts.length} day${dailyPts.length !== 1 ? 'days' : 'day'} of data`);
   } else {
     setText('journey-rate', '—');
     setText('journey-rate-sub', 'not enough data yet');
