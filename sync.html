@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Garmin Sync</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+  :root {
+    --bg: #0a0f1e;
+    --surface: #111827;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --green: #10b981;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background-image: radial-gradient(ellipse at 20% 20%, rgba(0,212,255,0.05) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 50%);
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header p {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-top: 0.4rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .instructions {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .instructions p {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .instructions strong {
+    color: var(--accent);
+  }
+
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn-activity::before { background: linear-gradient(135deg, rgba(0,212,255,0.08), transparent); }
+  .btn-sleep::before { background: linear-gradient(135deg, rgba(124,58,237,0.08), transparent); }
+
+  .btn:hover::before { opacity: 1; }
+  .btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .btn-sleep:hover { border-color: var(--accent2); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    text-align: left;
+  }
+
+  .btn-title {
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  .btn-sub {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .btn-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .status {
+    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+    min-height: 80px;
+  }
+
+  .status-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+
+  .status-card.show { display: block; }
+  .status-card.success { border-color: var(--green); }
+  .status-card.error { border-color: var(--red); }
+
+  .status-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+  }
+
+  .status-card.success .status-title { color: var(--green); }
+  .status-card.error .status-title { color: var(--red); }
+
+  .status-data {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .status-data span {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer {
+    margin-top: 2rem;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  .footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>GARMIN SYNC</h1>
+  <p>David's Health Dashboard</p>
+</div>
+
+<div class="instructions">
+  <p>
+    <strong>Step 1:</strong> Open <strong>connect.garmin.com</strong> in another tab and log in<br>
+    <strong>Step 2:</strong> Come back here and tap a button below<br>
+    <strong>Sleep:</strong> Works automatically using yesterday's data
+  </p>
+</div>
+
+<div class="btn-group">
+  <button class="btn btn-activity" onclick="syncActivity()">
+    <div class="btn-left">
+      <div class="btn-title">Sync Activity</div>
+      <div class="btn-sub">Steps · HR · Calories · Body Battery · Stress</div>
+    </div>
+    <div class="btn-icon">🏃</div>
+  </button>
+
+  <button class="btn btn-sleep" onclick="syncSleep()">
+    <div class="btn-left">
+      <div class="btn-title">Sync Sleep</div>
+      <div class="btn-sub">Hours · Score · Deep · Light · REM</div>
+    </div>
+    <div class="btn-icon">💤</div>
+  </button>
+</div>
+
+<div class="status">
+  <div class="status-card" id="statusCard">
+    <div class="status-title" id="statusTitle"></div>
+    <div class="status-data" id="statusData"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <a href="https://davelane26.github.io/weight-dashboard-v2/" target="_blank">← Back to Dashboard</a>
+</div>
+
+<script>
+const F = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
+const W = 'https://glucose-relay.djtwo6.workers.dev';
+const GARMIN = 'https://connect.garmin.com';
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function parseTime(s) {
+  if (!s) return 0;
+  const hm = s.match(/(\d+)h\s*(\d+)m/);
+  if (hm) return parseFloat((parseInt(hm[1]) + parseInt(hm[2]) / 60).toFixed(2));
+  const honly = s.match(/(\d+)h/);
+  if (honly) return parseInt(honly[1]);
+  const monly = s.match(/(\d+)m/);
+  if (monly) return parseFloat((parseInt(monly[1]) / 60).toFixed(2));
+  return 0;
+}
+
+function showStatus(type, title, lines) {
+  const card = document.getElementById('statusCard');
+  const titleEl = document.getElementById('statusTitle');
+  const dataEl = document.getElementById('statusData');
+  card.className = 'status-card show ' + type;
+  titleEl.textContent = title;
+  dataEl.innerHTML = lines.map(l => `${l[0]}: <span>${l[1]}</span>`).join('<br>');
+}
+
+function showLoading(msg) {
+  const card = document.getElementById('statusCard');
+  const titleEl = document.getElementById('statusTitle');
+  const dataEl = document.getElementById('statusData');
+  card.className = 'status-card show';
+  titleEl.innerHTML = '<span class="spinner"></span>' + msg;
+  dataEl.innerHTML = '';
+}
+
+async function pushData(data) {
+  const d = data.date;
+  await Promise.all([
+    fetch(`${F}/garmin/${d}.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    fetch(`${F}/garmin/latest.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    fetch(`${W}/health/patch`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Origin': 'https://davelane26.github.io' }, body: JSON.stringify(data) })
+  ]);
+}
+
+async function syncActivity() {
+  showLoading('Fetching from Garmin Connect...');
+  const d = getToday();
+
+  try {
+    const data = { date: d, lastUpdated: new Date().toISOString(), source: 'garmin-web-sync' };
+
+    const summaryRes = await fetch(`${GARMIN}/gc-api/usersummary-service/usersummary/daily/3d8b29e7-c9fc-40db-b7a5-a5609741229f?calendarDate=${d}`, { credentials: 'include' });
+    if (summaryRes.ok) {
+      const summary = await summaryRes.json();
+      data.steps = summary.totalSteps || 0;
+      data.activeCalories = summary.activeKilocalories || 0;
+      data.totalCalories = summary.burnedKilocalories || 0;
+      data.intensityMinutes = (summary.moderateIntensityMinutes || 0) + (summary.vigorousIntensityMinutes || 0) * 2;
+      data.floorsClimbed = summary.floorsAscended || 0;
+    }
+
+    const hrRes = await fetch(`${GARMIN}/gc-api/wellness-service/wellness/dailyHeartRate?date=${d}`, { credentials: 'include' });
+    if (hrRes.ok) {
+      const hr = await hrRes.json();
+      data.restingHR = hr.restingHeartRate || 0;
+    }
+
+    const stressRes = await fetch(`${GARMIN}/gc-api/wellness-service/wellness/dailyStress/${d}`, { credentials: 'include' });
+    if (stressRes.ok) {
+      const stress = await stressRes.json();
+      data.stressLevel = stress.avgStressLevel || 0;
+    }
+
+    const bbRes = await fetch(`${GARMIN}/gc-api/wellness-service/wellness/bodyBattery/messagingToday`, { credentials: 'include' });
+    if (bbRes.ok) {
+      const bb = await bbRes.json();
+      data.bodyBattery = bb.deltaValue || 0;
+    }
+
+    await pushData(data);
+
+    showStatus('success', '✓ Activity Synced', [
+      ['Steps', (data.steps || 0).toLocaleString()],
+      ['Resting HR', (data.restingHR || '--') + ' bpm'],
+      ['Calories', (data.activeCalories || 0).toLocaleString()],
+      ['Intensity', (data.intensityMinutes || '--') + ' min'],
+      ['Body Battery', data.bodyBattery || '--'],
+      ['Stress', data.stressLevel || '--'],
+    ]);
+  } catch (e) {
+    showStatus('error', '✗ Sync Failed', [['Error', e.message]]);
+  }
+}
+
+async function syncSleep() {
+  showLoading('Fetching sleep data...');
+  const d = getToday();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  try {
+    const data = { date: d, lastUpdated: new Date().toISOString(), source: 'garmin-web-sync' };
+
+    const sleepRes = await fetch(`${GARMIN}/gc-api/sleep-service/sleep/dailySleepData?date=${yesterday}&nonSleepBufferMinutes=60`, { credentials: 'include' });
+
+    if (sleepRes.ok) {
+      const sleepData = await sleepRes.json();
+      const dto = sleepData.dailySleepDTO || {};
+      data.sleepHours = parseFloat(((dto.sleepTimeSeconds || 0) / 3600).toFixed(2));
+      data.sleepDeep = parseFloat(((dto.deepSleepSeconds || 0) / 3600).toFixed(2));
+      data.sleepLight = parseFloat(((dto.lightSleepSeconds || 0) / 3600).toFixed(2));
+      data.sleepRem = parseFloat(((dto.remSleepSeconds || 0) / 3600).toFixed(2));
+      data.sleepAwakenings = dto.awakeCount || 0;
+      data.timeInBed = parseFloat((((dto.sleepTimeSeconds || 0) + (dto.awakeSleepSeconds || 0)) / 3600).toFixed(2));
+      const scores = dto.sleepScores || {};
+      const overall = scores.overall || {};
+      data.sleepScore = overall.value || dto.sleepScore || 0;
+
+      const utcDate = new Date().toISOString().split('T')[0];
+      if (utcDate !== d) {
+        await fetch(`${W}/health/patch`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Origin': 'https://davelane26.github.io' }, body: JSON.stringify({...data, date: utcDate}) });
+      }
+
+      await pushData(data);
+
+      showStatus('success', '✓ Sleep Synced', [
+        ['Hours', data.sleepHours + 'h'],
+        ['Score', data.sleepScore || '--'],
+        ['Deep', data.sleepDeep + 'h'],
+        ['Light', data.sleepLight + 'h'],
+        ['REM', data.sleepRem + 'h'],
+        ['Awakenings', data.sleepAwakenings],
+      ]);
+    } else {
+      showStatus('error', '✗ Not Logged In', [['Fix', 'Open connect.garmin.com and log in first']]);
+    }
+  } catch (e) {
+    showStatus('error', '✗ Error', [['Fix', 'Open connect.garmin.com and log in first']]);
+  }
+}
+</script>
+
+</body>
+</html>
