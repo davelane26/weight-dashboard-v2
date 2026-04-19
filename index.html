@@ -494,21 +494,6 @@
   <!-- ── Activity tab panel (overhauled) ─────────────────────────── -->
   <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
 
-    <!-- Sync Now button -->
-    <div style="display:flex;justify-content:flex-end;padding:0.6rem 1rem 0;gap:0.5rem;align-items:center;flex-wrap:wrap">
-      <span id="sync-status" style="font-size:0.72rem;color:#6d7a95"></span>
-      <button onclick="resetSyncToken()"
-        style="font-size:0.68rem;color:#6d7a95;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0"
-        title="Clear saved GitHub token">reset token</button>
-      <button id="sync-now-btn"
-        onclick="triggerSync()"
-        style="font-size:0.75rem;font-weight:700;padding:0.35rem 0.85rem;border-radius:999px;
-               background:#0053e2;color:white;border:none;cursor:pointer;display:flex;align-items:center;gap:0.4rem"
-        aria-label="Sync health data now">
-        <span id="sync-icon">⚡</span> Sync Now
-      </button>
-    </div>
-
     <!-- Today hero -->
     <section class="trend-hero fade-in" aria-label="Today's activity"
              style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%);color:white">
@@ -615,7 +600,7 @@
     <section class="card fade-in" id="act-setup" style="border-left:4px solid #ffc220;text-align:center;padding:2rem">
       <p style="font-size:2rem">⏳</p>
       <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">No activity data yet</h2>
-      <p style="font-size:0.82rem;color:#6d7a95">Data syncs automatically via Exist.io every day. To force a refresh, trigger the <a href="https://github.com/davelane26/weight-dashboard-v2/actions/workflows/sync-exist.yml" target="_blank" style="color:#0053e2">GitHub Action</a>.</p>
+      <p style="font-size:0.82rem;color:#6d7a95">No activity data has been synced yet.</p>
     </section>
 
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
@@ -735,83 +720,7 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations()
       .then(regs => regs.forEach(r => r.unregister()));
-  function resetSyncToken() {
-  localStorage.removeItem(TOKEN_KEY);
-  const status = document.getElementById('sync-status');
-  if (status) { status.textContent = 'Token cleared — will prompt on next sync'; }
-  setTimeout(() => { if (status) status.textContent = ''; }, 3000);
-}
-</script>
-
-<script>
-// ── Sync Now button ────────────────────────────────────────────────────
-const REPO        = 'davelane26/weight-dashboard-v2';
-const WORKFLOW    = 'sync-exist.yml';
-const TOKEN_KEY   = 'gh_sync_token';
-
-async function triggerSync() {
-  const btn    = document.getElementById('sync-now-btn');
-  const status = document.getElementById('sync-status');
-  const icon   = document.getElementById('sync-icon');
-
-  // Get or prompt for GitHub token
-  let token = localStorage.getItem(TOKEN_KEY);
-  if (!token) {
-    token = prompt(
-      '🔑 One-time setup: GitHub token needed to trigger sync.\n\n' +
-      '1. Go to: https://github.com/settings/tokens/new\n' +
-      '2. Give it any name (e.g. "dashboard sync")\n' +
-      '3. Tick the "workflow" checkbox\n' +
-      '4. Click Generate token — copy it — paste below\n\n' +
-      'Saved in your browser only. Never leaves this page.'
-    );
-    if (!token) return;
-    localStorage.setItem(TOKEN_KEY, token.trim());
   }
-
-  // Disable button + show spinner
-  btn.disabled = true;
-  icon.textContent = '⏳';
-  status.textContent = 'Triggering sync…';
-
-  try {
-    const res = await fetch(
-      `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ref: 'main' }),
-      }
-    );
-
-    if (res.status === 204) {
-      icon.textContent = '✅';
-      status.textContent = 'Sync started — data updates in ~30s';
-      // Reload data after 35 seconds
-      setTimeout(() => {
-        if (typeof loadActivityData === 'function') loadActivityData();
-        icon.textContent = '⚡';
-        status.textContent = '';
-        btn.disabled = false;
-      }, 35000);
-    } else if (res.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      icon.textContent = '❌';
-      status.textContent = 'Token invalid — click again to re-enter';
-      btn.disabled = false;
-    } else {
-      throw new Error(`HTTP ${res.status}`);
-    }
-  } catch (e) {
-    icon.textContent = '⚠️';
-    status.textContent = `Failed: ${e.message}`;
-    btn.disabled = false;
-  }
-}
 </script>
 </body>
 </html>

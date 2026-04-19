@@ -1,13 +1,4 @@
-"""Push precise Garmin data to the Cloudflare Worker.
-
-Patches fields that Exist.io either doesn't have or approximates:
-  - sleepScore, precise sleepHours, sleep stages
-  - restingHR, stressLevel, bodyBattery
-  - intensityMinutes, steps, activeCalories, floorsClimbed
-
-The Worker merges these into the existing record — Exist.io's
-workout/distance data is preserved, not overwritten.
-"""
+"""Push precise Garmin data to the Cloudflare Worker."""
 
 import logging
 import os
