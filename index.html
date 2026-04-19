@@ -19,7 +19,6 @@
   <link rel="stylesheet" href="activity_styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script>
-    // ⬇️ Paste your Cloudflare Worker URL here after deploying
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
   </script>
   <script src="app.js" defer></script>
@@ -29,16 +28,13 @@
 </head>
 <body>
 
-<!-- ── Header ──────────────────────────────────────────────────────── -->
 <header class="header">
   <div class="header-inner">
     <div style="display:flex;align-items:center;gap:1rem">
       <div class="header-logo" aria-hidden="true">⚖️</div>
       <div>
         <h1 style="font-size:1.35rem;font-weight:800;letter-spacing:-0.01em">David's Health Board</h1>
-        <p style="font-size:0.75rem;color:rgba(255,255,255,0.65);margin-top:2px">
-          openScale · Powered by Code Puppy 🐶
-        </p>
+        <p style="font-size:0.75rem;color:rgba(255,255,255,0.65);margin-top:2px">openScale · Powered by Code Puppy 🐶</p>
       </div>
     </div>
     <div class="header-meta">
@@ -50,388 +46,273 @@
   </div>
 </header>
 
-<!-- ── Status bar (shown only on error) ────────────────────────────── -->
 <div id="status-bar" style="display:none;background:#fef9c3;color:#854d0e;font-size:0.78rem;text-align:center;padding:0.4rem 1rem;font-weight:600"></div>
 
 <main>
 
-  <!-- ── Tab navigation ────────────────────────────────────── -->
   <nav class="tab-nav" role="tablist" aria-label="Dashboard sections">
-    <button class="tab-btn active" role="tab" id="tab-btn-weight" draggable="true"
-            onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">
-      ⚖️ Weight
-    </button>
-    <button class="tab-btn" role="tab" id="tab-btn-projector" draggable="true"
-            onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">
-      🔮 Projector
-    </button>
-    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true"
-            onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
-      🩸 Glucose
-    </button>
-    <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true"
-            onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">
-      🏃 Activity
-    </button>
-    <button class="tab-btn" role="tab" id="tab-btn-medication" draggable="true"
-            onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">
-      💊 Medication
-    </button>
+    <button class="tab-btn active" role="tab" id="tab-btn-weight" draggable="true" onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">⚖️ Weight</button>
+    <button class="tab-btn" role="tab" id="tab-btn-projector" draggable="true" onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">🔮 Projector</button>
+    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">🩸 Glucose</button>
+    <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true" onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">🏃 Activity</button>
+    <button class="tab-btn" role="tab" id="tab-btn-medication" draggable="true" onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">💊 Medication</button>
   </nav>
 
-  <!-- ── Weight tab panel ───────────────────────────────────── -->
+  <!-- ── Weight tab ── -->
   <div id="tab-weight" role="tabpanel" aria-labelledby="tab-btn-weight">
 
-
-
-  <!-- ── KPI Cards ─────────────────────────────────────────────────── -->
-  <section class="fade-in" aria-label="Key metrics">
-    <h2 class="card-title" style="margin-bottom:0.75rem" id="kpi-heading">Latest Reading</h2>
-    <div class="kpi-grid">
-
-      <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#0053e2">⚖️ Weight</p>
-        <p class="kpi-value" style="color:#0053e2" id="kpi-weight">—</p>
-        <p class="kpi-unit">lbs</p>
-        <p class="kpi-sub" id="kpi-weight-sub"></p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#ea1100">📋 BMI</p>
-        <p class="kpi-value" style="color:#ea1100" id="kpi-bmi">—</p>
-        <p class="kpi-unit">kg/m²</p>
-        <p class="kpi-sub" id="kpi-bmi-sub"></p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#995213">🔥 Body Fat</p>
-        <p class="kpi-value" style="color:#995213" id="kpi-fat">—</p>
-        <p class="kpi-unit">% of total weight</p>
-        <p class="kpi-sub" id="kpi-fat-sub"></p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#2a8703">💪 Muscle</p>
-        <p class="kpi-value" style="color:#2a8703" id="kpi-muscle">—</p>
-        <p class="kpi-unit">skeletal muscle %</p>
-        <p class="kpi-sub" id="kpi-muscle-sub"></p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#0891b2">💧 Body Water</p>
-        <p class="kpi-value" style="color:#0891b2" id="kpi-water">—</p>
-        <p class="kpi-unit">% of total weight</p>
-        <p class="kpi-sub" id="kpi-water-sub"></p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#6b7280;background:linear-gradient(135deg,#f9fafb 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#6b7280">🦴 Bone Mass</p>
-        <p class="kpi-value" style="color:#374151" id="kpi-bone">—</p>
-        <p class="kpi-unit">lbs</p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#7c3aed">⚡ BMR</p>
-        <p class="kpi-value" style="color:#7c3aed" id="kpi-bmr">—</p>
-        <p class="kpi-unit">kcal/day at rest</p>
-      </div>
-
-      <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
-        <p class="kpi-label" style="color:#0053e2">🏃 TDEE</p>
-        <p class="kpi-value" style="color:#0053e2" id="kpi-tdee">—</p>
-        <p class="kpi-unit">kcal/day total burn</p>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ── Journey ───────────────────────────────────────────────────── -->
-  <section class="card fade-in" style="border-left:4px solid #ffc220" aria-label="Weight loss journey">
-    <h2 class="card-title">🏆 Weight Loss Journey</h2>
-    <p id="journey-duration" style="font-size:0.82rem;color:#6d7a95;margin:-0.25rem 0 0.85rem;font-weight:600">Computing…</p>
-    <div class="stat-grid">
-      <div class="stat-box" style="background:#f5f6f8">
-        <p class="label" style="color:#6d7a95">Starting Weight</p>
-        <p class="val" style="color:#374151">315.0</p>
-        <p class="sub">Jan 23, 2026</p>
-      </div>
-      <div class="stat-box" style="background:#eff4ff">
-        <p class="label" style="color:#0053e2">Current Weight</p>
-        <p class="val" style="color:#0053e2" id="journey-current">—</p>
-        <p class="sub" id="journey-date">Latest reading</p>
-      </div>
-      <div class="stat-box" style="background:#f0fdf4">
-        <p class="label" style="color:#2a8703">Total Lost</p>
-        <p class="val" style="color:#2a8703" id="journey-lost">0.0</p>
-        <p class="sub">lbs lost</p>
-      </div>
-      <div class="stat-box" style="background:#fef9ec">
-        <p class="label" style="color:#995213">% Progress</p>
-        <p class="val" style="color:#995213" id="journey-pct-stat">—</p>
-        <p class="sub">of body weight lost since 315 lbs</p>
-      </div>
-    </div>
-    <div class="progress-track" style="height:1.25rem">
-      <div class="progress-fill" id="journey-bar" style="width:0%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;font-weight:700"></div>
-    </div>
-    <p style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem;text-align:right" id="journey-bar-label"></p>
-
-    <!-- Insight chips: rate, personal best, next milestone ETA -->
-    <div class="journey-insights">
-      <div class="insight-chip" title="Overall average rate across your entire journey">
-        <p class="insight-label">📉 Avg rate</p>
-        <p class="insight-val" id="journey-rate">—</p>
-        <p class="insight-sub" id="journey-rate-sub">lbs/wk · overall avg</p>
-      </div>
-      <div class="insight-chip">
-        <p class="insight-label">🏆 Personal best</p>
-        <p class="insight-val" id="journey-best">—</p>
-        <p class="insight-sub" id="journey-best-date"></p>
-      </div>
-      <div class="insight-chip">
-        <p class="insight-label">🎯 Next milestone</p>
-        <p class="insight-val" style="font-size:0.95rem" id="journey-next-eta">—</p>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- ── 10lb Milestones ──────────────────────────────── -->
-  <section class="card fade-in" aria-label="Weight milestones">
-    <h2 class="card-title">🏅 10 lb Milestones</h2>
-    <div id="milestones-row" class="milestones-row"></div>
-  </section>
-
-  <!-- ── BMI Timeline ────────────────────────────────── -->
-  <section class="card fade-in" aria-label="BMI milestone timeline">
-    <h2 class="card-title">📈 BMI Timeline</h2>
-    <div id="bmi-timeline" class="bmi-timeline"></div>
-  </section>
-
-  <!-- ── Goal Weight ───────────────────────────────── -->
-  <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Goal weight tracker">
-    <h2 class="card-title">🎯 Goal Weight</h2>
-    <div class="goal-input-row">
-      <label for="goal-input">Target (lbs)</label>
-      <input type="number" id="goal-input" placeholder="e.g. 220" step="0.1" aria-label="Target weight in lbs" />
-      <button class="btn-primary" onclick="setGoal()">Set Goal</button>
-      <button class="btn-secondary" onclick="clearGoal()">Clear</button>
-    </div>
-
-    <div id="goal-content" style="display:none">
-      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-box" style="background:#eff4ff">
-          <p class="label" style="color:#0053e2">Goal Weight</p>
-          <p class="val" style="color:#0053e2" id="goal-target">—</p>
-          <p class="sub">lbs target</p>
+    <section class="fade-in" aria-label="Key metrics">
+      <h2 class="card-title" style="margin-bottom:0.75rem">Latest Reading</h2>
+      <div class="kpi-grid">
+        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0053e2">⚖️ Weight</p>
+          <p class="kpi-value" style="color:#0053e2" id="kpi-weight">—</p>
+          <p class="kpi-unit">lbs</p>
+          <p class="kpi-sub" id="kpi-weight-sub"></p>
         </div>
-        <div class="stat-box" style="background:#fef9ec">
-          <p class="label" style="color:#995213">Remaining</p>
-          <p class="val" style="color:#995213" id="goal-remaining">—</p>
-          <p class="sub">lbs to go</p>
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#ea1100">📋 BMI</p>
+          <p class="kpi-value" style="color:#ea1100" id="kpi-bmi">—</p>
+          <p class="kpi-unit">kg/m²</p>
+          <p class="kpi-sub" id="kpi-bmi-sub"></p>
         </div>
-        <div class="stat-box" style="background:#f0fdf4">
-          <p class="label" style="color:#2a8703">Progress</p>
-          <p class="val" style="color:#2a8703" id="goal-pct">—</p>
-          <p class="sub" id="goal-eta"></p>
+        <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#995213">🔥 Body Fat</p>
+          <p class="kpi-value" style="color:#995213" id="kpi-fat">—</p>
+          <p class="kpi-unit">% of total weight</p>
+          <p class="kpi-sub" id="kpi-fat-sub"></p>
         </div>
-      </div>
-      <div class="progress-track" style="height:1.25rem">
-        <div class="progress-fill" id="goal-bar" style="width:0%;background:linear-gradient(90deg,#0053e2,#0891b2);display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;font-weight:700"></div>
-      </div>
-    </div>
-    <p id="goal-empty" style="font-size:0.8rem;color:#6d7a95;padding:0.5rem 0">Enter a target weight above to track your progress</p>
-
-    <!-- ── Calorie targets (folded in from standalone card) ── -->
-    <hr style="border:none;border-top:1px solid #e5e9f5;margin:1rem 0" />
-    <div style="margin-bottom:0.75rem">
-      <p style="font-size:0.7rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">
-        ⚡ Activity Level <span style="font-weight:400">· used for TDEE calculation</span>
-      </p>
-      <div class="activity-pills" role="group" aria-label="Activity level">
-        <button class="activity-pill" data-level="sedentary"   onclick="setActivityLevel('sedentary')">Sedentary</button>
-        <button class="activity-pill" data-level="light"       onclick="setActivityLevel('light')">Light</button>
-        <button class="activity-pill" data-level="moderate"    onclick="setActivityLevel('moderate')">Moderate</button>
-        <button class="activity-pill" data-level="active"      onclick="setActivityLevel('active')">Active</button>
-        <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
-      </div>
-      <p id="activity-desc" style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem"></p>
-    </div>
-    <div class="cal-grid">
-      <div class="cal-box" style="background:#eff4ff">
-        <p class="cal-label" style="color:#0053e2">Maintain</p>
-        <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
-        <p class="cal-sub">kcal/day</p>
-      </div>
-      <div class="cal-box" style="background:#f0fdf4">
-        <p class="cal-label" style="color:#2a8703">Lose 1 lb/wk</p>
-        <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
-        <p class="cal-sub">kcal/day</p>
-      </div>
-      <div class="cal-box" style="background:#fef9ec">
-        <p class="cal-label" style="color:#995213">Lose 2 lbs/wk</p>
-        <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
-        <p class="cal-sub">kcal/day</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Weight Trend Chart ───────────────────────────────── -->
-  <section class="card fade-in" aria-label="Weight trend chart">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
-      <h2 class="card-title" style="margin-bottom:0">Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></h2>
-      <div class="range-pills" role="group" aria-label="Chart time range">
-        <button class="range-pill" data-range="1m" onclick="setRange('1m')">1M</button>
-        <button class="range-pill" data-range="3m" onclick="setRange('3m')">3M</button>
-        <button class="range-pill" data-range="6m" onclick="setRange('6m')">6M</button>
-        <button class="range-pill active" data-range="all" onclick="setRange('all')">All</button>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="weightChart" aria-label="Weight trend over time"></canvas>
-    </div>
-  </section>
-
-  <!-- ── Body Composition Charts ────────────────────────────────────── -->
-  <section class="card fade-in" aria-label="Body composition">
-    <h2 class="card-title">Body Composition Trends</h2>
-    <div class="comp-charts">
-      <div>
-        <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Fat % vs Muscle %</p>
-        <div class="comp-chart-wrap">
-          <canvas id="compChart" aria-label="Body fat vs muscle percentage trend"></canvas>
+        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#2a8703">💪 Muscle</p>
+          <p class="kpi-value" style="color:#2a8703" id="kpi-muscle">—</p>
+          <p class="kpi-unit">skeletal muscle %</p>
+          <p class="kpi-sub" id="kpi-muscle-sub"></p>
         </div>
-      </div>
-      <div>
-        <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Body Water %</p>
-        <div class="comp-chart-wrap">
-          <canvas id="waterChart" aria-label="Body water percentage trend"></canvas>
+        <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0891b2">💧 Body Water</p>
+          <p class="kpi-value" style="color:#0891b2" id="kpi-water">—</p>
+          <p class="kpi-unit">% of total weight</p>
+          <p class="kpi-sub" id="kpi-water-sub"></p>
         </div>
-      </div>
-    </div>
-  </section>
-
-
-
-  <!-- ── Week Over Week Table ───────────────────────────────────── -->
-  <section class="card fade-in" aria-label="Week over week breakdown">
-    <h2 class="card-title">Week-Over-Week</h2>
-    <div class="overflow-x">
-      <table class="data-table" aria-label="Weekly weight summary">
-        <thead>
-          <tr>
-            <th>Week</th>
-            <th>Start</th>
-            <th>End</th>
-            <th>Lost</th>
-            <th>Readings</th>
-          </tr>
-        </thead>
-        <tbody id="wow-body"></tbody>
-      </table>
-      <p style="font-size:0.7rem;color:#6d7a95;margin-top:0.6rem">⚠️ Daily weight can vary ±2–5 lbs from water, food &amp; timing — don't sweat a single week's number, the trend is what matters.</p>
-    </div>
-  </section>
-
-  </div><!-- /tab-weight -->
-
-  <!-- ── Projector tab panel ─────────────────────────────────────── -->
-  <div id="tab-projector" role="tabpanel" aria-labelledby="tab-btn-projector" hidden>
-
-    <section class="card fade-in" aria-label="Weight projector" style="border-left:4px solid #7c3aed">
-      <h2 class="card-title">🔮 Weight Projector</h2>
-      <p id="proj-trend-blurb" style="font-size:0.72rem;color:#6d7a95;margin-bottom:1.1rem">Loading trend…</p>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
-
-        <!-- Date → Weight -->
-        <div>
-          <label for="proj-date-input" style="display:block;font-size:0.65rem;font-weight:700;
-                 text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.4rem">
-            📅 Pick a date — see your projected weight
-          </label>
-          <input type="date" id="proj-date-input" oninput="computeProjection()"
-                 style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;
-                        font-size:0.9rem;font-weight:600;color:#1a2340"
-                 aria-label="Target date for weight projection" />
-          <p id="proj-date-result"
-             style="margin-top:0.75rem;font-size:0.95rem;font-weight:700;color:#6d7a95;min-height:1.4rem">
-            Pick a date above
-          </p>
+        <div class="kpi" style="border-top-color:#6b7280;background:linear-gradient(135deg,#f9fafb 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#6b7280">🦴 Bone Mass</p>
+          <p class="kpi-value" style="color:#374151" id="kpi-bone">—</p>
+          <p class="kpi-unit">lbs</p>
         </div>
-
-        <!-- Weight slider → Date -->
-        <div>
-          <label style="display:block;font-size:0.65rem;font-weight:700;
-                 text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">
-            🎯 Drag to a target — see your arrival date
-          </label>
-
-          <!-- slider row -->
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
-            <span id="proj-slider-min" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">150</span>
-            <input type="range" id="proj-weight-input" oninput="computeProjection()"
-                   min="150" max="314" step="0.5" value="250"
-                   style="flex:1;accent-color:#7c3aed;cursor:pointer"
-                   aria-label="Target weight slider" />
-            <span id="proj-slider-max" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">314</span>
-          </div>
-
-          <!-- big number readout -->
-          <div style="text-align:center;margin-bottom:0.85rem">
-            <span id="proj-slider-display"
-                  style="font-size:2.1rem;font-weight:900;color:#7c3aed;line-height:1">250.0</span>
-            <span style="font-size:0.85rem;color:#6d7a95;margin-left:0.3rem">lbs</span>
-          </div>
-
-          <!-- countdown card -->
-          <div id="proj-countdown"
-               style="display:none;background:#f5f0ff;border-radius:12px;
-                      padding:0.9rem;border:1.5px solid #c4b5fd">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;text-align:center">
-              <div>
-                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
-                          letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">📅 Arrival Date</p>
-                <p id="proj-cd-date"
-                   style="font-size:0.92rem;font-weight:800;color:#1a2340;line-height:1.2"></p>
-              </div>
-              <div>
-                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
-                          letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">⏳ Days Away</p>
-                <p id="proj-cd-days"
-                   style="font-size:0.92rem;font-weight:800;color:#1a2340"></p>
-              </div>
-              <div>
-                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
-                          letter-spacing:0.07em;color:#2a8703;margin-bottom:0.2rem">✅ Total Lost</p>
-                <p id="proj-cd-total"
-                   style="font-size:0.92rem;font-weight:800;color:#2a8703"></p>
-              </div>
-              <div>
-                <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
-                          letter-spacing:0.07em;color:#0053e2;margin-bottom:0.2rem">▼ Still To Go</p>
-                <p id="proj-cd-togo"
-                   style="font-size:0.92rem;font-weight:800;color:#0053e2"></p>
-              </div>
-            </div>
-          </div>
-
-          <!-- hidden compat element (computeProjection still writes here for error states) -->
-          <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;
-             color:#ea1100;min-height:1.2rem"></p>
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#7c3aed">⚡ BMR</p>
+          <p class="kpi-value" style="color:#7c3aed" id="kpi-bmr">—</p>
+          <p class="kpi-unit">kcal/day at rest</p>
         </div>
-
+        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0053e2">🏃 TDEE</p>
+          <p class="kpi-value" style="color:#0053e2" id="kpi-tdee">—</p>
+          <p class="kpi-unit">kcal/day total burn</p>
+        </div>
       </div>
     </section>
 
+    <section class="card fade-in" style="border-left:4px solid #ffc220" aria-label="Weight loss journey">
+      <h2 class="card-title">🏆 Weight Loss Journey</h2>
+      <p id="journey-duration" style="font-size:0.82rem;color:#6d7a95;margin:-0.25rem 0 0.85rem;font-weight:600">Computing…</p>
+      <div class="stat-grid">
+        <div class="stat-box" style="background:#f5f6f8">
+          <p class="label" style="color:#6d7a95">Starting Weight</p>
+          <p class="val" style="color:#374151">315.0</p>
+          <p class="sub">Jan 23, 2026</p>
+        </div>
+        <div class="stat-box" style="background:#eff4ff">
+          <p class="label" style="color:#0053e2">Current Weight</p>
+          <p class="val" style="color:#0053e2" id="journey-current">—</p>
+          <p class="sub" id="journey-date">Latest reading</p>
+        </div>
+        <div class="stat-box" style="background:#f0fdf4">
+          <p class="label" style="color:#2a8703">Total Lost</p>
+          <p class="val" style="color:#2a8703" id="journey-lost">0.0</p>
+          <p class="sub">lbs lost</p>
+        </div>
+        <div class="stat-box" style="background:#fef9ec">
+          <p class="label" style="color:#995213">% Progress</p>
+          <p class="val" style="color:#995213" id="journey-pct-stat">—</p>
+          <p class="sub">of body weight lost since 315 lbs</p>
+        </div>
+      </div>
+      <div class="progress-track" style="height:1.25rem">
+        <div class="progress-fill" id="journey-bar" style="width:0%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;font-weight:700"></div>
+      </div>
+      <p style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem;text-align:right" id="journey-bar-label"></p>
+      <div class="journey-insights">
+        <div class="insight-chip" title="Overall average rate across your entire journey">
+          <p class="insight-label">📉 Avg rate</p>
+          <p class="insight-val" id="journey-rate">—</p>
+          <p class="insight-sub" id="journey-rate-sub">lbs/wk · overall avg</p>
+        </div>
+        <div class="insight-chip">
+          <p class="insight-label">🏆 Personal best</p>
+          <p class="insight-val" id="journey-best">—</p>
+          <p class="insight-sub" id="journey-best-date"></p>
+        </div>
+        <div class="insight-chip">
+          <p class="insight-label">🎯 Next milestone</p>
+          <p class="insight-val" style="font-size:0.95rem" id="journey-next-eta">—</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fade-in" aria-label="Weight milestones">
+      <h2 class="card-title">🏅 10 lb Milestones</h2>
+      <div id="milestones-row" class="milestones-row"></div>
+    </section>
+
+    <section class="card fade-in" aria-label="BMI milestone timeline">
+      <h2 class="card-title">📈 BMI Timeline</h2>
+      <div id="bmi-timeline" class="bmi-timeline"></div>
+    </section>
+
+    <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Goal weight tracker">
+      <h2 class="card-title">🎯 Goal Weight</h2>
+      <div class="goal-input-row">
+        <label for="goal-input">Target (lbs)</label>
+        <input type="number" id="goal-input" placeholder="e.g. 220" step="0.1" aria-label="Target weight in lbs" />
+        <button class="btn-primary" onclick="setGoal()">Set Goal</button>
+        <button class="btn-secondary" onclick="clearGoal()">Clear</button>
+      </div>
+      <div id="goal-content" style="display:none">
+        <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat-box" style="background:#eff4ff">
+            <p class="label" style="color:#0053e2">Goal Weight</p>
+            <p class="val" style="color:#0053e2" id="goal-target">—</p>
+            <p class="sub">lbs target</p>
+          </div>
+          <div class="stat-box" style="background:#fef9ec">
+            <p class="label" style="color:#995213">Remaining</p>
+            <p class="val" style="color:#995213" id="goal-remaining">—</p>
+            <p class="sub">lbs to go</p>
+          </div>
+          <div class="stat-box" style="background:#f0fdf4">
+            <p class="label" style="color:#2a8703">Progress</p>
+            <p class="val" style="color:#2a8703" id="goal-pct">—</p>
+            <p class="sub" id="goal-eta"></p>
+          </div>
+        </div>
+        <div class="progress-track" style="height:1.25rem">
+          <div class="progress-fill" id="goal-bar" style="width:0%;background:linear-gradient(90deg,#0053e2,#0891b2);display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;font-weight:700"></div>
+        </div>
+      </div>
+      <p id="goal-empty" style="font-size:0.8rem;color:#6d7a95;padding:0.5rem 0">Enter a target weight above to track your progress</p>
+      <hr style="border:none;border-top:1px solid #e5e9f5;margin:1rem 0" />
+      <div style="margin-bottom:0.75rem">
+        <p style="font-size:0.7rem;font-weight:700;color:#6d7a95;margin-bottom:0.4rem">⚡ Activity Level <span style="font-weight:400">· used for TDEE calculation</span></p>
+        <div class="activity-pills" role="group" aria-label="Activity level">
+          <button class="activity-pill" data-level="sedentary" onclick="setActivityLevel('sedentary')">Sedentary</button>
+          <button class="activity-pill" data-level="light" onclick="setActivityLevel('light')">Light</button>
+          <button class="activity-pill" data-level="moderate" onclick="setActivityLevel('moderate')">Moderate</button>
+          <button class="activity-pill" data-level="active" onclick="setActivityLevel('active')">Active</button>
+          <button class="activity-pill" data-level="very_active" onclick="setActivityLevel('very_active')">Very Active</button>
+        </div>
+        <p id="activity-desc" style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem"></p>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-box" style="background:#eff4ff">
+          <p class="cal-label" style="color:#0053e2">Maintain</p>
+          <p class="cal-val" style="color:#0053e2" id="cal-maintain">—</p>
+          <p class="cal-sub">kcal/day</p>
+        </div>
+        <div class="cal-box" style="background:#f0fdf4">
+          <p class="cal-label" style="color:#2a8703">Lose 1 lb/wk</p>
+          <p class="cal-val" style="color:#2a8703" id="cal-lose1">—</p>
+          <p class="cal-sub">kcal/day</p>
+        </div>
+        <div class="cal-box" style="background:#fef9ec">
+          <p class="cal-label" style="color:#995213">Lose 2 lbs/wk</p>
+          <p class="cal-val" style="color:#995213" id="cal-lose2">—</p>
+          <p class="cal-sub">kcal/day</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fade-in" aria-label="Weight trend chart">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+        <h2 class="card-title" style="margin-bottom:0">Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></h2>
+        <div class="range-pills" role="group" aria-label="Chart time range">
+          <button class="range-pill" data-range="1m" onclick="setRange('1m')">1M</button>
+          <button class="range-pill" data-range="3m" onclick="setRange('3m')">3M</button>
+          <button class="range-pill" data-range="6m" onclick="setRange('6m')">6M</button>
+          <button class="range-pill active" data-range="all" onclick="setRange('all')">All</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="weightChart" aria-label="Weight trend over time"></canvas>
+      </div>
+    </section>
+
+    <section class="card fade-in" aria-label="Body composition">
+      <h2 class="card-title">Body Composition Trends</h2>
+      <div class="comp-charts">
+        <div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Fat % vs Muscle %</p>
+          <div class="comp-chart-wrap"><canvas id="compChart"></canvas></div>
+        </div>
+        <div>
+          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Body Water %</p>
+          <div class="comp-chart-wrap"><canvas id="waterChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fade-in" aria-label="Week over week breakdown">
+      <h2 class="card-title">Week-Over-Week</h2>
+      <div class="overflow-x">
+        <table class="data-table" aria-label="Weekly weight summary">
+          <thead><tr><th>Week</th><th>Start</th><th>End</th><th>Lost</th><th>Readings</th></tr></thead>
+          <tbody id="wow-body"></tbody>
+        </table>
+        <p style="font-size:0.7rem;color:#6d7a95;margin-top:0.6rem">⚠️ Daily weight can vary ±2–5 lbs from water, food &amp; timing — don't sweat a single week's number, the trend is what matters.</p>
+      </div>
+    </section>
+
+  </div><!-- /tab-weight -->
+
+  <!-- ── Projector tab ── -->
+  <div id="tab-projector" role="tabpanel" aria-labelledby="tab-btn-projector" hidden>
+    <section class="card fade-in" aria-label="Weight projector" style="border-left:4px solid #7c3aed">
+      <h2 class="card-title">🔮 Weight Projector</h2>
+      <p id="proj-trend-blurb" style="font-size:0.72rem;color:#6d7a95;margin-bottom:1.1rem">Loading trend…</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+        <div>
+          <label for="proj-date-input" style="display:block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.4rem">📅 Pick a date — see your projected weight</label>
+          <input type="date" id="proj-date-input" oninput="computeProjection()" style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
+          <p id="proj-date-result" style="margin-top:0.75rem;font-size:0.95rem;font-weight:700;color:#6d7a95;min-height:1.4rem">Pick a date above</p>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">🎯 Drag to a target — see your arrival date</label>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+            <span id="proj-slider-min" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">150</span>
+            <input type="range" id="proj-weight-input" oninput="computeProjection()" min="150" max="314" step="0.5" value="250" style="flex:1;accent-color:#7c3aed;cursor:pointer" />
+            <span id="proj-slider-max" style="font-size:0.7rem;color:#6d7a95;white-space:nowrap">314</span>
+          </div>
+          <div style="text-align:center;margin-bottom:0.85rem">
+            <span id="proj-slider-display" style="font-size:2.1rem;font-weight:900;color:#7c3aed;line-height:1">250.0</span>
+            <span style="font-size:0.85rem;color:#6d7a95;margin-left:0.3rem">lbs</span>
+          </div>
+          <div id="proj-countdown" style="display:none;background:#f5f0ff;border-radius:12px;padding:0.9rem;border:1.5px solid #c4b5fd">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;text-align:center">
+              <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">📅 Arrival Date</p><p id="proj-cd-date" style="font-size:0.92rem;font-weight:800;color:#1a2340;line-height:1.2"></p></div>
+              <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">⏳ Days Away</p><p id="proj-cd-days" style="font-size:0.92rem;font-weight:800;color:#1a2340"></p></div>
+              <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#2a8703;margin-bottom:0.2rem">✅ Total Lost</p><p id="proj-cd-total" style="font-size:0.92rem;font-weight:800;color:#2a8703"></p></div>
+              <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#0053e2;margin-bottom:0.2rem">▼ Still To Go</p><p id="proj-cd-togo" style="font-size:0.92rem;font-weight:800;color:#0053e2"></p></div>
+            </div>
+          </div>
+          <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;color:#ea1100;min-height:1.2rem"></p>
+        </div>
+      </div>
+    </section>
   </div><!-- /tab-projector -->
 
-  <!-- ── Glucose tab panel ─────────────────────────────────────── -->
+  <!-- ── Glucose tab ── -->
   <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
-    <section class="card fade-in glucose-card" id="glucose-section" style="border-left:4px solid #2a8703" aria-label="Dexcom G7 glucose">
+    <section class="card fade-in glucose-card" id="glucose-section" style="border-left:4px solid #2a8703">
       <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
-
-      <!-- Hero: current reading -->
       <div class="glucose-hero">
         <div class="glucose-reading">
           <span class="glucose-value" id="glucose-value">—</span>
@@ -440,191 +321,78 @@
         </div>
         <div class="glucose-meta">
           <span class="glucose-status" id="glucose-status-label">Loading…</span>
-          <span class="glucose-desc"  id="glucose-trend-desc"></span>
-          <span class="glucose-ago"   id="glucose-ago"></span>
+          <span class="glucose-desc" id="glucose-trend-desc"></span>
+          <span class="glucose-ago" id="glucose-ago"></span>
         </div>
       </div>
-
-      <!-- Stats chips -->
       <div class="glucose-stats">
-        <div class="glucose-chip">
-          <p class="chip-label">Time In Range</p>
-          <p class="chip-val" id="glucose-tir" style="color:#2a8703">—</p>
-          <p class="chip-sub">70–180 mg/dL</p>
-        </div>
-        <div class="glucose-chip">
-          <p class="chip-label">24h Average</p>
-          <p class="chip-val" id="glucose-avg">—</p>
-          <p class="chip-sub">mg/dL</p>
-        </div>
-        <div class="glucose-chip">
-          <p class="chip-label">Est. A1C</p>
-          <p class="chip-val" id="glucose-a1c">—</p>
-          <p class="chip-sub">24h estimate</p>
-        </div>
-        <div class="glucose-chip">
-          <p class="chip-label">Range</p>
-          <p class="chip-val" style="font-size:0.85rem" id="glucose-min">—</p>
-          <p class="chip-sub">low · <span id="glucose-max">—</span> high</p>
-        </div>
-        <div class="glucose-chip" style="background:#fff1f0">
-          <p class="chip-label" style="color:#ea1100">Lows &lt;70</p>
-          <p class="chip-val"   style="color:#ea1100" id="glucose-lows">—</p>
-          <p class="chip-sub"><span id="glucose-count">—</span> total</p>
-        </div>
-        <div class="glucose-chip" style="background:#fef9ec">
-          <p class="chip-label" style="color:#995213">Highs &gt;180</p>
-          <p class="chip-val"   style="color:#995213" id="glucose-highs">—</p>
-          <p class="chip-sub">readings</p>
-        </div>
+        <div class="glucose-chip"><p class="chip-label">Time In Range</p><p class="chip-val" id="glucose-tir" style="color:#2a8703">—</p><p class="chip-sub">70–180 mg/dL</p></div>
+        <div class="glucose-chip"><p class="chip-label">24h Average</p><p class="chip-val" id="glucose-avg">—</p><p class="chip-sub">mg/dL</p></div>
+        <div class="glucose-chip"><p class="chip-label">Est. A1C</p><p class="chip-val" id="glucose-a1c">—</p><p class="chip-sub">24h estimate</p></div>
+        <div class="glucose-chip"><p class="chip-label">Range</p><p class="chip-val" style="font-size:0.85rem" id="glucose-min">—</p><p class="chip-sub">low · <span id="glucose-max">—</span> high</p></div>
+        <div class="glucose-chip" style="background:#fff1f0"><p class="chip-label" style="color:#ea1100">Lows &lt;70</p><p class="chip-val" style="color:#ea1100" id="glucose-lows">—</p><p class="chip-sub"><span id="glucose-count">—</span> total</p></div>
+        <div class="glucose-chip" style="background:#fef9ec"><p class="chip-label" style="color:#995213">Highs &gt;180</p><p class="chip-val" style="color:#995213" id="glucose-highs">—</p><p class="chip-sub">readings</p></div>
       </div>
-
-      <!-- 24h chart -->
       <div style="margin-top:1rem">
         <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Last 24 Hours</p>
-        <div class="chart-wrap">
-          <canvas id="glucoseChart" aria-label="24-hour glucose readings"></canvas>
-        </div>
+        <div class="chart-wrap"><canvas id="glucoseChart"></canvas></div>
       </div>
-
       <p style="font-size:0.65rem;color:#6d7a95;margin-top:0.6rem;text-align:right" id="glucose-updated"></p>
     </section>
   </div><!-- /tab-glucose -->
 
-  <!-- ── Activity tab panel (overhauled) ─────────────────────────── -->
+  <!-- ── Activity tab ── -->
   <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
-
-    <!-- Sync Now button -->
     <div style="display:flex;justify-content:flex-end;padding:0.6rem 1rem 0;gap:0.5rem;align-items:center;flex-wrap:wrap">
       <span id="sync-status" style="font-size:0.72rem;color:#6d7a95"></span>
-      <button onclick="resetSyncToken()"
-        style="font-size:0.68rem;color:#6d7a95;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0"
-        title="Clear saved GitHub token">reset token</button>
-      <button id="sync-now-btn"
-        onclick="triggerSync()"
-        style="font-size:0.75rem;font-weight:700;padding:0.35rem 0.85rem;border-radius:999px;
-               background:#0053e2;color:white;border:none;cursor:pointer;display:flex;align-items:center;gap:0.4rem"
-        aria-label="Sync health data now">
+      <button onclick="resetSyncToken()" style="font-size:0.68rem;color:#6d7a95;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">reset token</button>
+      <button id="sync-now-btn" onclick="triggerSync()" style="font-size:0.75rem;font-weight:700;padding:0.35rem 0.85rem;border-radius:999px;background:#0053e2;color:white;border:none;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
         <span id="sync-icon">⚡</span> Sync Now
       </button>
     </div>
-
-    <!-- Today hero -->
-    <section class="trend-hero fade-in" aria-label="Today's activity"
-             style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%);color:white">
+    <section class="trend-hero fade-in" style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%);color:white">
       <div>
         <p class="trend-label" style="color:rgba(255,255,255,0.7)">Steps Today</p>
         <p class="trend-value" id="act-steps" style="color:#7bc67e">—</p>
         <p class="trend-sub" id="act-steps-sub" style="color:rgba(255,255,255,0.6)">synced via garminconnect</p>
       </div>
     </section>
-
-    <!-- KPI row -->
-    <section class="fade-in" style="margin-top:1rem" aria-label="Activity stats">
+    <section class="fade-in" style="margin-top:1rem">
       <div class="kpi-grid">
-
         <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <p class="kpi-label" style="color:#2a8703">💤 Sleep</p>
-            <p class="kpi-label" style="color:#2a8703">Score</p>
-          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><p class="kpi-label" style="color:#2a8703">💤 Sleep</p><p class="kpi-label" style="color:#2a8703">Score</p></div>
           <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:0.25rem">
-            <div>
-              <p class="kpi-value" style="color:#2a8703" id="act-sleep">—</p>
-              <p class="kpi-unit">hours</p>
-            </div>
-            <div style="text-align:right">
-              <p class="kpi-value" style="color:#2a8703" id="act-sleep-score-val">—</p>
-              <p class="kpi-unit" id="act-sleep-score-label">score</p>
-            </div>
+            <div><p class="kpi-value" style="color:#2a8703" id="act-sleep">—</p><p class="kpi-unit">hours</p></div>
+            <div style="text-align:right"><p class="kpi-value" style="color:#2a8703" id="act-sleep-score-val">—</p><p class="kpi-unit" id="act-sleep-score-label">score</p></div>
           </div>
         </div>
-
-        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#ea1100">❤️ Resting HR</p>
-          <p class="kpi-value" style="color:#ea1100" id="act-hr">—</p>
-          <p class="kpi-unit">bpm</p>
-          <p class="kpi-sub" id="act-hr-sub"></p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#7c3aed">💪 Intensity</p>
-          <p class="kpi-value" style="color:#7c3aed" id="act-intensity">—</p>
-          <p class="kpi-unit">active min</p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#995213">🧠 Stress</p>
-          <p class="kpi-value" style="color:#995213" id="act-stress">—</p>
-          <p class="kpi-unit">avg level</p>
-          <p class="kpi-sub" id="act-stress-sub"></p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#995213">🔋 Body Battery</p>
-          <p class="kpi-value" style="color:#995213" id="act-battery">—</p>
-          <p class="kpi-unit">peak today</p>
-        </div>
-
-        <div class="kpi" id="act-fitness-age-card" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" id="act-fitness-age-label" style="color:#2a8703">🏃 Fitness Age</p>
-          <p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p>
-          <p class="kpi-unit">years</p>
-          <p class="kpi-sub" id="act-fitness-age-sub"></p>
-        </div>
-
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">❤️ Resting HR</p><p class="kpi-value" style="color:#ea1100" id="act-hr">—</p><p class="kpi-unit">bpm</p><p class="kpi-sub" id="act-hr-sub"></p></div>
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#7c3aed">💪 Intensity</p><p class="kpi-value" style="color:#7c3aed" id="act-intensity">—</p><p class="kpi-unit">active min</p></div>
+        <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#995213">🧠 Stress</p><p class="kpi-value" style="color:#995213" id="act-stress">—</p><p class="kpi-unit">avg level</p><p class="kpi-sub" id="act-stress-sub"></p></div>
+        <div class="kpi" style="border-top-color:#ffc220;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#995213">🔋 Body Battery</p><p class="kpi-value" style="color:#995213" id="act-battery">—</p><p class="kpi-unit">peak today</p></div>
+        <div class="kpi" id="act-fitness-age-card" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" id="act-fitness-age-label" style="color:#2a8703">🏃 Fitness Age</p><p class="kpi-value" style="color:#2a8703" id="act-fitness-age">—</p><p class="kpi-unit">years</p><p class="kpi-sub" id="act-fitness-age-sub"></p></div>
       </div>
     </section>
-
-    <!-- Sleep Breakdown -->
-    <section class="card fade-in" id="sleep-breakdown" style="display:none;border-left:4px solid #7c3aed" aria-label="Sleep stages">
-      <h2 class="card-title">💤 Sleep Stages</h2>
-      <div id="sleep-stage-visual"></div>
-    </section>
-
-    <!-- Today's Activities -->
-    <section class="card fade-in" aria-label="Today's workouts">
-      <h2 class="card-title">🏋️ Today's Activities</h2>
-      <div id="act-list"></div>
-    </section>
-
-    <!-- 30-Day Charts -->
-    <section class="card fade-in" aria-label="30-day activity charts">
+    <section class="card fade-in" id="sleep-breakdown" style="display:none;border-left:4px solid #7c3aed"><h2 class="card-title">💤 Sleep Stages</h2><div id="sleep-stage-visual"></div></section>
+    <section class="card fade-in"><h2 class="card-title">🏋️ Today's Activities</h2><div id="act-list"></div></section>
+    <section class="card fade-in">
       <h2 class="card-title">📈 30-Day Trends</h2>
       <div class="comp-charts" style="grid-template-columns:1fr">
-
-        <div>
-          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🚶 Steps</p>
-          <div class="comp-chart-wrap" style="height:180px"><canvas id="actStepsChart"></canvas></div>
-        </div>
-
-        <div>
-          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">💤 Sleep Stages</p>
-          <div class="comp-chart-wrap" style="height:200px"><canvas id="actSleepChart"></canvas></div>
-        </div>
-
-        <div>
-          <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🏃 Workouts (mins)</p>
-          <div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div>
-        </div>
-
+        <div><p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🚶 Steps</p><div class="comp-chart-wrap" style="height:180px"><canvas id="actStepsChart"></canvas></div></div>
+        <div><p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">💤 Sleep Stages</p><div class="comp-chart-wrap" style="height:200px"><canvas id="actSleepChart"></canvas></div></div>
+        <div><p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🏃 Workouts (mins)</p><div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div></div>
       </div>
     </section>
-
-    <!-- Setup prompt (hidden once data arrives) -->
     <section class="card fade-in" id="act-setup" style="border-left:4px solid #ffc220;text-align:center;padding:2rem">
       <p style="font-size:2rem">⏳</p>
       <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0.5rem 0">No activity data yet</h2>
       <p style="font-size:0.82rem;color:#6d7a95">Data syncs automatically via Exist.io every day. To force a refresh, trigger the <a href="https://github.com/davelane26/weight-dashboard-v2/actions/workflows/sync-exist.yml" target="_blank" style="color:#0053e2">GitHub Action</a>.</p>
     </section>
-
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
   </div><!-- /tab-activity -->
 
-  <!-- ── Medication tab panel ──────────────────────────────────────────── -->
+  <!-- ── Medication tab ── -->
   <div id="tab-medication" role="tabpanel" aria-labelledby="tab-btn-medication" hidden>
-
-    <!-- Header -->
     <section class="card fade-in" style="border-left:4px solid #7c3aed">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
         <div>
@@ -637,29 +405,15 @@
             <p style="font-size:1.8rem;font-weight:900;color:#7c3aed;line-height:1" id="med-current-dose">—</p>
             <p style="font-size:0.72rem;color:#6d7a95">mg / week</p>
           </div>
-          <button onclick="toggleMedEdit()" title="Edit journey data"
-            style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">
-            ✏️ Edit
-          </button>
+          <button onclick="toggleMedEdit()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">✏️ Edit</button>
         </div>
       </div>
     </section>
-
-    <!-- Edit Panel (hidden by default) -->
     <section id="med-edit-panel" class="card fade-in" style="display:none;border-left:4px solid #7c3aed;background:#faf5ff">
       <h3 style="font-size:0.9rem;font-weight:800;color:#7c3aed;margin-bottom:1rem">✏️ Edit Journey Data</h3>
-
-      <div style="margin-bottom:1rem">
-        <label style="font-size:0.72rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.3rem">START DATE</label>
-        <input type="date" id="med-edit-start" style="border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.85rem;width:100%;box-sizing:border-box">
-      </div>
-
-      <div style="margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center">
-        <p style="font-size:0.72rem;font-weight:700;color:#6d7a95">PHASES</p>
-        <button onclick="medAddPhase()" style="background:#0053e2;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer">+ Add Phase</button>
-      </div>
+      <div style="margin-bottom:1rem"><label style="font-size:0.72rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.3rem">START DATE</label><input type="date" id="med-edit-start" style="border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.85rem;width:100%;box-sizing:border-box"></div>
+      <div style="margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center"><p style="font-size:0.72rem;font-weight:700;color:#6d7a95">PHASES</p><button onclick="medAddPhase()" style="background:#0053e2;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer">+ Add Phase</button></div>
       <div id="med-edit-phases" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem"></div>
-
       <div style="display:flex;gap:0.5rem;justify-content:space-between;align-items:center">
         <button onclick="resetMedData()" style="background:none;color:#ea1100;border:none;font-size:0.72rem;font-weight:600;cursor:pointer;padding:0">Reset to defaults</button>
         <div style="display:flex;gap:0.5rem">
@@ -668,68 +422,25 @@
         </div>
       </div>
     </section>
-
-    <!-- KPI row -->
-    <section class="fade-in" style="margin-top:1rem" aria-label="Medication stats">
+    <section class="fade-in" style="margin-top:1rem">
       <div class="kpi-grid">
-
-        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#ea1100">🏁 Start Weight</p>
-          <p class="kpi-value" style="color:#ea1100" id="med-start-weight">—</p>
-          <p class="kpi-unit">lbs</p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#0053e2">📊 Current Weight</p>
-          <p class="kpi-value" style="color:#0053e2" id="med-current-weight">—</p>
-          <p class="kpi-unit">lbs</p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#2a8703">📉 Total Lost</p>
-          <p class="kpi-value" style="color:#2a8703" id="med-total-lost">—</p>
-          <p class="kpi-unit">lbs</p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#7c3aed">📅 Weeks On</p>
-          <p class="kpi-value" style="color:#7c3aed" id="med-weeks-on">—</p>
-          <p class="kpi-unit">weeks</p>
-        </div>
-
-        <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#995213">⚡ Avg/Week</p>
-          <p class="kpi-value" style="color:#995213" id="med-avg-per-week">—</p>
-          <p class="kpi-unit">lbs lost/week</p>
-        </div>
-
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">🏁 Start Weight</p><p class="kpi-value" style="color:#ea1100" id="med-start-weight">—</p><p class="kpi-unit">lbs</p></div>
+        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0053e2">📊 Current Weight</p><p class="kpi-value" style="color:#0053e2" id="med-current-weight">—</p><p class="kpi-unit">lbs</p></div>
+        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2a8703">📉 Total Lost</p><p class="kpi-value" style="color:#2a8703" id="med-total-lost">—</p><p class="kpi-unit">lbs</p></div>
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#7c3aed">📅 Weeks On</p><p class="kpi-value" style="color:#7c3aed" id="med-weeks-on">—</p><p class="kpi-unit">weeks</p></div>
+        <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#995213">⚡ Avg/Week</p><p class="kpi-value" style="color:#995213" id="med-avg-per-week">—</p><p class="kpi-unit">lbs lost/week</p></div>
       </div>
     </section>
-
-    <!-- Phase Timeline -->
-    <section class="card fade-in" style="border-left:4px solid #7c3aed" aria-label="Dosage phases">
-      <h2 class="card-title">📈 Dosage Phases</h2>
-      <div id="med-phases" style="display:flex;flex-direction:column;gap:0.75rem"></div>
-    </section>
-
-    <!-- Progress Chart -->
-    <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Weight progress chart">
-      <h2 class="card-title">📉 Weight Progress by Phase</h2>
-      <div style="height:280px"><canvas id="medWeightChart"></canvas></div>
-    </section>
-
+    <section class="card fade-in" style="border-left:4px solid #7c3aed"><h2 class="card-title">📈 Dosage Phases</h2><div id="med-phases" style="display:flex;flex-direction:column;gap:0.75rem"></div></section>
+    <section class="card fade-in" style="border-left:4px solid #0053e2"><h2 class="card-title">📉 Weight Progress by Phase</h2><div style="height:280px"><canvas id="medWeightChart"></canvas></div></section>
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right">Data from your Mounjaro journey tracker &middot; Updates when you edit the spreadsheet</p>
   </div><!-- /tab-medication -->
 
 </main>
 
-<footer>
-  Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s
-</footer>
+<footer>Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s</footer>
 
 <script>
-  // Unregister any lingering service workers — they caused stale cached
-  // assets to be served on soft refresh, breaking the dashboard.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations()
       .then(regs => regs.forEach(r => r.unregister()));
@@ -744,74 +455,35 @@
 </script>
 
 <script>
-// ── Sync Now button ────────────────────────────────────────────────────
-const REPO        = 'davelane26/weight-dashboard-v2';
-const WORKFLOW    = 'sync-exist.yml';
-const TOKEN_KEY   = 'gh_sync_token';
+const REPO      = 'davelane26/weight-dashboard-v2';
+const WORKFLOW  = 'sync-exist.yml';
+const TOKEN_KEY = 'gh_sync_token';
 
 async function triggerSync() {
   const btn    = document.getElementById('sync-now-btn');
   const status = document.getElementById('sync-status');
   const icon   = document.getElementById('sync-icon');
-
-  // Get or prompt for GitHub token
   let token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
-    token = prompt(
-      '🔑 One-time setup: GitHub token needed to trigger sync.\n\n' +
-      '1. Go to: https://github.com/settings/tokens/new\n' +
-      '2. Give it any name (e.g. "dashboard sync")\n' +
-      '3. Tick the "workflow" checkbox\n' +
-      '4. Click Generate token — copy it — paste below\n\n' +
-      'Saved in your browser only. Never leaves this page.'
-    );
+    token = prompt('🔑 One-time setup: GitHub token needed to trigger sync.\n\n1. Go to: https://github.com/settings/tokens/new\n2. Give it any name\n3. Tick the "workflow" checkbox\n4. Generate token — copy — paste below\n\nSaved in your browser only.');
     if (!token) return;
     localStorage.setItem(TOKEN_KEY, token.trim());
   }
-
-  // Disable button + show spinner
-  btn.disabled = true;
-  icon.textContent = '⏳';
-  status.textContent = 'Triggering sync…';
-
+  btn.disabled = true; icon.textContent = '⏳'; status.textContent = 'Triggering sync…';
   try {
-    const res = await fetch(
-      `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ref: 'main' }),
-      }
-    );
-
+    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: 'main' }),
+    });
     if (res.status === 204) {
-      icon.textContent = '✅';
-      status.textContent = 'Sync started — data updates in ~30s';
-      // Reload data after 35 seconds
-      setTimeout(() => {
-        if (typeof loadActivityData === 'function') loadActivityData();
-        icon.textContent = '⚡';
-        status.textContent = '';
-        btn.disabled = false;
-      }, 35000);
+      icon.textContent = '✅'; status.textContent = 'Sync started — data updates in ~30s';
+      setTimeout(() => { if (typeof loadActivityData === 'function') loadActivityData(); icon.textContent = '⚡'; status.textContent = ''; btn.disabled = false; }, 35000);
     } else if (res.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      icon.textContent = '❌';
-      status.textContent = 'Token invalid — click again to re-enter';
-      btn.disabled = false;
-    } else {
-      throw new Error(`HTTP ${res.status}`);
-    }
-  } catch (e) {
-    icon.textContent = '⚠️';
-    status.textContent = `Failed: ${e.message}`;
-    btn.disabled = false;
-  }
+      localStorage.removeItem(TOKEN_KEY); icon.textContent = '❌'; status.textContent = 'Token invalid — click again to re-enter'; btn.disabled = false;
+    } else { throw new Error(`HTTP ${res.status}`); }
+  } catch (e) { icon.textContent = '⚠️'; status.textContent = `Failed: ${e.message}`; btn.disabled = false; }
 }
 </script>
 </body>
-</html>
+  </html>
