@@ -178,10 +178,10 @@
 
     <!-- Insight chips: rate, personal best, next milestone ETA -->
     <div class="journey-insights">
-      <div class="insight-chip" title="Best-fit line through your last 30 days of weigh-ins — smooths out daily fluctuations">
+      <div class="insight-chip" title="Overall average rate across your entire journey">
         <p class="insight-label">📉 Avg rate</p>
         <p class="insight-val" id="journey-rate">—</p>
-        <p class="insight-sub" id="journey-rate-sub">lbs/wk · 30-day trend</p>
+        <p class="insight-sub" id="journey-rate-sub">lbs/wk · overall avg</p>
       </div>
       <div class="insight-chip">
         <p class="insight-label">🏆 Personal best</p>
@@ -727,20 +727,20 @@
   Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s
 </footer>
 
-</div>
-
 <script>
   // Unregister any lingering service workers — they caused stale cached
   // assets to be served on soft refresh, breaking the dashboard.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations()
       .then(regs => regs.forEach(r => r.unregister()));
+  }
+
   function resetSyncToken() {
-  localStorage.removeItem(TOKEN_KEY);
-  const status = document.getElementById('sync-status');
-  if (status) { status.textContent = 'Token cleared — will prompt on next sync'; }
-  setTimeout(() => { if (status) status.textContent = ''; }, 3000);
-}
+    localStorage.removeItem(TOKEN_KEY);
+    const status = document.getElementById('sync-status');
+    if (status) { status.textContent = 'Token cleared — will prompt on next sync'; }
+    setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+  }
 </script>
 
 <script>
