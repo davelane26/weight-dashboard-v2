@@ -457,13 +457,14 @@ function renderJourney(latest, data) {
     const startDate = new Date('2026-01-23');
     const totalDaysFromStart = (dailyPts[dailyPts.length-1].date - startDate) / 86400000;
     const totalLostFromStart = 315.0 - dailyPts[dailyPts.length-1].weight;
-    const lbsPerWeek = totalDaysFromStart > 0 ? Math.max(0, (totalLostFromStart/totalDaysFromStart)*7) : 0;
+    if (slopePerDay !== null) {
+    const lbsPerWeek = Math.abs(slopePerDay * 7);
     countUp('journey-rate', lbsPerWeek, 1);
-    setText('journey-rate-sub', `lbs/wk · ${dailyPts.length} day${dailyPts.length !== 1 ? 'days' : 'day'} of data`);
-  } else {
+    setText('journey-rate-sub', `lbs/wk · 30-day trend`);
+} else {
     setText('journey-rate', '—');
     setText('journey-rate-sub', 'not enough data yet');
-  }
+}
 
   // Personal best (all-time lowest weight)
   const best    = data.reduce((b, r) => r.weight < b.weight ? r : b, data[0]);
