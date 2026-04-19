@@ -411,11 +411,9 @@ function renderJourney(latest, data) {
   }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
-  // Rate of loss (lbs/week via linear regression on last 30 days)
-  // Deduplicate to one reading per day first so we can report the real sample size
-  const byDay30 = {};
-  data.forEach(r => { byDay30[r.date.toDateString()] = r; });
-  const dailyPts = Object.values(byDay30).sort((a, b) => a.date - b.date).slice(-30);
+  // Rate of loss — use overall average from journey start to latest reading.
+  // This gives the true sustained rate across the entire journey, not skewed
+  // by a hot or cold 30-day window.
   const slopePerDay = weightTrendSlope(data);
   // Expose to projection calculator — updated every data refresh
   projSlopeLbsPerDay = slopePerDay;
@@ -451,20 +449,20 @@ function renderJourney(latest, data) {
     }
   }
 
-  if (slopePerDay !== null) {
-    const totalDays = (dailyPts[dailyPts.length-1].date - dailyPts[0].date) / 86400000;
-    const totalLost = dailyPts[0].weight - dailyPts[dailyPts.length-1].weight;
-    const startDate = new Date('2026-01-23');
-    const totalDaysFromStart = (dailyPts[dailyPts.length-1].date - startDate) / 86400000;
-    const totalLostFromStart = 315.0 - dailyPts[dailyPts.length-1].weight;
-    if (slopePerDay !== null) {
-    const lbsPerWeek = Math.abs(slopePerDay * 7);
+  // ── Avg rate: total loss from START_WEIGHT ÷ total elapsed days ──
+  const startDate        = new Date(START_DATE);
+  const totalDaysElapsed = (latest.date - startDate) / 86400000;
+  const totalLostJourney = START_WEIGHT - latest.weight;
+
+  if (totalDaysElapsed > 0 && totalLostJourney > 0) {
+    const lbsPerWeek = (totalLostJourney / totalDaysElapsed) * 7;
     countUp('journey-rate', lbsPerWeek, 1);
-    setText('journey-rate-sub', `lbs/wk · 30-day trend`);
-} else {
+    const weeksElapsed = Math.floor(totalDaysElapsed / 7);
+    setText('journey-rate-sub', `lbs/wk · overall avg across ${weeksElapsed} weeks`);
+  } else {
     setText('journey-rate', '—');
     setText('journey-rate-sub', 'not enough data yet');
-}
+  }
 
   // Personal best (all-time lowest weight)
   const best    = data.reduce((b, r) => r.weight < b.weight ? r : b, data[0]);
@@ -585,12 +583,12 @@ function renderTrendHero(data) {
                  : '— holding steady';
   setText('trend-dir', dirLabel);
 
-  // Decade badge: e.g. "You’re in the 280s!"
+  // Decade badge: e.g. "You're in the 280s!"
   const badge = el('decade-badge');
   if (badge && trend != null) {
     const decade = Math.floor(trend / 10) * 10;
     badge.style.display = 'block';
-    badge.innerHTML = `You’re in the<br><strong>${decade}s!</strong>`;
+    badge.innerHTML = `You're in the<br><strong>${decade}s!</strong>`;
   }
 }
 
@@ -910,14 +908,20 @@ function renderGoal(latest, data = []) {
   if (remaining <= 0) {
     setText('goal-eta', '🎉 Goal reached!');
     return;
-  }  // Fallback: linear regression on last 30 days
-  const slopePerDay = weightTrendSlope(data);
-  if (slopePerDay !== null && slopePerDay < 0) {
-    const daysLeft    = remaining / Math.abs(slopePerDay);
+  }
+
+  // Use overall journey average for a stable, realistic ETA
+  const startDate        = new Date(START_DATE);
+  const totalDaysElapsed = (latest.date - startDate) / 86400000;
+  const totalLostJourney = START_WEIGHT - latest.weight;
+
+  if (totalDaysElapsed > 0 && totalLostJourney > 0) {
+    const lbsPerDay   = totalLostJourney / totalDaysElapsed;
+    const daysLeft    = remaining / lbsPerDay;
     const projDate    = new Date(latest.date.getTime() + daysLeft * 86400000);
-    const weeklyRate  = Math.abs(slopePerDay * 7);
+    const weeklyRate  = lbsPerDay * 7;
     setText('goal-eta',
-      `losing ~${weeklyRate.toFixed(1)} lbs/wk · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+      `losing ~${weeklyRate.toFixed(1)} lbs/wk avg · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
   } else {
     const weeksLeft = Math.ceil(remaining / 1.5);
     const estDate   = new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
@@ -992,7 +996,7 @@ function computeProjection() {
       if (!isFuture) {
         dateResult.textContent = 'Pick a future date';
       } else if (rounded < 100) {
-        dateResult.textContent = 'Way beyond goal — you’d be a ghost 👻';
+        dateResult.textContent = 'Way beyond goal — you'd be a ghost 👻';
       } else {
         const dateLabel  = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         const lostNow    = projLatestWeight - rounded;          // change from current
