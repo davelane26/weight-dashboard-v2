@@ -772,9 +772,44 @@ function renderCompositionCharts(data) {
   });
 }
 
+// ── 7-day rolling average comparison ────────────────────────────────────
+function calcWeeklyAvgComparison(data) {
+  const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (sorted.length < 2) return null;
+  const nowMs  = new Date(sorted[0].date).getTime();
+  const day    = 24 * 60 * 60 * 1000;
+  const thisWeek = sorted.filter(r => (nowMs - new Date(r.date).getTime()) <  7 * day);
+  const lastWeek = sorted.filter(r => {
+    const ago = nowMs - new Date(r.date).getTime();
+    return ago >= 7 * day && ago < 14 * day;
+  });
+  if (!thisWeek.length || !lastWeek.length) return null;
+  const avg = arr => arr.reduce((s, r) => s + r.weight, 0) / arr.length;
+  return { thisAvg: avg(thisWeek), lastAvg: avg(lastWeek), diff: avg(thisWeek) - avg(lastWeek) };
+}
+
 // ── Render week-over-week table ──────────────────────────────────────────
 function renderWoW(data) {
   if (data.length < 2) return;
+
+  // 7-day avg vs last week stat box
+  const cmp = calcWeeklyAvgComparison(data);
+  const statBox = el('wow-avg-stat');
+  if (statBox && cmp) {
+    const diffColor = cmp.diff <= 0 ? '#2a8703' : '#ea1100';
+    const diffIcon  = cmp.diff <= 0 ? '▼' : '▲';
+    statBox.innerHTML = `
+      <span style="font-size:0.72rem;font-weight:700;color:#6d7a95;text-transform:uppercase;letter-spacing:0.06em">7-Day Avg vs Last Week</span>
+      <div style="display:flex;align-items:baseline;gap:0.75rem;margin-top:0.35rem;flex-wrap:wrap">
+        <span style="font-size:0.82rem;color:#6d7a95">${fmt(cmp.lastAvg)} <span style="font-size:0.65rem">last wk</span></span>
+        <span style="font-size:1.05rem;font-weight:800;color:#1a2340">${fmt(cmp.thisAvg)} <span style="font-size:0.65rem;color:#6d7a95">this wk</span></span>
+        <span style="font-size:1.05rem;font-weight:800;color:${diffColor}">${diffIcon} ${fmt(Math.abs(cmp.diff))} lbs</span>
+      </div>
+    `;
+    statBox.style.display = 'block';
+  } else if (statBox) {
+    statBox.style.display = 'none';
+  }
 
   // Rolling 7-day comparison
   const sorted7 = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
