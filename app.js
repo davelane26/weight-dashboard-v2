@@ -996,7 +996,7 @@ function computeProjection() {
       if (!isFuture) {
         dateResult.textContent = 'Pick a future date';
       } else if (rounded < 100) {
-        dateResult.textContent = 'Way beyond goal — you'd be a ghost 👻';
+        dateResult.textContent = "Way beyond goal — you'd be a ghost 👻";
       } else {
         const dateLabel  = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         const lostNow    = projLatestWeight - rounded;          // change from current
