@@ -263,27 +263,21 @@
       </div>
     </section>
 
-    <section class="card fade-in" aria-label="Week over week breakdown">
-      <h2 class="card-title">Week-Over-Week</h2>
-
-      <!-- 7-day avg stat box -->
-      <div id="wow-avg-stat" style="display:none;background:#f5f6f8;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem"></div>
-
-      <!-- Rolling 7-day comparison -->
-      <div class="overflow-x" style="margin-bottom:1rem">
-        <table class="data-table" aria-label="Rolling 7-day weight comparison">
-          <thead><tr><th>7 Days Ago</th><th>Weight</th><th>Today</th><th>Weight</th><th>Lost</th></tr></thead>
-          <tbody id="rolling7-body"></tbody>
-        </table>
-      </div>
-
-      <!-- Calendar weeks -->
-      <div class="overflow-x">
-        <table class="data-table" aria-label="Weekly weight summary">
-          <thead><tr><th>Week</th><th>Start</th><th>End</th><th>Lost</th><th>Readings</th></tr></thead>
-          <tbody id="wow-body"></tbody>
-        </table>
-        <p style="font-size:0.7rem;color:#6d7a95;margin-top:0.6rem">⚠️ Daily weight can vary ±2–5 lbs from water, food &amp; timing — don't sweat a single week's number, the trend is what matters.</p>
+    <section class="fade-in" aria-label="Weekly stats">
+      <h2 class="card-title" style="margin-bottom:0.75rem">Week-Over-Week</h2>
+      <div class="kpi-grid">
+        <div class="kpi" id="weekly-avg-card" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0053e2">📊 7-Day Avg vs Last Week</p>
+          <p class="kpi-value" style="color:#c5c9d5">—</p>
+          <p class="kpi-unit">lbs difference</p>
+          <p class="kpi-sub"></p>
+        </div>
+        <div class="kpi" id="rolling7-card" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#7c3aed">📅 Rolling 7-Day</p>
+          <p class="kpi-value" style="color:#c5c9d5">—</p>
+          <p class="kpi-unit">lbs difference</p>
+          <p class="kpi-sub"></p>
+        </div>
       </div>
     </section>
 

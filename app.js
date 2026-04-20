@@ -772,175 +772,65 @@ function renderCompositionCharts(data) {
   });
 }
 
-// ── 7-day rolling average comparison ────────────────────────────────────
-function calcWeeklyAvgComparison(data) {
-  const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-  if (sorted.length < 2) return null;
-  const nowMs  = new Date(sorted[0].date).getTime();
-  const day    = 24 * 60 * 60 * 1000;
-  const thisWeek = sorted.filter(r => (nowMs - new Date(r.date).getTime()) <  7 * day);
-  const lastWeek = sorted.filter(r => {
-    const ago = nowMs - new Date(r.date).getTime();
-    return ago >= 7 * day && ago < 14 * day;
-  });
-  if (!thisWeek.length || !lastWeek.length) return null;
-  const avg = arr => arr.reduce((s, r) => s + r.weight, 0) / arr.length;
-  return { thisAvg: avg(thisWeek), lastAvg: avg(lastWeek), diff: avg(thisWeek) - avg(lastWeek) };
-}
-
-// ── Render week-over-week table ──────────────────────────────────────────
-function renderWoW(data) {
+// ── Weekly stats ─────────────────────────────────────────────────────────
+function renderWeeklyStats(data) {
   if (data.length < 2) return;
 
-  // 7-day avg vs last week stat box
-  const cmp = calcWeeklyAvgComparison(data);
-  const statBox = el('wow-avg-stat');
-  if (statBox && cmp) {
-    const diffColor = cmp.diff <= 0 ? '#2a8703' : '#ea1100';
-    const diffIcon  = cmp.diff <= 0 ? '▼' : '▲';
-    statBox.innerHTML = `
-      <span style="font-size:0.72rem;font-weight:700;color:#6d7a95;text-transform:uppercase;letter-spacing:0.06em">7-Day Avg vs Last Week</span>
-      <div style="display:flex;align-items:baseline;gap:0.75rem;margin-top:0.35rem;flex-wrap:wrap">
-        <span style="font-size:0.82rem;color:#6d7a95">${fmt(cmp.lastAvg)} <span style="font-size:0.65rem">last wk</span></span>
-        <span style="font-size:1.05rem;font-weight:800;color:#1a2340">${fmt(cmp.thisAvg)} <span style="font-size:0.65rem;color:#6d7a95">this wk</span></span>
-        <span style="font-size:1.05rem;font-weight:800;color:${diffColor}">${diffIcon} ${fmt(Math.abs(cmp.diff))} lbs</span>
-      </div>
-    `;
-    statBox.style.display = 'block';
-  } else if (statBox) {
-    statBox.style.display = 'none';
+  const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const nowMs  = new Date(sorted[0].date).getTime();
+  const DAY    = 24 * 60 * 60 * 1000;
+  const avg    = arr => arr.reduce((s, r) => s + r.weight, 0) / arr.length;
+
+  // ── 7-day average comparison ──
+  const thisWeek = sorted.filter(r => (nowMs - new Date(r.date).getTime()) < 7 * DAY);
+  const lastWeek = sorted.filter(r => {
+    const ago = nowMs - new Date(r.date).getTime();
+    return ago >= 7 * DAY && ago < 14 * DAY;
+  });
+  const avgCard = el('weekly-avg-card');
+  if (avgCard) {
+    if (thisWeek.length && lastWeek.length) {
+      const thisAvg = avg(thisWeek);
+      const lastAvg = avg(lastWeek);
+      const diff    = thisAvg - lastAvg;
+      const color   = diff <= 0 ? '#2a8703' : '#ea1100';
+      const icon    = diff <= 0 ? '▼' : '▲';
+      avgCard.innerHTML = `
+        <p class="kpi-label" style="color:#0053e2">📊 7-Day Avg vs Last Week</p>
+        <p class="kpi-value" style="color:${color}">${icon} ${fmt(Math.abs(diff))}</p>
+        <p class="kpi-unit">lbs difference</p>
+        <p class="kpi-sub">${fmt(lastAvg)} last wk → ${fmt(thisAvg)} this wk</p>
+      `;
+    } else {
+      avgCard.innerHTML = `
+        <p class="kpi-label" style="color:#0053e2">📊 7-Day Avg vs Last Week</p>
+        <p class="kpi-value" style="color:#c5c9d5">—</p>
+        <p class="kpi-sub">Not enough data</p>
+      `;
+    }
   }
 
-  // Rolling 7-day comparison
-  const sorted7 = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const latest  = sorted7[0];
+  // ── Rolling 7-day (latest vs closest reading 7 days ago) ──
+  const latest   = sorted[0];
   const latestMs = new Date(latest.date).getTime();
-  const target7 = latestMs - 7 * 24 * 60 * 60 * 1000;
-  const ref7 = sorted7.reduce((best, r) => {
+  const target7  = latestMs - 7 * DAY;
+  const ref7     = sorted.slice(1).reduce((best, r) => {
     const d = new Date(r.date).getTime();
-    if (d >= latestMs) return best;
     return Math.abs(d - target7) < Math.abs(new Date(best.date).getTime() - target7) ? r : best;
-  }, sorted7[sorted7.length - 1]);
+  }, sorted[sorted.length - 1]);
 
-  const rolling7 = el('rolling7-body');
-  rolling7.innerHTML = '';
-  const diff7 = latest.weight - ref7.weight;
-  const tr7 = document.createElement('tr');
-  tr7.innerHTML = `
-    <td>${fmtDate(new Date(ref7.date))}</td>
-    <td style="font-weight:700">${fmt(ref7.weight)}</td>
-    <td>${fmtDate(new Date(latest.date))}</td>
-    <td style="font-weight:700">${fmt(latest.weight)}</td>
-    <td>${diff7 <= 0
-        ? `<span class="down">▼ ${fmt(Math.abs(diff7))}</span>`
-        : `<span class="up">▲ ${fmt(Math.abs(diff7))}</span>`}</td>
-  `;
-  rolling7.appendChild(tr7);
-
-  // Group by Mon-Sun week
-  const weekKey = d => {
-    const dt = new Date(d);
-    const day = (dt.getDay() + 6) % 7; // Mon=0
-    dt.setDate(dt.getDate() - day);
-    return dt.toDateString();
-  };
-  const weeks = {};
-  data.forEach(r => {
-    const k = weekKey(r.date);
-    if (!weeks[k]) weeks[k] = { mon: new Date(r.date), rows: [] };
-    // rewind stored date to Monday
-    const dt = new Date(r.date);
-    dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
-    weeks[k].mon = dt;
-    weeks[k].rows.push(r);
-  });
-
-  const currentKey = weekKey(new Date());
-  const sorted     = Object.entries(weeks).sort((a, b) =>
-    new Date(b[0]) - new Date(a[0])  // newest first
-  );
-
-  const tbody = el('wow-body');
-  tbody.innerHTML = '';
-
-  sorted.forEach(([key, wk], idx) => {
-    const isCurrent = key === currentKey;
-    const rs        = wk.rows.sort((a, b) => a.date - b.date);
-    const first     = rs[0].weight;
-    const last      = rs[rs.length - 1].weight;
-    const withinLost = first - last; // positive = lost within this week
-
-    // Week label: Mon – Sun
-    const monDate = new Date(key);
-    const sunDate = new Date(key);
-    sunDate.setDate(sunDate.getDate() + 6);
-    const weekLabel = monDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      + '–' + sunDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    // Cross-week delta: this week's latest vs previous week's latest
-    let vsLastHtml = '';
-    if (isCurrent && sorted.length > 1) {
-      const prevRs      = sorted[1][1].rows.sort((a, b) => a.date - b.date);
-      const prevLatest  = prevRs[prevRs.length - 1].weight;
-      const crossDelta  = prevLatest - last; // positive = lost vs end of last week
-      const crossColor  = crossDelta > 0 ? '#2a8703' : crossDelta < 0 ? '#ea1100' : '#6d7a95';
-      const crossText   = crossDelta > 0
-        ? `▼ ${fmt(crossDelta)} vs last wk`
-        : crossDelta < 0
-          ? `▲ ${fmt(Math.abs(crossDelta))} vs last wk`
-          : 'flat vs last wk';
-      vsLastHtml = `<br><span style="font-size:0.68rem;color:${crossColor};font-weight:600">${crossText}</span>`;
-    }
-
-    // Within-week Lost cell
-    let lostHtml;
-    if (isCurrent && rs.length === 1) {
-      // Single reading this week — skip the meaningless within-week delta,
-      // show the cross-week comparison as the primary number instead
-      const prevRs     = sorted.length > 1 ? sorted[1][1].rows.sort((a, b) => a.date - b.date) : null;
-      const prevLatest = prevRs ? prevRs[prevRs.length - 1].weight : null;
-      if (prevLatest != null) {
-        const crossDelta = prevLatest - last;
-        const crossColor = crossDelta > 0 ? '#2a8703' : crossDelta < 0 ? '#ea1100' : '#6d7a95';
-        lostHtml = crossDelta > 0
-          ? `<span style="color:${crossColor};font-size:1.1rem;font-weight:800">▼ ${fmt(crossDelta)} lbs</span><br><span style="font-size:0.65rem;color:#6d7a95">vs end of last week</span>`
-          : crossDelta < 0
-            ? `<span style="color:${crossColor};font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(crossDelta))} lbs</span><br><span style="font-size:0.65rem;color:#6d7a95">vs end of last week</span>`
-            : `<span style="color:#6d7a95">flat vs last week</span>`;
-      } else {
-        lostHtml = '<span style="color:#c5c9d5">1 reading</span>';
-      }
-    } else if (rs.length === 1) {
-      lostHtml = '<span style="color:#c5c9d5">1 reading</span>';
-    } else if (withinLost > 0) {
-      lostHtml = `<span class="down" style="font-size:1.1rem;font-weight:800">▼ ${fmt(withinLost)} lbs</span>${vsLastHtml}`;
-    } else if (withinLost < 0) {
-      lostHtml = `<span class="up" style="font-size:1.1rem;font-weight:800">▲ ${fmt(Math.abs(withinLost))} lbs</span>${vsLastHtml}`;
-    } else {
-      lostHtml = `<span style="color:#6d7a95">no change</span>${vsLastHtml}`;
-    }
-
-    const nowBadge = isCurrent
-      ? '<span style="background:#0053e2;color:#fff;font-size:0.58rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:9999px;margin-right:0.35rem">NOW</span>'
-      : '';
-
-    const tr = document.createElement('tr');
-    if (isCurrent) {
-      tr.style.background    = '#eff4ff';
-      tr.style.fontWeight    = '700';
-      tr.style.borderLeft    = '3px solid #0053e2';
-    }
-    tr.innerHTML = `
-      <td style="font-weight:600;white-space:nowrap">${nowBadge}${weekLabel}</td>
-      <td style="color:#6d7a95">${fmt(first)} lbs</td>
-      <td style="color:#6d7a95">${fmt(last)} lbs</td>
-      <td>${lostHtml}</td>
-      <td style="text-align:center">
-        <span class="badge" style="background:#eff4ff;color:#0053e2">${rs.length}</span>
-      </td>
+  const r7Card = el('rolling7-card');
+  if (r7Card) {
+    const diff7  = latest.weight - ref7.weight;
+    const color7 = diff7 <= 0 ? '#2a8703' : '#ea1100';
+    const icon7  = diff7 <= 0 ? '▼' : '▲';
+    r7Card.innerHTML = `
+      <p class="kpi-label" style="color:#7c3aed">📅 Rolling 7-Day</p>
+      <p class="kpi-value" style="color:${color7}">${icon7} ${fmt(Math.abs(diff7))}</p>
+      <p class="kpi-unit">lbs difference</p>
+      <p class="kpi-sub">${fmtDate(new Date(ref7.date))} ${fmt(ref7.weight)} → ${fmtDate(new Date(latest.date))} ${fmt(latest.weight)}</p>
     `;
-    tbody.appendChild(tr);
-  });
+  }
 }
 
 // ── Render goal section ─────────────────────────────────────────────────
@@ -1140,7 +1030,7 @@ function renderAll() {
   renderCalories(latest);
   renderWeightChart(allData);
   renderCompositionCharts(allData);
-  renderWoW(allData);
+  renderWeeklyStats(allData);
   renderGoal(latest, allData);
 
   // Save to localStorage
