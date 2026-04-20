@@ -776,6 +776,32 @@ function renderCompositionCharts(data) {
 function renderWoW(data) {
   if (data.length < 2) return;
 
+  // Rolling 7-day comparison
+  const sorted7 = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const latest  = sorted7[0];
+  const latestMs = new Date(latest.date).getTime();
+  const target7 = latestMs - 7 * 24 * 60 * 60 * 1000;
+  const ref7 = sorted7.reduce((best, r) => {
+    const d = new Date(r.date).getTime();
+    if (d >= latestMs) return best;
+    return Math.abs(d - target7) < Math.abs(new Date(best.date).getTime() - target7) ? r : best;
+  }, sorted7[sorted7.length - 1]);
+
+  const rolling7 = el('rolling7-body');
+  rolling7.innerHTML = '';
+  const diff7 = latest.weight - ref7.weight;
+  const tr7 = document.createElement('tr');
+  tr7.innerHTML = `
+    <td>${fmtDate(new Date(ref7.date))}</td>
+    <td style="font-weight:700">${fmt(ref7.weight)}</td>
+    <td>${fmtDate(new Date(latest.date))}</td>
+    <td style="font-weight:700">${fmt(latest.weight)}</td>
+    <td>${diff7 <= 0
+        ? `<span class="down">▼ ${fmt(Math.abs(diff7))}</span>`
+        : `<span class="up">▲ ${fmt(Math.abs(diff7))}</span>`}</td>
+  `;
+  rolling7.appendChild(tr7);
+
   // Group by Mon-Sun week
   const weekKey = d => {
     const dt = new Date(d);

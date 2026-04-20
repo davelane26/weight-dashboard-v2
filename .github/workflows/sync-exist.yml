@@ -1,9 +1,10 @@
-name: Sync Health via Exist.io
+name: Sync Exist.io
+
 on:
   workflow_dispatch:
 
 jobs:
-  placeholder:
+  disabled:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Exist.io sync disabled"

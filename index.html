@@ -265,6 +265,16 @@
 
     <section class="card fade-in" aria-label="Week over week breakdown">
       <h2 class="card-title">Week-Over-Week</h2>
+
+      <!-- Rolling 7-day comparison -->
+      <div class="overflow-x" style="margin-bottom:1rem">
+        <table class="data-table" aria-label="Rolling 7-day weight comparison">
+          <thead><tr><th>7 Days Ago</th><th>Weight</th><th>Today</th><th>Weight</th><th>Lost</th></tr></thead>
+          <tbody id="rolling7-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Calendar weeks -->
       <div class="overflow-x">
         <table class="data-table" aria-label="Weekly weight summary">
           <thead><tr><th>Week</th><th>Start</th><th>End</th><th>Lost</th><th>Readings</th></tr></thead>
