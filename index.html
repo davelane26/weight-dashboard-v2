@@ -162,6 +162,24 @@
       </div>
     </section>
 
+    <section class="fade-in" aria-label="Weekly stats">
+      <h2 class="card-title" style="margin-bottom:0.75rem">Week-Over-Week</h2>
+      <div class="kpi-grid">
+        <div class="kpi" id="weekly-avg-card" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#0053e2">📊 7-Day Avg vs Last Week</p>
+          <p class="kpi-value" style="color:#c5c9d5">—</p>
+          <p class="kpi-unit">lbs difference</p>
+          <p class="kpi-sub"></p>
+        </div>
+        <div class="kpi" id="rolling7-card" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
+          <p class="kpi-label" style="color:#7c3aed">📅 Rolling 7-Day</p>
+          <p class="kpi-value" style="color:#c5c9d5">—</p>
+          <p class="kpi-unit">lbs difference</p>
+          <p class="kpi-sub"></p>
+        </div>
+      </div>
+    </section>
+
     <section class="card fade-in" aria-label="Weight milestones">
       <h2 class="card-title">🏅 10 lb Milestones</h2>
       <div id="milestones-row" class="milestones-row"></div>
@@ -259,24 +277,6 @@
         <div>
           <p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Body Water %</p>
           <div class="comp-chart-wrap"><canvas id="waterChart"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="fade-in" aria-label="Weekly stats">
-      <h2 class="card-title" style="margin-bottom:0.75rem">Week-Over-Week</h2>
-      <div class="kpi-grid">
-        <div class="kpi" id="weekly-avg-card" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#0053e2">📊 7-Day Avg vs Last Week</p>
-          <p class="kpi-value" style="color:#c5c9d5">—</p>
-          <p class="kpi-unit">lbs difference</p>
-          <p class="kpi-sub"></p>
-        </div>
-        <div class="kpi" id="rolling7-card" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)">
-          <p class="kpi-label" style="color:#7c3aed">📅 Rolling 7-Day</p>
-          <p class="kpi-value" style="color:#c5c9d5">—</p>
-          <p class="kpi-unit">lbs difference</p>
-          <p class="kpi-sub"></p>
         </div>
       </div>
     </section>
