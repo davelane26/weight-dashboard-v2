@@ -78,7 +78,6 @@ function switchTab(name) {
     setTimeout(() => {
       if (allData.length) {
         renderWeightChart(allData);
-        renderCompositionCharts(allData);
       }
     }, 0);
   }
@@ -699,78 +698,6 @@ function renderWeightChart(data) {
   });
 }
 
-// ── Render body composition charts ──────────────────────────────────────
-function renderCompositionCharts(data) {
-  const byDay  = {};
-  data.forEach(r => { byDay[r.date.toDateString()] = r; });
-  const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
-  const labels = daily.map(r => fmtDate(r.date));
-
-  // Fat vs Muscle trend
-  destroyChart('comp');
-  const ctxC = el('compChart').getContext('2d');
-  charts.comp = new Chart(ctxC, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Body Fat %',
-          data: daily.map(r => r.bodyFat),
-          borderColor: '#ea1100', backgroundColor: 'rgba(234,17,0,0.08)',
-          fill: true, tension: 0.35, pointRadius: 3, borderWidth: 2,
-        },
-        {
-          label: 'Muscle %',
-          data: daily.map(r => r.muscle),
-          borderColor: '#2a8703', backgroundColor: 'rgba(42,135,3,0.08)',
-          fill: true, tension: 0.35, pointRadius: 3, borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 16 } },
-        tooltip: { backgroundColor: '#1a1f36', padding: 10, cornerRadius: 8,
-          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(2)}%` } },
-      },
-      scales: {
-        x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#eee' } },
-        y: { ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => (+v).toFixed(1) + '%' }, grid: { color: '#eee' } },
-      },
-    },
-  });
-
-  // Water % chart
-  destroyChart('water');
-  const ctxW = el('waterChart').getContext('2d');
-  charts.water = new Chart(ctxW, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Body Water %',
-        data: daily.map(r => r.water),
-        borderColor: '#0891b2', backgroundColor: 'rgba(8,145,178,0.1)',
-        fill: true, tension: 0.35, pointRadius: 3, borderWidth: 2,
-      }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 16 } },
-        tooltip: { backgroundColor: '#1a1f36', padding: 10, cornerRadius: 8,
-          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)}%` } },
-      },
-      scales: {
-        x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#eee' } },
-        y: { ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => (+v).toFixed(1) + '%' }, grid: { color: '#eee' } },
-      },
-    },
-  });
-}
 
 // ── Weekly stats ─────────────────────────────────────────────────────────
 function renderWeeklyStats(data) {
@@ -1029,7 +956,6 @@ function renderAll() {
   renderStreak(allData);
   renderCalories(latest);
   renderWeightChart(allData);
-  renderCompositionCharts(allData);
   renderWeeklyStats(allData);
   renderGoal(latest, allData);
 
