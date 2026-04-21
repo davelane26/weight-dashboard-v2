@@ -217,11 +217,11 @@
 
     <section class="card fade-in" aria-label="BMI milestone timeline">
       <button class="collapse-toggle" onclick="toggleBMI()"
-        aria-expanded="true" id="bmi-toggle">
+        aria-expanded="false" id="bmi-toggle">
         <span>📈 BMI Timeline</span>
-        <span class="collapse-chevron" id="bmi-chevron">▲</span>
+        <span class="collapse-chevron closed" id="bmi-chevron">▲</span>
       </button>
-      <div id="bmi-timeline" class="bmi-timeline"></div>
+      <div id="bmi-timeline" class="bmi-timeline" style="display:none"></div>
     </section>
 
     <section class="card fade-in" style="border-left:4px solid #0053e2" aria-label="Goal weight tracker">
