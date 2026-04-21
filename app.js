@@ -962,8 +962,64 @@ function renderAll() {
   renderWeeklyStats(allData);
   renderGoal(latest, allData);
 
+  updateSnapshot();
+
   // Save to localStorage
   try { localStorage.setItem('wt_v2_data', JSON.stringify(allData)); } catch {}
+}
+
+function updateSnapshot() {
+  // Weight
+  const setSnap = (id, text, cls) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    if (cls) { el.className = 'snap-delta ' + cls; }
+  };
+
+  if (allData.length) {
+    const latest = allData[allData.length - 1];
+    setSnap('snap-weight', latest.weight.toFixed(1) + ' lbs');
+    const sevenDaysAgo = new Date(latest.date);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const older = allData.slice().reverse().find(r => r.date <= sevenDaysAgo);
+    if (older) {
+      const delta = latest.weight - older.weight;
+      const sign = delta > 0 ? '+' : '';
+      setSnap('snap-weight-delta', sign + delta.toFixed(1) + ' lbs vs 7d ago', delta < 0 ? 'good' : delta > 0 ? 'bad' : 'neutral');
+    } else {
+      setSnap('snap-weight-delta', 'no 7d comparison', 'neutral');
+    }
+  }
+
+  // Glucose
+  const g = window.snapGlucoseNow;
+  if (g != null) {
+    setSnap('snap-glucose', g + ' mg/dL');
+    const inRange = g >= 70 && g <= 180;
+    setSnap('snap-glucose-delta', inRange ? 'in range' : 'out of range', inRange ? 'good' : 'bad');
+  }
+
+  // Steps & Sleep
+  const act = window.snapActivityNow;
+  if (act) {
+    setSnap('snap-steps', act.steps.toLocaleString());
+    const pct = Math.round((act.steps / 10000) * 100);
+    setSnap('snap-steps-delta', pct + '% of 10k goal', pct >= 80 ? 'good' : 'bad');
+
+    if (act.sleepHours) {
+      const h = Math.floor(act.sleepHours);
+      const m = Math.round((act.sleepHours - h) * 60);
+      setSnap('snap-sleep', m > 0 ? h + 'h ' + m + 'm' : h + 'h');
+    } else {
+      setSnap('snap-sleep', '—');
+    }
+    if (act.sleepScore != null) {
+      setSnap('snap-sleep-delta', 'score ' + act.sleepScore, act.sleepScore >= 70 ? 'good' : 'bad');
+    } else {
+      setSnap('snap-sleep-delta', '—', 'neutral');
+    }
+  }
 }
 
 // ── Data loading ────────────────────────────────────────────────────────

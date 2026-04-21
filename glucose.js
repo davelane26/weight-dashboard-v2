@@ -223,6 +223,11 @@ function renderGlucose(data) {
     const d = new Date(data.updatedAt);
     updEl.textContent = 'Last synced: ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
+
+  if (data.current) {
+    window.snapGlucoseNow = data.current.value;
+    if (typeof updateSnapshot === 'function') updateSnapshot();
+  }
 }
 
 // ── Data fetch ───────────────────────────────────────────────────────────

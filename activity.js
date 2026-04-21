@@ -220,6 +220,9 @@ function renderActivityKPIs(data) {
   // 🔥 Calories
   _set('act-total-cal', data.totalCalories ? _fmtK(data.totalCalories) : '—');
   _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
+
+  window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: data.sleepScore ?? null };
+  if (typeof updateSnapshot === 'function') updateSnapshot();
 }
 
 // ── Sleep Breakdown ─────────────────────────────────────────────────────

@@ -914,3 +914,27 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   .mob-tab span { font-size: 10px; font-weight: 500; font-family: 'Inter', sans-serif; }
   .mob-tab.active { color: #0053e2; }
 }
+
+/* ── Daily snapshot strip ────────────────────────────────────────────── */
+.snapshot-strip { margin-bottom: 1rem; }
+.snap-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.snap-cell {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e9f5);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.snap-label { font-size: 11px; color: #6d7a95; margin: 0 0 4px; }
+.snap-val { font-size: 20px; font-weight: 700; color: #1a2340; margin: 0; }
+.snap-delta { font-size: 11px; margin: 3px 0 0; }
+.snap-delta.good { color: #2a8703; }
+.snap-delta.bad  { color: #ea1100; }
+.snap-delta.neutral { color: #6d7a95; }
+@media (max-width: 480px) {
+  .snap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
