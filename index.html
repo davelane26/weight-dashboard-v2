@@ -482,5 +482,27 @@ async function triggerSync() {
   } catch (e) { icon.textContent = '⚠️'; status.textContent = `Failed: ${e.message}`; btn.disabled = false; }
 }
 </script>
+<nav class="mobile-tab-bar" role="tablist" aria-label="Dashboard sections mobile">
+  <button class="mob-tab active" onclick="switchTab('weight')" data-tab="weight">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/></svg>
+    <span>Weight</span>
+  </button>
+  <button class="mob-tab" onclick="switchTab('projector')" data-tab="projector">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+    <span>Projector</span>
+  </button>
+  <button class="mob-tab" onclick="switchTab('glucose')" data-tab="glucose">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>
+    <span>Glucose</span>
+  </button>
+  <button class="mob-tab" onclick="switchTab('activity')" data-tab="activity">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+    <span>Activity</span>
+  </button>
+  <button class="mob-tab" onclick="switchTab('medication')" data-tab="medication">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="8" y="3" width="8" height="18" rx="2"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="10" y1="16" x2="12" y2="16"/></svg>
+    <span>Meds</span>
+  </button>
+</nav>
 </body>
   </html>

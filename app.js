@@ -99,6 +99,9 @@ function switchTab(name) {
       else if (typeof initMedication === 'function') initMedication();
     }, 50);
   }
+  document.querySelectorAll('.mob-tab').forEach(b => b.classList.remove('active'));
+  const mobBtn = document.querySelector(`.mob-tab[data-tab="${name}"]`);
+  if (mobBtn) mobBtn.classList.add('active');
 }
 function restoreTab() {
   const saved = localStorage.getItem('wt_v2_tab');
