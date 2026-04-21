@@ -211,8 +211,12 @@
     </section>
 
     <section class="card fade-in" aria-label="Weight milestones">
-      <h2 class="card-title">🏅 10 lb Milestones</h2>
-      <div id="milestones-row" class="milestones-row"></div>
+      <button class="collapse-toggle" onclick="toggleMilestones()"
+        aria-expanded="false" id="milestones-toggle">
+        <span>🏅 10 lb Milestones</span>
+        <span class="collapse-chevron closed" id="milestones-chevron">▲</span>
+      </button>
+      <div id="milestones-row" class="milestones-row" style="display:none"></div>
     </section>
 
     <section class="card fade-in" aria-label="BMI milestone timeline">

@@ -491,6 +491,16 @@ function renderJourney(latest, data) {
   computeProjection();
 }
 
+function toggleMilestones() {
+  const row     = document.getElementById('milestones-row');
+  const chevron = document.getElementById('milestones-chevron');
+  const toggle  = document.getElementById('milestones-toggle');
+  const isOpen  = toggle.getAttribute('aria-expanded') === 'true';
+  row.style.display = isOpen ? 'none' : '';
+  toggle.setAttribute('aria-expanded', !isOpen);
+  chevron.classList.toggle('closed', isOpen);
+}
+
 function toggleBMI() {
   const timeline = document.getElementById('bmi-timeline');
   const chevron  = document.getElementById('bmi-chevron');
