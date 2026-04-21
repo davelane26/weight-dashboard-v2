@@ -486,8 +486,43 @@ function renderJourney(latest, data) {
   } else {
     setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : '🎉 All done!');
   }
+  computeBestWeek(data);
   // Refresh projector if user already has inputs filled
   computeProjection();
+}
+
+function computeBestWeek(readings) {
+  const fmtShort = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  let bestLoss = -Infinity;
+  let bestStart = null, bestEnd = null;
+
+  for (let i = 0; i < readings.length; i++) {
+    const end = readings[i];
+    // Find the reading closest to 7 days before this one
+    const target = end.date.getTime() - 7 * 86400000;
+    let closest = null;
+    for (let j = i - 1; j >= 0; j--) {
+      const diff = Math.abs(readings[j].date.getTime() - target);
+      if (!closest || diff < Math.abs(readings[j + 1 <= i - 1 ? j + 1 : j].date.getTime() - target)) {
+        closest = readings[j];
+        if (readings[j].date.getTime() <= target) break;
+      }
+    }
+    if (!closest) continue;
+    const daySpan = (end.date - closest.date) / 86400000;
+    if (daySpan < 4 || daySpan > 10) continue;
+    const loss = closest.weight - end.weight;
+    if (loss > bestLoss) {
+      bestLoss = loss;
+      bestStart = closest.date;
+      bestEnd = end.date;
+    }
+  }
+
+  if (bestStart && bestLoss > 0) {
+    setText('best-week-loss', '−' + bestLoss.toFixed(1) + ' lbs');
+    setText('best-week-dates', fmtShort(bestStart) + ' – ' + fmtShort(bestEnd));
+  }
 }
 
 // ── Milestones ──────────────────────────────────────────────────────
