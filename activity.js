@@ -137,6 +137,7 @@ async function loadActivityData() {
 
   if (!data) return;
 
+  window.snapActivityDays = allDays;
   renderActivityKPIs(data);
   renderSleepBreakdown(data);
   renderActivities(data.activities);
@@ -223,6 +224,7 @@ function renderActivityKPIs(data) {
 
   window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: data.sleepScore ?? null };
   if (typeof updateSnapshot === 'function') updateSnapshot();
+  if (typeof generateInsights === 'function') generateInsights();
 }
 
 // ── Sleep Breakdown ─────────────────────────────────────────────────────

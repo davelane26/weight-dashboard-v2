@@ -998,6 +998,7 @@ function renderAll() {
   renderGoal(latest, allData);
 
   updateSnapshot();
+  generateInsights();
 
   // Save to localStorage
   try { localStorage.setItem('wt_v2_data', JSON.stringify(allData)); } catch {}
@@ -1055,6 +1056,137 @@ function updateSnapshot() {
       setSnap('snap-sleep-delta', '—', 'neutral');
     }
   }
+}
+
+function generateInsights() {
+  const list  = document.getElementById('insights-list');
+  const empty = document.getElementById('insights-empty');
+  if (!list || !empty) return;
+
+  list.innerHTML = '';
+  const rows = [];
+
+  const addInsight = (text, color) => {
+    const row = document.createElement('div');
+    row.className = 'insight-row';
+    const dot = document.createElement('span');
+    dot.className = 'insight-dot';
+    dot.style.background = color;
+    const span = document.createElement('span');
+    span.textContent = text;
+    row.appendChild(dot);
+    row.appendChild(span);
+    rows.push(row);
+  };
+
+  // Helper: get the ISO week key for a date (Mon-based)
+  const weekKey = d => {
+    const dt = new Date(d);
+    dt.setHours(0, 0, 0, 0);
+    dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    return dt.toISOString().slice(0, 10);
+  };
+
+  const days = window.snapActivityDays || [];
+
+  // ── Check 1: Sleep score vs weight loss ──────────────────────────
+  if (allData.length >= 28 && days.length >= 6) {
+    const weightByWeek = {};
+    allData.forEach(r => {
+      const k = weekKey(r.date);
+      if (!weightByWeek[k]) weightByWeek[k] = [];
+      weightByWeek[k].push(r.weight);
+    });
+
+    const sleepByWeek = {};
+    days.forEach(d => {
+      if (d.sleepScore == null) return;
+      const k = weekKey(new Date(d.date || d.lastUpdated || d.updatedAt));
+      if (!sleepByWeek[k]) sleepByWeek[k] = [];
+      sleepByWeek[k].push(d.sleepScore);
+    });
+
+    const weeks = Object.keys(weightByWeek).filter(k => sleepByWeek[k] && weightByWeek[k].length >= 2);
+    const weekData = weeks.map(k => {
+      const ws = weightByWeek[k];
+      const loss = ws[0] - ws[ws.length - 1];
+      const avgSleep = sleepByWeek[k].reduce((a, b) => a + b, 0) / sleepByWeek[k].length;
+      return { loss, avgSleep };
+    });
+
+    const high = weekData.filter(w => w.avgSleep > 75);
+    const low  = weekData.filter(w => w.avgSleep <= 75);
+    if (high.length >= 3 && low.length >= 3) {
+      const avgHigh = high.reduce((a, b) => a + b.loss, 0) / high.length;
+      const avgLow  = low.reduce((a, b) => a + b.loss, 0) / low.length;
+      const diff = avgHigh - avgLow;
+      if (diff > 0.3) {
+        addInsight(
+          `On weeks where sleep score averaged above 75, you lost ${diff.toFixed(1)} lbs more than on lower-sleep weeks.`,
+          '#2a8703'
+        );
+      }
+    }
+  }
+
+  // ── Check 2: Stress vs glucose ───────────────────────────────────
+  if (days.length >= 10 && window.snapGlucoseNow != null) {
+    const stressDays = days.filter(d => d.stressLevel != null && d.sleepScore != null);
+    const high = stressDays.filter(d => d.stressLevel > 60);
+    const low  = stressDays.filter(d => d.stressLevel <= 60);
+    if (high.length >= 5 && low.length >= 5) {
+      const avgHigh = high.reduce((a, b) => a + (b.avgGlucose || b.glucose || 0), 0) / high.length;
+      const avgLow  = low.reduce((a, b) => a + (b.avgGlucose || b.glucose || 0), 0) / low.length;
+      const diff = avgHigh - avgLow;
+      if (diff > 10) {
+        addInsight(
+          `High-stress days show glucose averaging ${Math.round(diff)} mg/dL higher.`,
+          '#995213'
+        );
+      }
+    }
+  }
+
+  // ── Check 3: Steps vs weight loss ───────────────────────────────
+  if (allData.length >= 14 && days.length >= 4) {
+    const stepsByWeek = {};
+    days.forEach(d => {
+      if (!d.steps) return;
+      const k = weekKey(new Date(d.date || d.lastUpdated || d.updatedAt));
+      if (!stepsByWeek[k]) stepsByWeek[k] = 0;
+      stepsByWeek[k] += d.steps;
+    });
+
+    const weightByWeek2 = {};
+    allData.forEach(r => {
+      const k = weekKey(r.date);
+      if (!weightByWeek2[k]) weightByWeek2[k] = [];
+      weightByWeek2[k].push(r.weight);
+    });
+
+    const weeks = Object.keys(stepsByWeek).filter(k => weightByWeek2[k] && weightByWeek2[k].length >= 2);
+    const weekData = weeks.map(k => {
+      const ws = weightByWeek2[k];
+      return { loss: ws[0] - ws[ws.length - 1], steps: stepsByWeek[k] };
+    });
+
+    const active   = weekData.filter(w => w.steps >= 60000);
+    const inactive = weekData.filter(w => w.steps < 60000);
+    if (active.length >= 2 && inactive.length >= 2) {
+      const avgActive   = active.reduce((a, b) => a + b.loss, 0) / active.length;
+      const avgInactive = inactive.reduce((a, b) => a + b.loss, 0) / inactive.length;
+      const diff = avgActive - avgInactive;
+      if (diff > 0.2) {
+        addInsight(
+          `Weeks with 60,000+ steps show faster weight loss (${diff.toFixed(1)} lbs/week more on average).`,
+          '#0053e2'
+        );
+      }
+    }
+  }
+
+  rows.forEach(r => list.appendChild(r));
+  empty.style.display = rows.length > 0 ? 'none' : '';
 }
 
 // ── Data loading ────────────────────────────────────────────────────────
