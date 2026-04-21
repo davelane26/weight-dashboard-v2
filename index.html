@@ -216,7 +216,11 @@
     </section>
 
     <section class="card fade-in" aria-label="BMI milestone timeline">
-      <h2 class="card-title">📈 BMI Timeline</h2>
+      <button class="collapse-toggle" onclick="toggleBMI()"
+        aria-expanded="true" id="bmi-toggle">
+        <span>📈 BMI Timeline</span>
+        <span class="collapse-chevron" id="bmi-chevron">▲</span>
+      </button>
       <div id="bmi-timeline" class="bmi-timeline"></div>
     </section>
 

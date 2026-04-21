@@ -491,6 +491,16 @@ function renderJourney(latest, data) {
   computeProjection();
 }
 
+function toggleBMI() {
+  const timeline = document.getElementById('bmi-timeline');
+  const chevron  = document.getElementById('bmi-chevron');
+  const toggle   = document.getElementById('bmi-toggle');
+  const isOpen   = toggle.getAttribute('aria-expanded') === 'true';
+  timeline.style.display = isOpen ? 'none' : '';
+  toggle.setAttribute('aria-expanded', !isOpen);
+  chevron.classList.toggle('closed', isOpen);
+}
+
 function computeBestWeek(readings) {
   const fmtShort = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   let bestLoss = -Infinity;
