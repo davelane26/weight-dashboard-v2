@@ -22,6 +22,9 @@
   --input-border: #d1d5e0;
   --table-stripe: #f8faff;
   --stat-box-bg: #f5f6f8;
+  --border:    #e5e9f5;
+  --shadow-sm: 0 2px 8px rgba(0,53,226,0.07);
+  --shadow-md: 0 6px 24px rgba(0,53,226,0.13);
 }
 
 /* ── Dark mode ───────────────────────────────────────── */
@@ -36,6 +39,7 @@
   --input-border: #30363d;
   --table-stripe: #1c2130;
   --stat-box-bg:  #1c2130;
+  --border:    #21262d;
   --gray-160:   #e6edf3;
   --gray-100:   #8b949e;
 }
@@ -55,7 +59,7 @@
 #root.dark .kpi-unit    { color: var(--text-sub); }
 #root.dark .kpi-label   { opacity: 0.85; }
 #root.dark .streak-banner { background: #1c2130; border-color: #2d3250; }
-#root.dark .trend-hero  { background: #161b22; border-color: #30363d; }
+#root.dark .trend-hero  { background: var(--card-bg); border-color: var(--card-border); border-left-color: var(--blue-100); }
 #root.dark .goal-input-row input { background: var(--input-bg); border-color: var(--input-border); color: var(--text); }
 #root.dark .btn-secondary { background: #1c2130; border-color: #30363d; color: var(--text); }
 #root.dark .data-table th { color: var(--text-sub); }
@@ -73,6 +77,8 @@
 #root.dark .insight-chip      { background: #161b22; border-color: #21262d; }
 #root.dark .insight-label     { color: var(--text-sub); }
 #root.dark .insight-val       { color: var(--text); }
+#root.dark .insight-row       { background: #1c2130; border-color: #21262d; color: var(--text); }
+#root.dark .insight-row:hover { background: #21262d; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -246,6 +252,12 @@ main {
   border-radius: 9999px;
   transition: width 1s cubic-bezier(.4,0,.2,1);
   background: linear-gradient(90deg, var(--green-100), #7bc67e, var(--spark-100));
+  background-size: 200% 100%;
+  animation: progressShimmer 2.5s ease-in-out infinite;
+}
+@keyframes progressShimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
 }
 
 /* ── Stat grid inside journey/goal ──────── */
@@ -421,14 +433,17 @@ main {
 
 /* ── Trend Weight Hero ─────────────────── */
 .trend-hero {
-  background: white;
-  border-radius: 1rem;
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 1.25rem;
   padding: 1.5rem 1.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--card-border);
   border-left: 4px solid var(--blue-100);
 }
 .trend-label {
@@ -717,8 +732,7 @@ main {
   .glucose-arrow { font-size: 1.5rem; }
 }
 
-/* ── Footer ──────────────────── */
-footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding: 1.5rem 0 2rem; }
+/* ── Footer — see end of file ── */
 
 /* ── Update toast ───────────────────────── */
 .update-toast {
@@ -906,13 +920,26 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
     cursor: pointer;
     color: #9ca3af;
     padding: 0;
+    position: relative;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s;
   }
 
   .mob-tab svg { width: 22px; height: 22px; }
   .mob-tab span { font-size: 10px; font-weight: 500; font-family: 'Inter', sans-serif; }
-  .mob-tab.active { color: #0053e2; }
+  .mob-tab.active { color: #0053e2; font-weight: 700; }
+
+  /* glowing top indicator pill on active tab */
+  .mob-tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 28px; height: 3px;
+    background: var(--blue-100);
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 8px rgba(0,83,226,0.5);
+  }
 }
 
 /* ── Daily snapshot strip ────────────────────────────────────────────── */
@@ -923,18 +950,31 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   gap: 10px;
 }
 .snap-cell {
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--border, #e5e9f5);
-  border-radius: 10px;
-  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gray-50);
+  border-radius: 12px;
+  padding: 14px 12px 12px;
   text-align: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-.snap-label { font-size: 11px; color: #6d7a95; margin: 0 0 4px; }
-.snap-val { font-size: 20px; font-weight: 700; color: #1a2340; margin: 0; }
-.snap-delta { font-size: 11px; margin: 3px 0 0; }
-.snap-delta.good { color: #2a8703; }
-.snap-delta.bad  { color: #ea1100; }
-.snap-delta.neutral { color: #6d7a95; }
+.snap-cell:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+/* color-coded top border per metric position */
+.snap-grid .snap-cell:nth-child(1) { border-top-color: var(--blue-100); }
+.snap-grid .snap-cell:nth-child(2) { border-top-color: var(--green-100); }
+.snap-grid .snap-cell:nth-child(3) { border-top-color: var(--spark-100); }
+.snap-grid .snap-cell:nth-child(4) { border-top-color: #7c3aed; }
+.snap-label { font-size: 11px; color: var(--text-sub); margin: 0 0 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.snap-val   { font-size: 20px; font-weight: 800; color: var(--text); margin: 0; }
+.snap-delta { font-size: 11px; margin: 4px 0 0; font-weight: 600; }
+.snap-delta.good    { color: var(--green-100); }
+.snap-delta.bad     { color: var(--red-100); }
+.snap-delta.neutral { color: var(--text-sub); }
 @media (max-width: 480px) {
   .snap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -944,18 +984,27 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border, #e5e9f5);
+  padding: 0.7rem 0.875rem;
+  margin-bottom: 0.4rem;
+  border-radius: 0.75rem;
+  background: var(--gray-10);
+  border: 1px solid var(--border);
   font-size: 0.82rem;
-  line-height: 1.5;
-  color: #1a2340;
+  line-height: 1.55;
+  color: var(--text);
+  transition: background 0.15s, box-shadow 0.15s;
 }
-.insight-row:last-child { border-bottom: none; }
+.insight-row:hover {
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+}
+.insight-row:last-child { margin-bottom: 0; }
 .insight-dot {
-  width: 8px; height: 8px;
+  width: 10px; height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  margin-top: 5px;
+  margin-top: 4px;
+  box-shadow: 0 0 6px currentColor;
 }
 
 /* ── Collapsible section toggle ──────────────────────────────────────── */
@@ -976,3 +1025,33 @@ footer { text-align: center; font-size: 0.72rem; color: var(--gray-100); padding
 }
 .collapse-chevron { font-size: 0.75rem; color: #6d7a95; transition: transform 0.2s; }
 .collapse-chevron.closed { transform: rotate(180deg); }
+
+/* ── Dark mode: mobile tab bar & misc ──────────────────────────── */
+#root.dark .mobile-tab-bar  { background: #161b22; border-top-color: #21262d; }
+#root.dark .mob-tab         { color: #6d7a95; }
+#root.dark .mob-tab.active  { color: #60a5fa; }
+#root.dark .mob-tab.active::before {
+  background: #60a5fa;
+  box-shadow: 0 2px 8px rgba(96,165,250,0.5);
+}
+#root.dark .trend-label { color: var(--text-sub); }
+#root.dark .trend-sub   { color: var(--text-sub); }
+
+/* ── Polished footer ───────────────────────────────────────────── */
+footer {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-sub);
+  padding: 1.5rem 0 2rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+footer::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue-100), var(--spark-100));
+  border-radius: 9999px;
+  margin: 0 auto 0.75rem;
+}
