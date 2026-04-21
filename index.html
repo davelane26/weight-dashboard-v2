@@ -291,17 +291,21 @@
     </section>
 
     <section class="card fade-in" aria-label="Weight trend chart">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
-        <h2 class="card-title" style="margin-bottom:0">Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></h2>
-        <div class="range-pills" role="group" aria-label="Chart time range">
+      <button class="collapse-toggle" onclick="toggleWeightTrend()"
+        aria-expanded="false" id="weight-trend-toggle">
+        <span>📈 Weight Trend <span style="font-size:0.72rem;color:#6d7a95;font-weight:400">· daily readings + 7-day rolling average</span></span>
+        <span class="collapse-chevron closed" id="weight-trend-chevron">▲</span>
+      </button>
+      <div id="weight-trend-body" style="display:none">
+        <div class="range-pills" role="group" aria-label="Chart time range" style="margin-bottom:0.75rem">
           <button class="range-pill" data-range="1m" onclick="setRange('1m')">1M</button>
           <button class="range-pill" data-range="3m" onclick="setRange('3m')">3M</button>
           <button class="range-pill" data-range="6m" onclick="setRange('6m')">6M</button>
           <button class="range-pill active" data-range="all" onclick="setRange('all')">All</button>
         </div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="weightChart" aria-label="Weight trend over time"></canvas>
+        <div class="chart-wrap">
+          <canvas id="weightChart" aria-label="Weight trend over time"></canvas>
+        </div>
       </div>
     </section>
 

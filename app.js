@@ -491,6 +491,19 @@ function renderJourney(latest, data) {
   computeProjection();
 }
 
+function toggleWeightTrend() {
+  const body    = document.getElementById('weight-trend-body');
+  const chevron = document.getElementById('weight-trend-chevron');
+  const toggle  = document.getElementById('weight-trend-toggle');
+  const isOpen  = toggle.getAttribute('aria-expanded') === 'true';
+  body.style.display = isOpen ? 'none' : '';
+  toggle.setAttribute('aria-expanded', !isOpen);
+  chevron.classList.toggle('closed', isOpen);
+  if (isOpen === false && typeof renderWeightChart === 'function' && allData.length) {
+    setTimeout(() => renderWeightChart(allData), 0);
+  }
+}
+
 function toggleMilestones() {
   const row     = document.getElementById('milestones-row');
   const chevron = document.getElementById('milestones-chevron');
