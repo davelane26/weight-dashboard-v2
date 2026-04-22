@@ -25,6 +25,7 @@
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
   </script>
   <script src="app.js?v=99" defer></script>
+  <script src="heatmap.js?v=1" defer></script>
   <script src="glucose.js?v=99" defer></script>
   <script src="activity.js?v=99" defer></script>
   <script src="medication.js?v=99" defer></script>
@@ -310,6 +311,12 @@
     </section>
 
 
+    <section class="card fade-in" aria-label="Weight calendar heatmap" id="heatmap-section">
+      <h2 class="card-title">📅 Weight Calendar</h2>
+      <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.85rem">Last 26 weeks · green = lighter, red = heavier · gray = no reading</p>
+      <div id="heatmap-grid"></div>
+    </section>
+
     <section class="card fade-in" aria-label="Pattern insights" id="insights-section">
       <h2 class="card-title">🧠 Patterns</h2>
       <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
@@ -483,6 +490,11 @@
     </section>
     <section class="card fade-in" style="border-left:4px solid #7c3aed"><h2 class="card-title">📈 Dosage Phases</h2><div id="med-phases" style="display:flex;flex-direction:column;gap:0.75rem"></div></section>
     <section class="card fade-in" style="border-left:4px solid #0053e2"><h2 class="card-title">📉 Weight Progress by Phase</h2><div style="height:280px"><canvas id="medWeightChart"></canvas></div></section>
+    <section class="card fade-in" style="border-left:4px solid #2a8703">
+      <h2 class="card-title">⚡ Dose Effectiveness</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Average lbs lost per week on each dose — estimated from your scale readings</p>
+      <div style="height:220px"><canvas id="medEffectivenessChart"></canvas></div>
+    </section>
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right">Data from your Mounjaro journey tracker &middot; Updates when you edit the spreadsheet</p>
   </div><!-- /tab-medication -->
 

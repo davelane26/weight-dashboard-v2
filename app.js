@@ -78,6 +78,7 @@ function switchTab(name) {
     setTimeout(() => {
       if (allData.length) {
         renderWeightChart(allData);
+        if (typeof renderHeatmap === 'function') renderHeatmap(allData);
       }
     }, 0);
   }
@@ -95,7 +96,8 @@ function switchTab(name) {
   }
   if (name === 'medication') {
     setTimeout(() => {
-      if (window.medChartInst) window.medChartInst.resize();
+      if (window.medChartInst)   window.medChartInst.resize();
+      if (window.medEffChart)    window.medEffChart.resize();
       else if (typeof initMedication === 'function') initMedication();
     }, 50);
   }
@@ -1032,6 +1034,10 @@ function renderAll() {
 
   updateSnapshot();
   generateInsights();
+  if (typeof renderHeatmap === 'function') renderHeatmap(allData);
+
+  // Expose globally so medication.js can access weight readings for effectiveness calc
+  window.allWeightData = allData;
 
   // Save to localStorage
   try { localStorage.setItem('wt_v2_data', JSON.stringify(allData)); } catch {}
@@ -1212,6 +1218,82 @@ function generateInsights() {
       if (diff > 0.2) {
         addInsight(
           `Weeks with 60,000+ steps show faster weight loss (${diff.toFixed(1)} lbs/week more on average).`,
+          '#0053e2'
+        );
+      }
+    }
+  }
+
+  // ── Check 4: Sleep hours → next-morning weight change ───────────────────
+  // For each activity day that has sleepHours, look up weight the next morning.
+  // Nights with 7+ hours → does the scale drop more?
+  if (days.length >= 14 && allData.length >= 14) {
+    const byDay = {};
+    allData.forEach(r => {
+      const k = r.date.toLocaleDateString('en-CA');
+      if (!byDay[k] || r.date > byDay[k].date) byDay[k] = r;
+    });
+    const pairs = [];
+    days.forEach(d => {
+      const sleepH = d.sleepHours;
+      if (!sleepH || sleepH < 2) return;
+      const dateStr = (d.date || d.lastUpdated || d.updatedAt || '').slice(0, 10);
+      if (!dateStr) return;
+      const nextDay = new Date(dateStr + 'T12:00:00');
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextKey = nextDay.toLocaleDateString('en-CA');
+      const prevKey = dateStr;
+      if (byDay[nextKey] && byDay[prevKey]) {
+        const delta = byDay[nextKey].weight - byDay[prevKey].weight;
+        pairs.push({ sleepH, delta });
+      }
+    });
+    const good = pairs.filter(p => p.sleepH >= 7);
+    const poor = pairs.filter(p => p.sleepH < 7);
+    if (good.length >= 5 && poor.length >= 5) {
+      const avgGood = good.reduce((s, p) => s + p.delta, 0) / good.length;
+      const avgPoor = poor.reduce((s, p) => s + p.delta, 0) / poor.length;
+      const diff = avgPoor - avgGood; // positive = poor sleep nights lead to higher next-day weight
+      if (diff > 0.15) {
+        addInsight(
+          `After 7+ hours of sleep you weigh ~${diff.toFixed(1)} lbs less the next morning vs nights under 7h.`,
+          '#7c3aed'
+        );
+      }
+    }
+  }
+
+  // ── Check 5: Day-over-day steps → same-night weight trend ───────────────
+  // Look at days where step count was very high; does weight drop more the next day?
+  if (days.length >= 14 && allData.length >= 14) {
+    const byDay2 = {};
+    allData.forEach(r => {
+      const k = r.date.toLocaleDateString('en-CA');
+      if (!byDay2[k] || r.date > byDay2[k].date) byDay2[k] = r;
+    });
+    const pairs2 = [];
+    days.forEach(d => {
+      const steps = d.steps;
+      if (!steps) return;
+      const dateStr = (d.date || d.lastUpdated || d.updatedAt || '').slice(0, 10);
+      if (!dateStr) return;
+      const nextDay = new Date(dateStr + 'T12:00:00');
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextKey = nextDay.toLocaleDateString('en-CA');
+      const prevKey = dateStr;
+      if (byDay2[nextKey] && byDay2[prevKey]) {
+        pairs2.push({ steps, delta: byDay2[nextKey].weight - byDay2[prevKey].weight });
+      }
+    });
+    const active2   = pairs2.filter(p => p.steps >= 10000);
+    const inactive2 = pairs2.filter(p => p.steps < 10000);
+    if (active2.length >= 5 && inactive2.length >= 5) {
+      const avgA = active2.reduce((s, p)   => s + p.delta, 0) / active2.length;
+      const avgI = inactive2.reduce((s, p) => s + p.delta, 0) / inactive2.length;
+      const diff = avgI - avgA; // positive = low-step days lead to higher next-morning weight
+      if (diff > 0.1) {
+        addInsight(
+          `On days you hit 10k+ steps, the next morning scale reads ~${diff.toFixed(1)} lbs lower than low-step days.`,
           '#0053e2'
         );
       }

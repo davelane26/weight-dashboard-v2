@@ -1055,3 +1055,81 @@ footer::before {
   border-radius: 9999px;
   margin: 0 auto 0.75rem;
 }
+
+/* ── Weight Heatmap ──────────────────────────────────────────────────── */
+.hm-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.hm-day-labels {
+  display: flex;
+  flex-direction: column;
+  padding-top: 18px; /* offset for month row */
+  flex-shrink: 0;
+}
+.hm-day {
+  font-size: 0.6rem;
+  color: var(--text-sub);
+  width: 14px;
+  text-align: right;
+  user-select: none;
+}
+.hm-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.hm-month-row {
+  position: relative;
+  height: 18px;
+}
+.hm-month {
+  position: absolute;
+  font-size: 0.6rem;
+  color: var(--text-sub);
+  white-space: nowrap;
+  user-select: none;
+  top: 2px;
+}
+.hm-grid {
+  display: flex;
+  gap: 3px;
+  align-items: flex-start;
+}
+.hm-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hm-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  cursor: default;
+  transition: transform 0.1s, opacity 0.1s;
+  flex-shrink: 0;
+}
+.hm-cell:hover { transform: scale(1.35); opacity: 0.9; }
+.hm-future {
+  background: transparent !important;
+  cursor: default;
+}
+.hm-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.75rem;
+  font-size: 0.65rem;
+  color: var(--text-sub);
+}
+.hm-leg-bar {
+  width: 80px;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ea1100, #ffc220, #2a8703);
+  flex-shrink: 0;
+}
+.hm-leg-label { white-space: nowrap; }

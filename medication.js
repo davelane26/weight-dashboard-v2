@@ -174,10 +174,135 @@ function renderMedChart() {
   });
 }
 
+// ── Dose Effectiveness Chart ─────────────────────────────────────────────────────
+// Estimates lbs/week per Mounjaro dose phase by matching weight readings
+// to the weight range each phase spans. Needs window.allWeightData from app.js.
+
+let medEffChart = null;
+window.medEffChart = null;
+
+function _phaseWeeks(phases, weightData) {
+  // Sort weight readings oldest-first, deduplicate to one per calendar day
+  const byDay = {};
+  weightData.forEach(r => {
+    const k = r.date.toLocaleDateString('en-CA');
+    if (!byDay[k] || r.date > byDay[k].date) byDay[k] = r;
+  });
+  const sorted = Object.values(byDay).sort((a, b) => a.date - b.date);
+  const today  = new Date();
+
+  return phases.map((phase, i) => {
+    const isActive   = phase.weightEnd === null;
+    const wStart     = phase.weightStart;
+    const wEnd       = isActive ? Math.min(...sorted.map(r => r.weight)) : phase.weightEnd;
+    const lostPhase  = Math.max(0, +(wStart - wEnd).toFixed(1));
+
+    // Estimate phase start: first reading ≤ wStart (+ 1 lb buffer)
+    const startRec = sorted.find(r => r.weight <= wStart + 1);
+    // Estimate phase end: first reading ≤ wEnd (+ 0.5 lb buffer) after start
+    const startIdx = startRec ? sorted.indexOf(startRec) : 0;
+    const endRec   = isActive
+      ? null
+      : sorted.slice(startIdx).find(r => r.weight <= wEnd + 0.5);
+
+    const startDate = startRec ? startRec.date : new Date(today.getTime() - 30 * 86400000);
+    const endDate   = isActive ? today : (endRec ? endRec.date : today);
+
+    const msOn   = Math.max(1, endDate - startDate);
+    const weeks  = msOn / (7 * 86400000);
+    const rate   = weeks > 0.5 ? +(lostPhase / weeks).toFixed(2) : null;
+
+    const label = `${phase.dose}mg${phases.filter((p,j) => j < i && p.dose === phase.dose).length > 0 ? ' (phase ' + (i + 1) + ')' : ''}`;
+    return { label, dose: phase.dose, lostPhase, weeks: +weeks.toFixed(1), rate, isActive };
+  });
+}
+
+function renderMedEffectiveness() {
+  const canvas = _mEl('medEffectivenessChart');
+  if (!canvas) return;
+
+  const data   = loadMedData();
+  const wData  = window.allWeightData;
+  if (!wData || !wData.length) {
+    // No weight data yet — just clear
+    if (medEffChart) { medEffChart.destroy(); medEffChart = null; }
+    return;
+  }
+
+  const curWeight = currentWeight();
+  // Patch active phase for better end-weight estimate
+  const patchedPhases = data.phases.map((p, i) =>
+    i === data.phases.length - 1 ? { ...p, weightEnd: curWeight } : p
+  );
+
+  const phases = _phaseWeeks(data.phases, wData);
+  const labels = phases.map(p => p.label);
+  const rates  = phases.map(p => p.rate);
+  const colors = phases.map(p =>
+    p.isActive ? 'rgba(124,58,237,0.85)' : 'rgba(0,83,226,0.75)'
+  );
+  const borderColors = phases.map(p =>
+    p.isActive ? '#7c3aed' : '#0053e2'
+  );
+
+  if (medEffChart) { medEffChart.destroy(); medEffChart = null; }
+
+  medEffChart = window.medEffChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'lbs lost / week',
+        data: rates,
+        backgroundColor: colors,
+        borderColor: borderColors,
+        borderWidth: 1.5,
+        borderRadius: 8,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const p = phases[ctx.dataIndex];
+              const r = p.rate != null ? p.rate.toFixed(2) : '?';
+              return [
+                ` ${r} lbs/week`,
+                ` −${p.lostPhase} lbs over ~${p.weeks.toFixed(0)} weeks`,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: {
+            color: '#6d7a95',
+            font: { size: 11 },
+            callback: v => v + ' lbs/wk',
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        y: {
+          ticks: { color: '#6d7a95', font: { size: 12, weight: '700' } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
 function renderMedAll() {
-  try { renderMedKPIs();   } catch(e) { console.error('[med] renderMedKPIs',   e); }
-  try { renderMedPhases(); } catch(e) { console.error('[med] renderMedPhases', e); }
-  try { renderMedChart();  } catch(e) { console.error('[med] renderMedChart',  e); }
+  try { renderMedKPIs();         } catch(e) { console.error('[med] renderMedKPIs',         e); }
+  try { renderMedPhases();       } catch(e) { console.error('[med] renderMedPhases',       e); }
+  try { renderMedChart();        } catch(e) { console.error('[med] renderMedChart',        e); }
+  try { renderMedEffectiveness();} catch(e) { console.error('[med] renderMedEffectiveness',e); }
 }
 
 // ── Edit Panel ────────────────────────────────────────────────────────────────
