@@ -1034,7 +1034,9 @@ function renderAll() {
 
   updateSnapshot();
   generateInsights();
-  if (typeof renderHeatmap === 'function') renderHeatmap(allData);
+  if (typeof renderHeatmap     === 'function') renderHeatmap(allData);
+  if (typeof renderReportCard  === 'function') renderReportCard();
+  if (typeof refreshHealthScore=== 'function') refreshHealthScore();
 
   // Expose globally so medication.js can access weight readings for effectiveness calc
   window.allWeightData = allData;
@@ -1351,3 +1353,31 @@ async function init() {
 
 init();
 setInterval(loadData, REFRESH_MS);
+
+// ── AI Weekly Summary loader ─────────────────────────────────────────────────
+async function loadAISummary() {
+  const textEl = document.getElementById('ai-summary-text');
+  const dateEl = document.getElementById('ai-summary-date');
+  if (!textEl) return;
+  try {
+    const resp = await fetch('./weekly-summary.json?t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data.summary) {
+      textEl.textContent = data.summary;
+      if (dateEl && data.week_ending) {
+        const d = new Date(data.week_ending + 'T12:00:00');
+        dateEl.textContent = 'Week of ' + d.toLocaleDateString('en-US',
+          { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+    } else {
+      textEl.textContent = 'Your first AI summary will appear here after the workflow runs on Sunday. '
+        + 'You can also trigger it manually from the GitHub Actions tab.';
+      if (dateEl) dateEl.textContent = 'Not yet generated';
+    }
+  } catch(e) {
+    if (textEl) textEl.textContent = 'Could not load AI summary (offline or not yet generated).';
+  }
+}
+
+loadAISummary();

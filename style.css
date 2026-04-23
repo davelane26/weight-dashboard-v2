@@ -1133,3 +1133,38 @@ footer::before {
   flex-shrink: 0;
 }
 .hm-leg-label { white-space: nowrap; }
+
+/* ── Monthly Report Card ──────────────────────────────────────────────────── */
+.rc-header, .rc-row {
+  display: grid;
+  grid-template-columns: 52px repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.rc-month {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+.rc-cell {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.35rem 0.25rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  letter-spacing: 0.02em;
+  cursor: default;
+}
+.rc-overall { font-size: 0.95rem; }
+.rc-na { background: var(--gray-10); color: var(--text-sub); border-color: var(--border); font-weight: 500; }
+.rc-cell-hdr {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-sub);
+  text-align: center;
+}

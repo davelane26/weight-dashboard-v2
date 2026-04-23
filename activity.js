@@ -223,8 +223,10 @@ function renderActivityKPIs(data) {
   _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
 
   window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: data.sleepScore ?? null };
-  if (typeof updateSnapshot === 'function') updateSnapshot();
-  if (typeof generateInsights === 'function') generateInsights();
+  if (typeof updateSnapshot    === 'function') updateSnapshot();
+  if (typeof generateInsights  === 'function') generateInsights();
+  if (typeof refreshHealthScore=== 'function') refreshHealthScore();
+  if (typeof renderReportCard  === 'function') renderReportCard();
 }
 
 // ── Sleep Breakdown ─────────────────────────────────────────────────────

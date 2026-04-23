@@ -26,6 +26,9 @@
   </script>
   <script src="app.js?v=99" defer></script>
   <script src="heatmap.js?v=1" defer></script>
+  <script src="healthscore.js?v=1" defer></script>
+  <script src="reportcard.js?v=1" defer></script>
+  <script src="healthcard.js?v=1" defer></script>
   <script src="glucose.js?v=99" defer></script>
   <script src="activity.js?v=99" defer></script>
   <script src="medication.js?v=99" defer></script>
@@ -47,6 +50,10 @@
       <p id="readings-count" style="margin-top:2px"></p>
     </div>
     <button class="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode" id="dark-btn">🌙</button>
+    <button id="export-card-btn" onclick="exportHealthCard()" aria-label="Export health card"
+      style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
+      🃏 Export Card
+    </button>
   </div>
 </header>
 
@@ -317,6 +324,19 @@
       <div id="heatmap-grid"></div>
     </section>
 
+    <section class="card fade-in" aria-label="Monthly report card" style="border-left:4px solid #ffc220">
+      <h2 class="card-title">📝 Monthly Report Card</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Graded by weight loss rate, steps &amp; sleep &middot; needs 1 week of data per month</p>
+      <div id="report-card-body"></div>
+      <p id="report-card-empty" style="font-size:0.8rem;color:#6d7a95">Not enough data yet — needs at least a week of readings.</p>
+    </section>
+
+    <section class="card fade-in" aria-label="AI weekly summary" style="border-left:4px solid #7c3aed" id="ai-summary-section">
+      <h2 class="card-title">🤖 Weekly AI Summary</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.75rem">Generated every Sunday by Element (GPT-4.1-mini) · <span id="ai-summary-date"></span></p>
+      <p id="ai-summary-text" style="font-size:0.88rem;line-height:1.65;color:var(--text)">Loading…</p>
+    </section>
+
     <section class="card fade-in" aria-label="Pattern insights" id="insights-section">
       <h2 class="card-title">🧠 Patterns</h2>
       <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
@@ -407,6 +427,12 @@
         <span id="sync-icon">⚡</span> Sync Now
       </button>
     </div>
+    <section class="card fade-in" aria-label="Daily health score" style="border-left:4px solid #ffc220;margin-top:0.75rem">
+      <h2 class="card-title">💯 Today's Health Score</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Composite of steps, sleep &amp; glucose · updates as data loads</p>
+      <div id="health-score-card"><p style="font-size:0.8rem;color:#6d7a95">Loading…</p></div>
+    </section>
+
     <section class="trend-hero fade-in" style="background:linear-gradient(135deg,#1a3a1a 0%,#2a5a2a 100%);color:white">
       <div>
         <p class="trend-label" style="color:rgba(255,255,255,0.7)">Steps Today</p>

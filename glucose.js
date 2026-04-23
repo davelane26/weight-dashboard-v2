@@ -104,6 +104,11 @@ function renderGlucoseStats(readings) {
     tirEl.style.color = tir >= 70 ? '#2a8703' : tir >= 50 ? '#995213' : '#ea1100';
   }
 
+  // Expose TIR globally for health score + other modules
+  window.snapGlucoseTIR = tir;
+  window.snapGlucoseAvg = Math.round(avg);
+  if (typeof refreshHealthScore === 'function') refreshHealthScore();
+
   // Low / high event count badges
   setText('glucose-lows',  lows  + (lows  === 1 ? ' event' : ' events'));
   setText('glucose-highs', highs + (highs === 1 ? ' event' : ' events'));
