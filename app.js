@@ -300,16 +300,17 @@ function delta(val, lowerIsBetter = true) {
   return `<span class="${cls}">${arrow} ${fmt(Math.abs(val))}</span>`;
 }
 
-// ── Set element text/html safely ────────────────────────────────────────
+// ── Set element text/html safely ────────────────────────────────────
 const el      = id => document.getElementById(id);
-const setText = (id, v) => { const e = el(id); if (e) e.textContent = v; };
-const setHTML = (id, v) => { const e = el(id); if (e) e.innerHTML   = v; };
+const setText = (id, v) => { const e = el(id); if (e) { e.textContent = v; e.classList.remove('skel'); } };
+const setHTML = (id, v) => { const e = el(id); if (e) { e.innerHTML   = v; e.classList.remove('skel'); } };
 
-// ── Animated counter ────────────────────────────────────────────────────
+// ── Animated counter ──────────────────────────────────────────────────
 function countUp(id, target, decimals = 1, suffix = '', duration = 900) {
   const e = el(id);
   const t = +target;
   if (!e || isNaN(t)) return;
+  e.classList.remove('skel');                          // strip skeleton now
   // Set correct value immediately — never let raw float leak to screen
   e.textContent = t.toFixed(decimals) + suffix;
   const start    = performance.now();
@@ -1051,6 +1052,7 @@ function updateSnapshot() {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = text;
+    el.classList.remove('skel');                       // strip skeleton
     if (cls) { el.className = 'snap-delta ' + cls; }
   };
 

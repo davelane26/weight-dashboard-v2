@@ -228,7 +228,7 @@ main {
   border: 1px solid rgba(255,255,255,0.9);
   padding: 1rem 1rem 0.875rem;
   border-top: 3px solid var(--gray-50);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.28s, border-color 0.28s;
 }
 .kpi:hover {
   transform: translateY(-4px);
@@ -958,7 +958,7 @@ main {
   text-align: center;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.28s, border-color 0.28s;
 }
 .snap-cell:hover {
   transform: translateY(-3px);
@@ -1036,6 +1036,94 @@ main {
 }
 #root.dark .trend-label { color: var(--text-sub); }
 #root.dark .trend-sub   { color: var(--text-sub); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v3 enhancements — skeleton loading, colored snaps, a11y, polish
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Skeleton shimmer loading state ──────────────────────── */
+@keyframes skelShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.skel {
+  background: linear-gradient(
+    90deg,
+    var(--border) 25%,
+    var(--table-stripe) 50%,
+    var(--border) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: skelShimmer 1.4s ease-in-out infinite !important;
+  border-radius: 6px !important;
+  color: transparent !important;
+  user-select: none !important;
+  display: inline-block !important;
+  min-width: 4rem !important;
+  min-height: 0.9em !important;
+  pointer-events: none !important;
+}
+
+/* ── Smooth dark/light mode transitions ──────────────────── */
+/* .kpi and .snap-cell already declare their own transitions above  */
+body,
+.card,
+.stat-box, .cal-box,
+.insight-chip, .journey-insights,
+.progress-track, .mobile-tab-bar,
+.glucose-chip {
+  transition:
+    background-color 0.28s ease,
+    border-color     0.28s ease,
+    color            0.28s ease;
+}
+
+/* ── Colored snap-strip values (mirror the top-border accent) */
+.snap-grid .snap-cell:nth-child(1) .snap-val { color: var(--blue-100);  }
+.snap-grid .snap-cell:nth-child(2) .snap-val { color: var(--green-100); }
+.snap-grid .snap-cell:nth-child(3) .snap-val { color: var(--spark-140); }
+.snap-grid .snap-cell:nth-child(4) .snap-val { color: #7c3aed;          }
+/* Dark mode: use lighter variants so they still pop */
+#root.dark .snap-grid .snap-cell:nth-child(1) .snap-val { color: #60a5fa;  }
+#root.dark .snap-grid .snap-cell:nth-child(2) .snap-val { color: #4ade80;  }
+#root.dark .snap-grid .snap-cell:nth-child(3) .snap-val { color: var(--spark-100); }
+#root.dark .snap-grid .snap-cell:nth-child(4) .snap-val { color: #a78bfa;  }
+
+/* ── Snap label icon line ─────────────────────────────────── */
+.snap-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* ── Desktop tab active sparkle underline ─────────────────── */
+.tab-btn { position: relative; }
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 48%;
+  height: 3px;
+  background: var(--spark-100);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 10px rgba(255,194,32,0.8);
+}
+
+/* ── WCAG 2.2 focus-visible rings ────────────────────────── */
+:focus { outline: none; }
+:focus-visible {
+  outline: 3px solid var(--spark-100);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible,
+input:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 3px solid var(--spark-100);
+  outline-offset: 3px;
+}
 
 /* ── Polished footer ───────────────────────────────────────────── */
 footer {
