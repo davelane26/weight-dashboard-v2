@@ -29,9 +29,13 @@
   </script>
   <script src="app.js?v=99" defer></script>
   <script src="heatmap.js?v=1" defer></script>
-  <script src="enhancements.js?v=1" defer></script>
-  <!-- Tab-specific scripts (glucose, activity, healthscore, reportcard, healthcard, medication)
-       are now lazy-loaded by enhancements.js on first tab activation. -->
+  <!-- Eagerly loaded: these render into the default Weight tab + header button. -->
+  <script src="healthscore.js?v=1" defer></script>
+  <script src="reportcard.js?v=1" defer></script>
+  <script src="healthcard.js?v=1" defer></script>
+  <script src="enhancements.js?v=2" defer></script>
+  <!-- Lazy-loaded by enhancements.js on first tab activation:
+       glucose.js, activity.js, medication.js -->
 </head>
 <body>
 

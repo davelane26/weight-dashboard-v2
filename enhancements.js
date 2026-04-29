@@ -320,7 +320,7 @@
   // ─────────────────────────────────────────────────────────────
   const LAZY_TAB_SCRIPTS = {
     glucose:    ['glucose.js?v=99'],
-    activity:   ['activity.js?v=99', 'healthscore.js?v=1', 'reportcard.js?v=1', 'healthcard.js?v=1'],
+    activity:   ['activity.js?v=99'],
     medication: ['medication.js?v=99'],
   };
   const _loaded = new Set();
