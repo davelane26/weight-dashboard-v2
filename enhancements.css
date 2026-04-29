@@ -1,0 +1,166 @@
+/* ════════════════════════════════════════════════════════════════════
+   enhancements.css — wave 1+ feature styling
+   Loaded after polish.css. Holds styles for export menu, density mode,
+   install banner, H1 polish, etc. (Companion to enhancements.js.)
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── H1 typography upgrade ─────────────────────────────────────── */
+.header h1 {
+  font-size: 1.6rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.1 !important;
+}
+@media (min-width: 768px) {
+  .header h1 { font-size: 1.85rem !important; }
+}
+
+/* ── Header utility buttons (Export, Density, Card, Dark) ─────── */
+.header-utility-btn,
+#export-card-btn,
+.data-export-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(4px);
+          backdrop-filter: blur(4px);
+  min-height: 44px;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+.header-utility-btn:hover,
+.data-export-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.header-utility-btn:active,
+.data-export-btn:active { transform: scale(0.97); }
+
+/* ── Data export menu ──────────────────────────────────────────── */
+.data-export-wrap { position: relative; display: inline-block; }
+.data-export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--card-bg, #fff);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.25);
+  min-width: 180px;
+  padding: 0.35rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.data-export-menu[hidden] { display: none; }
+.data-export-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+}
+.data-export-menu button:hover {
+  background: rgba(0, 83, 226, 0.08);
+}
+#root.dark .data-export-menu button:hover {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+/* ── Compact density mode (toggle in header) ──────────────────── */
+html.density-compact main           { gap: 0.85rem; padding: 1rem; }
+html.density-compact .card          { padding: 0.9rem 1rem; }
+html.density-compact .kpi           { padding: 0.7rem 0.7rem 0.55rem; }
+html.density-compact .kpi-value     { font-size: 1.55rem; }
+html.density-compact .kpi-label     { font-size: 0.58rem; }
+html.density-compact .kpi-sub       { font-size: 0.62rem; }
+html.density-compact .stat-box      { padding: 0.65rem; }
+html.density-compact .stat-box .val { font-size: 1.35rem; }
+html.density-compact .trend-hero    { padding: 1rem 1.1rem; }
+html.density-compact .trend-value   { font-size: 2.6rem; }
+html.density-compact .snap-cell     { padding: 10px 8px 8px; }
+html.density-compact .snap-val      { font-size: 17px; }
+html.density-compact .card-title    {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.55rem;
+  margin-bottom: 0.6rem;
+}
+
+/* ── PWA install banner ───────────────────────────────────────── */
+#pwa-install-banner {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--card-bg, #fff);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  max-width: calc(100vw - 2rem);
+  width: 420px;
+  z-index: 9999;
+  animation: pwaSlideUp 0.32s cubic-bezier(.4,0,.2,1) both;
+}
+@keyframes pwaSlideUp {
+  from { opacity: 0; transform: translate(-50%, 24px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #pwa-install-banner { animation: none !important; }
+}
+#pwa-install-banner .pwa-icon { font-size: 1.6rem; flex-shrink: 0; }
+#pwa-install-banner .pwa-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+#pwa-install-banner .pwa-text strong { font-size: 0.92rem; color: var(--text); }
+#pwa-install-banner .pwa-text span   { font-size: 0.75rem; color: var(--text-sub); }
+.pwa-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  min-height: 38px;
+}
+.pwa-btn-primary { background: var(--blue-100); color: #fff; }
+.pwa-btn-primary:hover { background: var(--blue-110); }
+.pwa-btn-secondary {
+  background: transparent;
+  color: var(--text-sub);
+  width: 38px;
+  padding: 0;
+  font-size: 1rem;
+}
+.pwa-btn-secondary:hover { color: var(--red-100); }
+@media (max-width: 640px) {
+  #pwa-install-banner { bottom: 76px; } /* avoid mobile bottom tab bar */
+}
+
+/* ── Density toggle visible only on wider screens ─────────────── */
+@media (max-width: 480px) {
+  #density-toggle { display: none; }
+}
