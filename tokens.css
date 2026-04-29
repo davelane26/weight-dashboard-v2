@@ -1,0 +1,175 @@
+/* ════════════════════════════════════════════════════════════════════
+   tokens.css — wave 2 design tokens + utility classes
+   Replaces ~80+ inline `style=` attributes throughout index.html.
+   Loaded after enhancements.css. Survives dark mode.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Color modifier mixin for cards ─────────────────────────────
+   Apply two classes:
+     <div class="kpi kpi--blue">
+   …drives border-top-color, soft gradient bg, label + value color.
+   ────────────────────────────────────────────────────────────── */
+
+/* color tokens (kept in a single place for dark-mode overrides) */
+:root {
+  --tone-blue:    #0053e2;
+  --tone-red:     #ea1100;
+  --tone-gold:    #ffc220;
+  --tone-gold-d:  #995213;
+  --tone-green:   #2a8703;
+  --tone-cyan:    #0891b2;
+  --tone-gray:    #6b7280;
+  --tone-gray-d:  #374151;
+  --tone-purple:  #7c3aed;
+
+  --tint-blue:    #eff4ff;
+  --tint-red:     #fff1f0;
+  --tint-gold:    #fef9ec;
+  --tint-green:   #f0fdf4;
+  --tint-cyan:    #ecfeff;
+  --tint-gray:    #f9fafb;
+  --tint-purple:  #f5f3ff;
+}
+#root.dark {
+  /* darker gradients so the cards still feel "tinted" but readable */
+  --tint-blue:   rgba(0, 83, 226, 0.10);
+  --tint-red:    rgba(234, 17, 0, 0.10);
+  --tint-gold:   rgba(255, 194, 32, 0.10);
+  --tint-green:  rgba(42, 135, 3, 0.10);
+  --tint-cyan:   rgba(8, 145, 178, 0.10);
+  --tint-gray:   rgba(107, 114, 128, 0.10);
+  --tint-purple: rgba(124, 58, 237, 0.10);
+}
+
+/* ── KPI tone modifiers ───────────────────────────────────────── */
+.kpi--blue,
+.kpi--red,
+.kpi--gold,
+.kpi--green,
+.kpi--cyan,
+.kpi--gray,
+.kpi--purple {
+  /* Border + tinted bg gradient */
+  border-top-width: 3px;
+  border-top-style: solid;
+}
+.kpi--blue   { border-top-color: var(--tone-blue);   background-image: linear-gradient(135deg, var(--tint-blue)   0%, transparent 65%); }
+.kpi--red    { border-top-color: var(--tone-red);    background-image: linear-gradient(135deg, var(--tint-red)    0%, transparent 65%); }
+.kpi--gold   { border-top-color: var(--tone-gold);   background-image: linear-gradient(135deg, var(--tint-gold)   0%, transparent 65%); }
+.kpi--green  { border-top-color: var(--tone-green);  background-image: linear-gradient(135deg, var(--tint-green)  0%, transparent 65%); }
+.kpi--cyan   { border-top-color: var(--tone-cyan);   background-image: linear-gradient(135deg, var(--tint-cyan)   0%, transparent 65%); }
+.kpi--gray   { border-top-color: var(--tone-gray);   background-image: linear-gradient(135deg, var(--tint-gray)   0%, transparent 65%); }
+.kpi--purple { border-top-color: var(--tone-purple); background-image: linear-gradient(135deg, var(--tint-purple) 0%, transparent 65%); }
+
+/* Inner text color picks up the tone — NO need for inline style="color:#xxx" */
+.kpi--blue   .kpi-label, .kpi--blue   .kpi-value { color: var(--tone-blue);   }
+.kpi--red    .kpi-label, .kpi--red    .kpi-value { color: var(--tone-red);    }
+.kpi--gold   .kpi-label, .kpi--gold   .kpi-value { color: var(--tone-gold-d); }
+.kpi--green  .kpi-label, .kpi--green  .kpi-value { color: var(--tone-green);  }
+.kpi--cyan   .kpi-label, .kpi--cyan   .kpi-value { color: var(--tone-cyan);   }
+.kpi--gray   .kpi-label                          { color: var(--tone-gray);   }
+.kpi--gray   .kpi-value                          { color: var(--tone-gray-d); }
+.kpi--purple .kpi-label, .kpi--purple .kpi-value { color: var(--tone-purple); }
+
+/* Dark mode: lift label+value brightness so they pop on dark gradient bg */
+#root.dark .kpi--blue   .kpi-label, #root.dark .kpi--blue   .kpi-value { color: #60a5fa; }
+#root.dark .kpi--red    .kpi-label, #root.dark .kpi--red    .kpi-value { color: #fca5a5; }
+#root.dark .kpi--gold   .kpi-label, #root.dark .kpi--gold   .kpi-value { color: #fcd34d; }
+#root.dark .kpi--green  .kpi-label, #root.dark .kpi--green  .kpi-value { color: #4ade80; }
+#root.dark .kpi--cyan   .kpi-label, #root.dark .kpi--cyan   .kpi-value { color: #67e8f9; }
+#root.dark .kpi--gray   .kpi-label                                     { color: #9ca3af; }
+#root.dark .kpi--gray   .kpi-value                                     { color: #d1d5db; }
+#root.dark .kpi--purple .kpi-label, #root.dark .kpi--purple .kpi-value { color: #a78bfa; }
+
+/* ── Stat-box tone modifiers ──────────────────────────────────── */
+.stat-box--blue  { background: var(--tint-blue);  }
+.stat-box--gold  { background: var(--tint-gold);  }
+.stat-box--green { background: var(--tint-green); }
+.stat-box--gray  { background: var(--tint-gray);  }
+.stat-box--blue  .label, .stat-box--blue  .val { color: var(--tone-blue);   }
+.stat-box--gold  .label, .stat-box--gold  .val { color: var(--tone-gold-d); }
+.stat-box--green .label, .stat-box--green .val { color: var(--tone-green);  }
+.stat-box--gray  .label                         { color: var(--tone-gray);   }
+.stat-box--gray  .val                           { color: var(--tone-gray-d); }
+
+#root.dark .stat-box--blue  .label, #root.dark .stat-box--blue  .val { color: #93c5fd; }
+#root.dark .stat-box--gold  .label, #root.dark .stat-box--gold  .val { color: #fcd34d; }
+#root.dark .stat-box--green .label, #root.dark .stat-box--green .val { color: #86efac; }
+#root.dark .stat-box--gray  .label                                   { color: #9ca3af; }
+#root.dark .stat-box--gray  .val                                     { color: #e5e7eb; }
+
+/* ── Calorie box tone modifiers ────────────────────────────────── */
+.cal-box--blue  { background: var(--tint-blue);  }
+.cal-box--green { background: var(--tint-green); }
+.cal-box--gold  { background: var(--tint-gold);  }
+.cal-box--blue  .cal-label, .cal-box--blue  .cal-val { color: var(--tone-blue);   }
+.cal-box--green .cal-label, .cal-box--green .cal-val { color: var(--tone-green);  }
+.cal-box--gold  .cal-label, .cal-box--gold  .cal-val { color: var(--tone-gold-d); }
+#root.dark .cal-box--blue  .cal-label, #root.dark .cal-box--blue  .cal-val { color: #93c5fd; }
+#root.dark .cal-box--green .cal-label, #root.dark .cal-box--green .cal-val { color: #86efac; }
+#root.dark .cal-box--gold  .cal-label, #root.dark .cal-box--gold  .cal-val { color: #fcd34d; }
+
+/* ── Card left-accent stripes ─────────────────────────────────── */
+.card--accent-blue   { border-left: 4px solid var(--tone-blue);   }
+.card--accent-gold   { border-left: 4px solid var(--tone-gold);   }
+.card--accent-green  { border-left: 4px solid var(--tone-green);  }
+.card--accent-purple { border-left: 4px solid var(--tone-purple); }
+
+/* ── Generic text utility classes (replace inline style="color:#…") ──── */
+.text-muted     { color: var(--text-sub); }
+.text-strong    { color: var(--text); }
+.text-blue      { color: var(--tone-blue); }
+.text-purple    { color: var(--tone-purple); }
+.text-green     { color: var(--tone-green); }
+.text-red       { color: var(--tone-red); }
+.text-gold      { color: var(--tone-gold-d); }
+#root.dark .text-blue   { color: #93c5fd; }
+#root.dark .text-purple { color: #a78bfa; }
+#root.dark .text-green  { color: #86efac; }
+#root.dark .text-red    { color: #fca5a5; }
+#root.dark .text-gold   { color: #fcd34d; }
+
+/* tiny + medium typography helpers */
+.text-xxs { font-size: 0.62rem; }
+.text-xs  { font-size: 0.7rem;  }
+.text-sm  { font-size: 0.78rem; }
+
+/* ── Projector & medication: dark-safe text fallback ──────────── */
+/* These inline-styled tabs were missing dark-mode coverage.        */
+#root.dark #tab-projector  p,
+#root.dark #tab-projector  span,
+#root.dark #tab-projector  label,
+#root.dark #tab-medication p,
+#root.dark #tab-medication span,
+#root.dark #tab-medication label,
+#root.dark #tab-medication h2,
+#root.dark #tab-medication h3 {
+  /* Override hardcoded #1a2340 / #374151 / #6d7a95 inline colors */
+  color: var(--text) !important;
+}
+/* Subtle text inside those tabs uses the dark-aware sub color */
+#root.dark #tab-projector  p[style*="color:#6d7a95"],
+#root.dark #tab-projector  span[style*="color:#6d7a95"],
+#root.dark #tab-medication p[style*="color:#6d7a95"],
+#root.dark #tab-medication span[style*="color:#6d7a95"] {
+  color: var(--text-sub) !important;
+}
+/* Inputs in the projector */
+#root.dark #proj-date-input,
+#root.dark #med-edit-start,
+#root.dark #tab-medication input[type="date"],
+#root.dark #tab-medication input[type="text"],
+#root.dark #tab-medication input[type="number"] {
+  background: var(--input-bg) !important;
+  color: var(--text) !important;
+  border-color: var(--input-border) !important;
+}
+/* Med edit panel — purple-tinted bg */
+#med-edit-panel { background: var(--tint-purple); }
+#root.dark #med-edit-panel {
+  background: rgba(124, 58, 237, 0.08) !important;
+}
+/* Sleep tab "stages" hard-coded purple bg cards */
+#root.dark #tab-medication .card[style*="background:#faf5ff"] {
+  background: rgba(124, 58, 237, 0.08) !important;
+}
