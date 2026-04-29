@@ -380,7 +380,7 @@
   // Only medication.js is lazy now — glucose.js + activity.js feed the
   // Weight tab snapshot strip, so they must be eager-loaded.
   const LAZY_TAB_SCRIPTS = {
-    medication: ['medication.js?v=99'],
+    medication: ['medication.js?v=100'],
   };
   const _loaded = new Set();
   function loadScriptOnce(src) {

@@ -1,9 +1,17 @@
 /**
  * medication.js — Mounjaro journey tracker
- * Data saved in localStorage — edit via the ✏️ Edit button on the tab.
+ *
+ * Storage strategy:
+ *   • localStorage  = write-through cache (instant render, offline-friendly)
+ *   • Firebase RTDB = source of truth (survives cache clears, cross-device sync)
+ *
+ * Flow:
+ *   render()  → reads localStorage synchronously
+ *   on boot   → fetches cloud in background, merges newest by updatedAt, re-renders
+ *   save()    → stamps updatedAt, writes localStorage, pushes to cloud
  */
 
-// ── Defaults (used if nothing in localStorage) ────────────────────────────────
+// ── Defaults (used if NEITHER localStorage NOR cloud has data) ────────────────
 const MJ_DEFAULTS = {
   startDate: '2026-01-29',
   phases: [
@@ -13,7 +21,104 @@ const MJ_DEFAULTS = {
   ],
 };
 
-const LS_KEY = 'mj_journey_v1';
+const LS_KEY        = 'mj_journey_v1';
+const FIREBASE_BASE = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
+const CLOUD_URL     = `${FIREBASE_BASE}/medication/journey.json`;
+
+// ── Cloud sync ──────────────────────────────────────────────────────────────────
+async function fetchMedDataFromCloud() {
+  try {
+    const resp = await fetch(CLOUD_URL + '?t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    if (json && Array.isArray(json.phases) && json.phases.length) return json;
+    return null;
+  } catch (e) {
+    console.warn('[medication] cloud fetch failed:', e.message);
+    return null;
+  }
+}
+
+async function pushMedDataToCloud(data) {
+  try {
+    const resp = await fetch(CLOUD_URL, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return true;
+  } catch (e) {
+    console.warn('[medication] cloud push failed:', e.message);
+    return false;
+  }
+}
+
+// Background sync on boot: merge cloud ↔ local by `updatedAt`, then re-render.
+async function syncMedDataWithCloud() {
+  setSyncStatus('syncing');
+  const [cloud, local] = [await fetchMedDataFromCloud(), loadMedData()];
+
+  if (!cloud && !localStorage.getItem(LS_KEY)) {
+    // Neither side has anything — push the on-screen defaults so the cloud
+    // gets seeded for next device.
+    const seeded = { ...local, updatedAt: new Date().toISOString() };
+    persistMedData(seeded);
+    pushMedDataToCloud(seeded);
+    setSyncStatus('synced');
+    return;
+  }
+  if (cloud && !localStorage.getItem(LS_KEY)) {
+    // First load on a new device — cloud wins.
+    persistMedData(cloud);
+    renderMedAll();
+    setSyncStatus('synced');
+    return;
+  }
+  if (cloud && local) {
+    const cloudT = Date.parse(cloud.updatedAt || 0) || 0;
+    const localT = Date.parse(local.updatedAt || 0) || 0;
+    if (cloudT > localT) {
+      // Cloud is newer — adopt it
+      persistMedData(cloud);
+      renderMedAll();
+    } else if (localT > cloudT) {
+      // Local is newer — push it up
+      pushMedDataToCloud(local);
+    }
+    // Equal timestamps = nothing to do
+  }
+  setSyncStatus('synced');
+}
+
+// Tiny pill in the bottom-right corner so you can see sync state at a glance.
+function setSyncStatus(state) {
+  let pill = document.getElementById('med-sync-pill');
+  if (!pill) {
+    pill = document.createElement('div');
+    pill.id = 'med-sync-pill';
+    pill.style.cssText = [
+      'position:fixed', 'bottom:0.5rem', 'left:0.5rem', 'z-index:9998',
+      'font-size:0.65rem', 'font-weight:700', 'padding:3px 8px',
+      'border-radius:10px', 'pointer-events:none', 'opacity:0.85',
+      'transition:opacity 0.4s, background-color 0.3s',
+    ].join(';');
+    document.body.appendChild(pill);
+  }
+  const styles = {
+    syncing: { bg: '#fef9ec', fg: '#995213', text: '↻ syncing…' },
+    synced:  { bg: '#dcfce7', fg: '#166534', text: '✓ synced'    },
+    error:   { bg: '#fee2e2', fg: '#991b1b', text: '⚠ offline'  },
+  }[state] || { bg: '#e5e7eb', fg: '#6d7a95', text: state };
+  pill.style.background = styles.bg;
+  pill.style.color      = styles.fg;
+  pill.textContent      = styles.text;
+  if (state === 'synced') {
+    setTimeout(() => { if (pill) pill.style.opacity = '0'; }, 2500);
+  } else {
+    pill.style.opacity = '0.85';
+  }
+}
 
 // ── Load / Save ───────────────────────────────────────────────────────────────
 function loadMedData() {
@@ -35,6 +140,10 @@ function persistMedData(data) {
 function resetMedData() {
   localStorage.removeItem(LS_KEY);
   if (_mEl('med-edit-panel')) toggleMedEdit();
+  // Push the reset state up so other devices match.
+  const fresh = { ...JSON.parse(JSON.stringify(MJ_DEFAULTS)), updatedAt: new Date().toISOString() };
+  persistMedData(fresh);
+  pushMedDataToCloud(fresh);
   renderMedAll();
   showMedToast('Reset to defaults');
 }
@@ -415,21 +524,29 @@ function saveMedData() {
     const data = {
       startDate: startEl ? startEl.value || MJ_DEFAULTS.startDate : MJ_DEFAULTS.startDate,
       phases,
+      updatedAt: new Date().toISOString(),
     };
 
     persistMedData(data);
     toggleMedEdit();
     renderMedAll();
-    showMedToast('✓ Saved!');
+    showMedToast('✓ Saved locally…');
+    setSyncStatus('syncing');
+    pushMedDataToCloud(data).then(ok => {
+      setSyncStatus(ok ? 'synced' : 'error');
+      if (ok) showMedToast('✓ Synced to cloud');
+      else    showMedToast('⚠ Saved locally, cloud sync failed', true);
+    });
   } catch (err) {
     console.error('[medication] save error:', err);
     showMedToast('Save failed: ' + err.message, true);
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────────────────────────────────────
 function initMedication() {
-  renderMedAll();
+  renderMedAll();         // 1. Instant render from localStorage cache
+  syncMedDataWithCloud(); // 2. Background merge with Firebase, re-render if newer
 }
 
 document.addEventListener('DOMContentLoaded', () => {
