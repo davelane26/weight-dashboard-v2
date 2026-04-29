@@ -82,6 +82,8 @@ function renderGlucoseHero(current) {
 // ── Render stats chips ───────────────────────────────────────────────────
 function renderGlucoseStats(readings) {
   if (!readings.length) return;
+  // Expose for export feature (CSV/JSON downloads)
+  window.glucoseHistory = readings;
 
   const vals   = readings.map(r => r.value).filter(Boolean);
   const avg    = vals.reduce((a, b) => a + b, 0) / vals.length;

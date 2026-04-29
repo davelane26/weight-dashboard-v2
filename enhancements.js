@@ -140,8 +140,11 @@
 
   // ─────────────────────────────────────────────────────────────
   // 3. Data export (CSV + JSON)
-  //    Pulls from window.allData (set by app.js). Renders a tiny
-  //    drop-in menu next to the Export Card button.
+  //    Sources (whatever's loaded at click time):
+  //      • window.allWeightData — weight readings (date,weight,bmi,...)
+  //      • window.glucoseHistory — ~24h CGM readings (if Glucose tab visited)
+  //      • window.snapActivityDays — Garmin daily summaries
+  //    Renders a dropdown next to the Export Card button.
   // ─────────────────────────────────────────────────────────────
   function downloadFile(filename, content, mime) {
     const blob = new Blob([content], { type: mime });
@@ -157,16 +160,21 @@
     const dt = d instanceof Date ? d : new Date(d);
     return dt.toISOString().slice(0, 10);
   }
+  function getWeightRows() {
+    return window.allWeightData || window.allData || [];
+  }
+  function csvCell(v) {
+    if (v == null) return '';
+    const s = String(v);
+    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
   function exportCSV() {
-    const data = window.allData || [];
-    if (!data.length) { alert('No data loaded yet.'); return; }
+    const data = getWeightRows();
+    if (!data.length) { alert('No weight data loaded yet — try again in a sec.'); return; }
     const cols = ['date', 'weight', 'bmi', 'bodyFat', 'muscle', 'water', 'bone', 'bmr', 'tdee'];
     const header = cols.join(',');
     const rows = data.map(r =>
-      cols.map(c => {
-        const v = c === 'date' ? fmtIsoDate(r[c]) : (r[c] ?? '');
-        return typeof v === 'string' && v.includes(',') ? `"${v}"` : v;
-      }).join(',')
+      cols.map(c => csvCell(c === 'date' ? fmtIsoDate(r[c]) : r[c])).join(',')
     );
     downloadFile(
       `weight-data-${fmtIsoDate(new Date())}.csv`,
@@ -175,11 +183,21 @@
     );
   }
   function exportJSON() {
-    const data = window.allData || [];
-    if (!data.length) { alert('No data loaded yet.'); return; }
-    const payload = data.map(r => ({ ...r, date: fmtIsoDate(r.date) }));
+    const weight = getWeightRows();
+    if (!weight.length) { alert('No weight data loaded yet — try again in a sec.'); return; }
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      counts: {
+        weightReadings: weight.length,
+        glucoseReadings: (window.glucoseHistory   || []).length,
+        activityDays:    (window.snapActivityDays || []).length,
+      },
+      weight: weight.map(r => ({ ...r, date: fmtIsoDate(r.date) })),
+      glucose:  window.glucoseHistory   || null,
+      activity: window.snapActivityDays || null,
+    };
     downloadFile(
-      `weight-data-${fmtIsoDate(new Date())}.json`,
+      `health-data-${fmtIsoDate(new Date())}.json`,
       JSON.stringify(payload, null, 2),
       'application/json'
     );
