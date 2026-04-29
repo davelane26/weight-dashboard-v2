@@ -1,0 +1,259 @@
+/* ═══════════════════════════════════════════════════════════════════
+   v4 polish — visual + mobile + a11y refinements
+   Loaded AFTER style.css so these rules win.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* ── A11y: skip-to-content link ────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  background: var(--blue-100);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  z-index: 9999;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: top 0.18s ease;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 8px;
+  outline: 3px solid var(--spark-100);
+  outline-offset: 3px;
+}
+
+/* ── A11y: stronger contrast on subtle text (light mode only) ──── */
+/* #6d7a95 on white = 4.41:1 — borderline. Bump it slightly. */
+:root {
+  --text-sub-strong: #5a6680; /* 5.43:1 on white — passes AA */
+}
+.kpi-sub,
+.snap-label,
+.insight-label,
+.bmi-step-range,
+footer {
+  color: var(--text-sub-strong);
+}
+#root.dark .kpi-sub,
+#root.dark .snap-label,
+#root.dark .insight-label,
+#root.dark .bmi-step-range,
+#root.dark footer {
+  color: var(--text-sub);
+}
+
+/* ── A11y: header meta text — was rgba(255,255,255,0.6/0.65) ──── */
+.header-inner p[style*="rgba(255,255,255,0.65)"],
+.header-meta p {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* ── A11y + UX: prefers-reduced-motion ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Kill the constantly-animated noisy ones explicitly */
+  .header,
+  .progress-fill,
+  .milestone-ring.current .milestone-circle,
+  .skel,
+  .fade-in {
+    animation: none !important;
+  }
+  /* Static gradient instead of shifting one */
+  .header {
+    background: linear-gradient(135deg, #0041c4 0%, #0053e2 50%, #0041c4 100%) !important;
+  }
+  body::before {
+    /* Dotted overlay can be visually loud — kill on reduced-motion */
+    display: none !important;
+  }
+}
+
+/* ── A11y + Mobile: bigger touch targets in header ─────────────── */
+.dark-toggle {
+  width: 44px;
+  height: 44px;
+  font-size: 1.2rem;
+}
+#export-card-btn {
+  min-height: 44px;
+  padding: 0.5rem 0.9rem !important;
+}
+
+/* ── A11y + Visual: tab nav — sticky shadow + fade indicators ─── */
+.tab-nav {
+  /* subtle shadow when content scrolls under it */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  /* hint that this scrolls horizontally on small screens */
+  scroll-snap-type: x proximity;
+}
+.tab-btn {
+  scroll-snap-align: start;
+  min-height: 44px; /* WCAG 2.2 target size */
+}
+
+/* Right-edge fade hint for horizontal scroll on mobile (visual cue) */
+@media (max-width: 900px) {
+  .tab-nav {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+  }
+}
+
+/* ── Status bar — dark mode + contrast fix ─────────────────────── */
+#status-bar {
+  background: #fef9c3 !important;
+  color: #6b4f00 !important; /* 7.4:1 on #fef9c3, was #854d0e (4.4:1, borderline) */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+#root.dark #status-bar {
+  background: #3a2e00 !important;
+  color: #fde68a !important;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Visual: insight chips — softer, more depth ────────────────── */
+.insight-chip {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.insight-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 53, 226, 0.10);
+}
+
+/* ── Visual: card hover lift ───────────────────────────────────── */
+.card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease,
+              background-color 0.28s ease, border-color 0.28s ease;
+}
+.card:hover {
+  box-shadow: 0 8px 28px rgba(0, 53, 226, 0.10), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Mobile: projector tab side-by-side → stack gracefully ─────── */
+@media (max-width: 640px) {
+  /* The projector grid is set inline as 1fr 1fr — override to stack */
+  #tab-projector > section > div[style*="grid-template-columns:1fr 1fr"],
+  #tab-projector > section > div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  /* Countdown grid inside projector */
+  #proj-countdown > div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ── Mobile: medication header on small screens ────────────────── */
+@media (max-width: 540px) {
+  #tab-medication .card:first-child > div {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  #tab-medication .card:first-child > div > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ── A11y: focus ring inside dark header (spark on blue ≈ AA) ──── */
+.header :focus-visible {
+  outline-color: #ffd966 !important; /* lighter spark for better contrast on blue */
+  outline-offset: 3px !important;
+}
+
+/* ── Visual: footer separator gradient looks better with spacing ─ */
+footer { padding-top: 2rem; }
+
+/* ── Visual: scroll-to-top button (auto-shown via JS in polish.js) */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--blue-100);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 53, 226, 0.35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 950;
+  transition: transform 0.15s, background 0.15s, opacity 0.2s;
+  opacity: 0;
+}
+.scroll-top-btn.visible {
+  display: flex;
+  opacity: 1;
+}
+.scroll-top-btn:hover { background: var(--blue-110); transform: translateY(-2px); }
+.scroll-top-btn:active { transform: scale(0.95); }
+@media (max-width: 640px) {
+  /* Don't collide with the bottom tab bar */
+  .scroll-top-btn { bottom: 76px; }
+}
+#root.dark .scroll-top-btn {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ── Print styles — clean, ink-friendly ────────────────────────── */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body::before { display: none !important; }
+  .header,
+  .tab-nav,
+  .mobile-tab-bar,
+  .scroll-top-btn,
+  .skip-link,
+  #export-card-btn,
+  .dark-toggle,
+  .collapse-toggle,
+  #status-bar,
+  footer {
+    display: none !important;
+  }
+  /* Show all tab panels for a complete printout */
+  [role="tabpanel"][hidden] { display: block !important; }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+    page-break-inside: avoid;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .chart-wrap, .comp-chart-wrap { page-break-inside: avoid; }
+  .fade-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+  main { max-width: 100% !important; padding: 0 !important; gap: 0.75rem !important; }
+}
+
+/* ── Visual: smoother scroll for in-page anchors ─────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* ── A11y: link underline-on-focus for embedded links inside body ─ */
+a:focus-visible {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
