@@ -27,7 +27,15 @@
   <script>
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
   </script>
-  <script src="app.js?v=99" defer></script>
+  <!-- Modular app split — load in dependency order, all defer = parsed in HTML order, executed after DOM ready -->
+<script src="app-config.js?v=1"   defer></script>
+<script src="app-utils.js?v=1"    defer></script>
+<script src="app-tabs.js?v=1"     defer></script>
+<script src="app-kpis.js?v=1"     defer></script>
+<script src="app-charts.js?v=1"   defer></script>
+<script src="app-goal.js?v=1"     defer></script>
+<script src="app-insights.js?v=1" defer></script>
+<script src="app.js?v=100"        defer></script>
   <script src="heatmap.js?v=1" defer></script>
   <!-- Eagerly loaded: these render into the default Weight tab + header button. -->
   <script src="healthscore.js?v=1" defer></script>
