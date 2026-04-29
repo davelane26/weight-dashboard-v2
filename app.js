@@ -128,3 +128,76 @@ async function init() {
 init();
 setInterval(loadData, REFRESH_MS);
 loadAISummary();
+
+// ── Manual trigger for the AI Summary workflow ────────────────────────
+// We don't ship a Personal Access Token in client-side JS (the repo is
+// public — that'd leak it instantly). Instead, pop the GitHub Actions
+// page in a new tab where the user is already authenticated and can hit
+// "Run workflow" with one click. After they trigger it, we poll
+// weekly-summary.json every 20s for ~10 minutes so the new summary
+// appears the moment the workflow commits.
+const REPO_ACTIONS_URL =
+  'https://github.com/davelane26/weight-dashboard-v2/actions/workflows/weekly-summary.yml';
+
+function triggerWeeklySummary() {
+  const btn   = document.getElementById('ai-summary-trigger');
+  const dateEl = document.getElementById('ai-summary-date');
+
+  // Open the Actions page in a new tab — single click of "Run workflow" there.
+  window.open(REPO_ACTIONS_URL, '_blank', 'noopener');
+
+  if (btn) {
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    btn.textContent = '⏳ Waiting for new summary…';
+  }
+  if (dateEl) {
+    const prev = dateEl.textContent;
+    dateEl.textContent = 'Run "Weekly AI Health Summary" in the new tab — this page will auto-refresh.';
+    dateEl.dataset.prev = prev;
+  }
+
+  // Poll the JSON for up to ~10 minutes. As soon as the week_ending
+  // changes (or first appears) we know the workflow finished.
+  const startedAt = Date.now();
+  const POLL_MS   = 20_000;
+  const MAX_MS    = 10 * 60_000;
+
+  // Capture the current summary so we know when it changes.
+  let baseline = null;
+  fetch('./weekly-summary.json?t=' + Date.now())
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { baseline = j ? j.week_ending + '|' + (j.summary || '').length : ''; })
+    .catch(() => { baseline = ''; });
+
+  const tick = async () => {
+    if (Date.now() - startedAt > MAX_MS) return resetTriggerBtn('Timed out — refresh the page once the workflow finishes.');
+    try {
+      const resp = await fetch('./weekly-summary.json?t=' + Date.now(), { cache: 'no-store' });
+      if (resp.ok) {
+        const j   = await resp.json();
+        const sig = (j.week_ending || '') + '|' + ((j.summary || '').length);
+        if (baseline !== null && sig !== baseline && j.summary) {
+          await loadAISummary();
+          return resetTriggerBtn();
+        }
+      }
+    } catch (e) { /* network blip — try again next tick */ }
+    setTimeout(tick, POLL_MS);
+  };
+  setTimeout(tick, POLL_MS);
+}
+window.triggerWeeklySummary = triggerWeeklySummary;
+
+function resetTriggerBtn(msg) {
+  const btn = document.getElementById('ai-summary-trigger');
+  if (btn) {
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+    btn.textContent = '⚡ Generate Now';
+  }
+  if (msg) {
+    const dateEl = document.getElementById('ai-summary-date');
+    if (dateEl) dateEl.textContent = msg;
+  }
+}

@@ -18,10 +18,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=100" />
+  <link rel="stylesheet" href="style.css?v=101" />
   <link rel="stylesheet" href="activity_styles.css?v=100" />
   <link rel="stylesheet" href="polish.css?v=2" />
-  <link rel="stylesheet" href="enhancements.css?v=3" />
+  <link rel="stylesheet" href="enhancements.css?v=4" />
   <link rel="stylesheet" href="tokens.css?v=2" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script>
@@ -31,11 +31,11 @@
 <script src="app-config.js?v=1"   defer></script>
 <script src="app-utils.js?v=1"    defer></script>
 <script src="app-tabs.js?v=1"     defer></script>
-<script src="app-kpis.js?v=1"     defer></script>
+<script src="app-kpis.js?v=2"     defer></script>
 <script src="app-charts.js?v=1"   defer></script>
 <script src="app-goal.js?v=1"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
-<script src="app.js?v=100"        defer></script>
+<script src="app.js?v=101"        defer></script>
   <script src="heatmap.js?v=1" defer></script>
   <!-- Eagerly loaded: these render into the default Weight tab + header button. -->
   <script src="healthscore.js?v=1" defer></script>
@@ -69,7 +69,7 @@
     <button class="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode" id="dark-btn">🌙</button>
     <button id="export-card-btn" onclick="exportHealthCard()" aria-label="Export health card"
       style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
-      🃏 Export Card
+      🃏 <span class="export-card-label">Export Card</span>
     </button>
   </div>
 </header>
@@ -127,7 +127,9 @@
           <p class="kpi-unit">lbs</p>
           <p class="kpi-sub" id="kpi-weight-sub"></p>
         </div>
-        <div class="kpi kpi--red">
+        <!-- BMI card tone is updated by renderKPIs based on the value
+             (green < 25, gold 25–34.9, red ≥ 35). Default = gold. -->
+        <div class="kpi kpi--gold" id="kpi-bmi-card">
           <p class="kpi-label">📋 BMI</p>
           <p class="kpi-value skel" id="kpi-bmi">—</p>
           <p class="kpi-unit">kg/m²</p>
@@ -353,7 +355,14 @@
     </section>
 
     <section class="card fade-in card--accent-purple" aria-label="AI weekly summary" id="ai-summary-section">
-      <h2 class="card-title">🤖 Weekly AI Summary</h2>
+      <div class="ai-summary-header">
+        <h2 class="card-title" style="margin:0">🤖 Weekly AI Summary</h2>
+        <button type="button" id="ai-summary-trigger" class="ai-trigger-btn"
+                onclick="triggerWeeklySummary()"
+                aria-label="Generate a fresh summary now (opens GitHub Actions)">
+          ⚡ Generate Now
+        </button>
+      </div>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.75rem">Generated every Sunday by Element (GPT-4.1-mini) · <span id="ai-summary-date"></span></p>
       <p id="ai-summary-text" style="font-size:0.88rem;line-height:1.65;color:var(--text)">Loading…</p>
     </section>

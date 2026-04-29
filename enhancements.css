@@ -162,3 +162,43 @@ html.density-compact .card-title    {
 @media (max-width: 480px) {
   #density-toggle { display: none; }
 }
+
+/* ── AI Summary card: header row + manual trigger button ──────── */
+.ai-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+.ai-trigger-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+.ai-trigger-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.35);
+}
+.ai-trigger-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.30);
+}
+.ai-trigger-btn:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+.ai-trigger-btn.is-loading { opacity: 0.7; cursor: progress; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-trigger-btn { transition: none; }
+  .ai-trigger-btn:hover { transform: none; }
+}

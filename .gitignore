@@ -24,3 +24,7 @@ desktop.ini
 .idea/
 *.swp
 server.log  
+shots/ 
+shots-v2/ 
+server.log 
+_*.py

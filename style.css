@@ -784,10 +784,14 @@ main {
   main { padding: 0.75rem; gap: 1rem; }
   .card { padding: 1rem; }
 
-  /* Header — shrink logo and stack meta below on very narrow */
-  .header-inner { padding: 0.9rem 1rem; gap: 0.5rem; }
+  /* Header — shrink logo and stack meta below on very narrow.
+     Allow buttons to wrap onto a new row instead of clipping. */
+  .header-inner { padding: 0.9rem 1rem; gap: 0.5rem; flex-wrap: wrap; }
   .header-logo  { width: 40px; height: 40px; font-size: 1.2rem; }
   .header-meta  { text-align: left; }
+  /* The Export Card label is long — hide the words on phones, keep the icon */
+  .export-card-label { display: none; }
+  #export-card-btn   { padding: 0.4rem 0.55rem; }
 
   /* Trend hero — shrink the big number */
   .trend-hero   { padding: 1.1rem 1rem; flex-wrap: wrap; gap: 0.75rem; }
@@ -894,7 +898,9 @@ main {
 
 @media (max-width: 640px) {
   .tab-nav { display: none; }
-  main { padding-bottom: 72px; }
+  /* Bottom-bar is 60px tall + iOS home-indicator inset.
+     Add a generous 16px buffer so the last card never kisses the bar. */
+  main { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px); }
 
   .mobile-tab-bar {
     display: flex;

@@ -14,6 +14,16 @@ function renderKPIs(latest, prev) {
     const [cat, style] = bmiCategory(latest.bmi);
     const bd = prev?.bmi ? latest.bmi - prev.bmi : null;
     setHTML('kpi-bmi-sub', `<span class="badge" style="${style}">${cat}</span>${bd != null ? ' ' + delta(bd) : ''}`);
+    // Dynamic tone: green=normal, gold=overweight/obese-I, red=obese-II+
+    // The card visually celebrates progress as the BMI drops through tiers.
+    const card = el('kpi-bmi-card');
+    if (card) {
+      const tone = latest.bmi >= 35 ? 'red'
+                 : latest.bmi >= 25 ? 'gold'
+                 : 'green';
+      card.classList.remove('kpi--red', 'kpi--gold', 'kpi--green');
+      card.classList.add('kpi--' + tone);
+    }
   }
 
   latest.bodyFat ? countUp('kpi-fat', latest.bodyFat, 1, '%') : setText('kpi-fat', '—');
