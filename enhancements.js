@@ -187,38 +187,60 @@
   function mountExportMenu() {
     const exportBtn = document.getElementById('export-card-btn');
     if (!exportBtn || !exportBtn.parentElement) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'data-export-wrap';
-    wrap.innerHTML = `
-      <button id="data-export-btn" class="data-export-btn"
-        aria-label="Export data" aria-haspopup="menu" aria-expanded="false" type="button">
-        💾 Export
-      </button>
-      <div class="data-export-menu" role="menu" hidden>
-        <button role="menuitem" type="button" data-fmt="csv">📊 Download CSV</button>
-        <button role="menuitem" type="button" data-fmt="json">📋 Download JSON</button>
-      </div>`;
-    exportBtn.parentElement.insertBefore(wrap, exportBtn);
-    const trigger = wrap.querySelector('.data-export-btn');
-    const menu = wrap.querySelector('.data-export-menu');
-    const close = () => {
+
+    // Trigger button lives in the header.
+    const trigger = document.createElement('button');
+    trigger.id = 'data-export-btn';
+    trigger.className = 'data-export-btn';
+    trigger.type = 'button';
+    trigger.setAttribute('aria-label', 'Export data');
+    trigger.setAttribute('aria-haspopup', 'menu');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.textContent = '💾 Export';
+    exportBtn.parentElement.insertBefore(trigger, exportBtn);
+
+    // Menu lives in <body> so the header's overflow:hidden can't clip it.
+    const menu = document.createElement('div');
+    menu.className = 'data-export-menu';
+    menu.setAttribute('role', 'menu');
+    menu.hidden = true;
+    menu.innerHTML = `
+      <button role="menuitem" type="button" data-fmt="csv">📊 Download CSV</button>
+      <button role="menuitem" type="button" data-fmt="json">📋 Download JSON</button>`;
+    document.body.appendChild(menu);
+
+    function positionMenu() {
+      const r = trigger.getBoundingClientRect();
+      // align menu's right edge with trigger's right edge, drop below.
+      menu.style.top  = (r.bottom + 6) + 'px';
+      menu.style.left = Math.max(8, r.right - 180) + 'px'; // 180 = min-width
+    }
+    function open() {
+      positionMenu();
+      menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      window.addEventListener('scroll', positionMenu, { passive: true });
+      window.addEventListener('resize', positionMenu);
+    }
+    function close() {
       menu.hidden = true;
       trigger.setAttribute('aria-expanded', 'false');
-    };
+      window.removeEventListener('scroll', positionMenu);
+      window.removeEventListener('resize', positionMenu);
+    }
     trigger.addEventListener('click', e => {
       e.stopPropagation();
-      const open = !menu.hidden;
-      menu.hidden = open;
-      trigger.setAttribute('aria-expanded', String(!open));
+      menu.hidden ? open() : close();
     });
     menu.addEventListener('click', e => {
+      e.stopPropagation();
       const btn = e.target.closest('button[data-fmt]');
       if (!btn) return;
-      if (btn.dataset.fmt === 'csv') exportCSV();
-      else if (btn.dataset.fmt === 'json') exportJSON();
+      if (btn.dataset.fmt === 'csv')  exportCSV();
+      if (btn.dataset.fmt === 'json') exportJSON();
       close();
     });
-    document.addEventListener('click', close);
+    document.addEventListener('click', () => { if (!menu.hidden) close(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   }
 
@@ -337,9 +359,9 @@
   //    Note: this requires removing those <script> tags from
   //    index.html <head>. Done in companion commit.
   // ─────────────────────────────────────────────────────────────
+  // Only medication.js is lazy now — glucose.js + activity.js feed the
+  // Weight tab snapshot strip, so they must be eager-loaded.
   const LAZY_TAB_SCRIPTS = {
-    glucose:    ['glucose.js?v=99'],
-    activity:   ['activity.js?v=99'],
     medication: ['medication.js?v=99'],
   };
   const _loaded = new Set();
