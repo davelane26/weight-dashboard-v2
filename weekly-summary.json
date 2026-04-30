@@ -1,6 +1,17 @@
 {
-  "generated_at": null,
-  "week_ending": null,
-  "summary": null,
-  "stats": {}
+  "generated_at": "2026-04-30T16:45:24.281863+00:00",
+  "week_ending": "2026-04-30",
+  "summary": "David, what a fantastic week\u2014you've lost 7.3 pounds over the past two weeks and you're now at 271.6 lbs, which means you've shed 43.4 pounds total since starting. Your consistency is paying off, and hitting an average of 10,335 steps daily shows you're building real momentum with your activity level. I'd love to see you focus on sleep and recovery next week, since your body battery is sitting at 28 out of 100, which suggests you might benefit from an extra 30 minutes of rest each night to help your body recover better. You're doing the hard work and it's showing\u2014keep going.",
+  "stats": {
+    "days_with_readings": 14,
+    "latest_weight": 271.6,
+    "total_lost_from_start": 43.4,
+    "change_last_14d": -7.3,
+    "rate_lbs_per_week": 3.65,
+    "avg_weight": 273.5,
+    "avg_steps_7d": 10335,
+    "avg_sleep_hrs_7d": 7.2,
+    "avg_stress_7d": 32,
+    "avg_battery_7d": 28
+  }
 }
