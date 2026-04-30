@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-generate_summary.py — Weekly AI health summary via Walmart Element / GPT-4.1-mini
-Fetches recent weight + activity data, calls Element LLM, commits weekly-summary.json.
+generate_summary.py — Weekly AI health summary via Anthropic Claude
+Fetches recent weight + activity data, calls Claude, commits weekly-summary.json.
 Runs via GitHub Actions every Sunday at 8 AM CT.
 """
 
@@ -11,16 +11,12 @@ import statistics
 import sys
 from datetime import datetime, timedelta, timezone
 
+import anthropic
 import requests
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 WEIGHT_DATA_URL  = "https://davelane26.github.io/Weight-tracker/data.json"
 FIREBASE_URL     = "https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com"
-ELEMENT_ENDPOINT = (
-    "https://wmtllmgateway.walmart.com/wmtllmgateway"
-    "/openai/deployments/gpt-4.1-mini@2025-04-14"
-    "/chat/completions?api-version=2024-10-21"
-)
 OUTPUT_FILE = "weekly-summary.json"
 START_WEIGHT = 315.0
 
@@ -126,25 +122,21 @@ def build_prompt(wt: dict, act: dict) -> str:
     return "\n".join(lines)
 
 
-def call_element(prompt: str, api_key: str) -> str:
-    resp = requests.post(
-        ELEMENT_ENDPOINT,
-        headers={"api-key": api_key, "Content-Type": "application/json"},
-        json={
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 200,
-            "temperature": 0.75,
-        },
-        timeout=30,
+def call_claude(prompt: str, api_key: str) -> str:
+    client = anthropic.Anthropic(api_key=api_key)
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=256,
+        temperature=0.75,
+        messages=[{"role": "user", "content": prompt}],
     )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    return message.content[0].text.strip()
 
 
 def main():
-    api_key = os.environ.get("ELEMENT_API_KEY")
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        print("ERROR: ELEMENT_API_KEY secret not set", file=sys.stderr)
+        print("ERROR: ANTHROPIC_API_KEY secret not set", file=sys.stderr)
         sys.exit(1)
 
     print("Fetching weight data…")
@@ -156,9 +148,9 @@ def main():
     act = recent_activity_stats(FIREBASE_URL)
     print(f"Activity stats: {act}")
 
-    print("Calling Element LLM…")
+    print("Calling Claude…")
     prompt  = build_prompt(wt, act)
-    summary = call_element(prompt, api_key)
+    summary = call_claude(prompt, api_key)
     print(f"Summary:\n{summary}")
 
     output = {
