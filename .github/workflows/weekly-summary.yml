@@ -25,7 +25,7 @@ jobs:
 
       - name: Generate weekly summary
         env:
-          ELEMENT_API_KEY: ${{ secrets.ELEMENT_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python generate_summary.py
 
       - name: Commit weekly-summary.json
