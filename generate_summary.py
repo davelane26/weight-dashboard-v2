@@ -125,7 +125,7 @@ def build_prompt(wt: dict, act: dict) -> str:
 def call_claude(prompt: str, api_key: str) -> str:
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-sonnet-4-5",
+        model="claude-haiku-4-5-20251001",
         max_tokens=256,
         temperature=0.75,
         messages=[{"role": "user", "content": prompt}],
