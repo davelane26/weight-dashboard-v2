@@ -212,6 +212,29 @@ function healthDeleteVisit(id) {
   if (wrap) wrap.style.display = 'none';
 }
 
+function healthUpdateVisit(id) {
+  const visits = _healthVisits();
+  const idx = visits.findIndex(v => v.id === id);
+  if (idx === -1) return;
+  const getV = elId => { const el = document.getElementById(elId); return el ? el.value : ""; };
+  const metrics = {};
+  _HEALTH_METRIC_KEYS.forEach(k => {
+    const v = document.getElementById("hm-" + k + "-val");
+    const s = document.getElementById("hm-" + k + "-status");
+    if (v && s) metrics[k] = { val: v.value, status: s.value };
+  });
+  const d = _healthData() || {};
+  visits[idx] = Object.assign({}, visits[idx], {
+    visitDate:  getV("health-visit-date"),
+    visitNotes: getV("health-visit-notes"),
+    nextAppt:   getV("health-next-appt"),
+    metrics,
+    analysis: d.lastAnalysis || visits[idx].analysis,
+  });
+  _healthVisitsSave(visits);
+  healthRenderVisitHistory();
+}
+
 function healthLoadVisit(id) {
   const visit = _healthVisits().find(v => v.id === id);
   if (!visit) return;
@@ -263,6 +286,7 @@ function healthRenderVisitHistory() {
       (badges ? '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.5rem">' + badges + '</div>' : '') +
       '<div style="display:flex;gap:0.5rem">' +
       '<button onclick="healthLoadVisit(' + v.id + ')" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.7rem">Load</button>' +
+      '<button onclick="healthUpdateVisit(' + v.id + ')" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.7rem;color:#0053e2;border-color:#bfdbfe">Update</button>' +
       '<button onclick="healthDeleteVisit(' + v.id + ')" class="btn-secondary" style="font-size:0.72rem;padding:0.3rem 0.7rem;color:#ea1100;border-color:#fecaca">Delete</button>' +
       '</div></div>';
   }).join('');
@@ -363,6 +387,7 @@ window.healthAnalyzeDoc         = healthAnalyzeDoc;
 window.healthHandleUpload       = healthHandleUpload;
 window.healthLoadVisit          = healthLoadVisit;
 window.healthDeleteVisit        = healthDeleteVisit;
+window.healthUpdateVisit        = healthUpdateVisit;
 window.healthSaveVisit          = healthSaveVisit;
 window.healthCompare            = healthCompare;
 window.healthRenderVisitHistory = healthRenderVisitHistory;
