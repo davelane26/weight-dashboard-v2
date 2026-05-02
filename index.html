@@ -26,6 +26,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script>
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
+    window.AI_HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/ai-health';
   </script>
   <!-- Modular app split — load in dependency order, all defer = parsed in HTML order, executed after DOM ready -->
 <script src="app-config.js?v=1"   defer></script>
@@ -602,19 +603,6 @@
     <section class="card fade-in card--accent-purple" aria-label="AI health analysis">
       <h2 class="card-title">&#129302; AI Health Analysis</h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">Upload or paste a health summary, lab results, or doctor notes — Claude will explain what they mean in plain language.</p>
-
-      <!-- API Key setup -->
-      <details id="health-api-settings" style="margin-bottom:1rem;border:1px solid #e5e9f5;border-radius:8px;padding:0.6rem 0.75rem">
-        <summary style="font-size:0.75rem;font-weight:700;color:#7c3aed;cursor:pointer;list-style:none">&#9881;&#65039; API Key <span id="health-api-key-status" style="display:none;color:#2a8703;font-weight:600;margin-left:0.5rem">&#10003; Saved</span></summary>
-        <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem">
-          <label for="health-api-key-input" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95">Anthropic API Key (stored locally, never sent anywhere except Anthropic)</label>
-          <div style="display:flex;gap:0.5rem">
-            <input type="password" id="health-api-key-input" placeholder="sk-ant-api03-..."
-              style="flex:1;padding:0.5rem 0.65rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.85rem;color:#1a2340;box-sizing:border-box" />
-            <button onclick="healthSaveApiKey()" class="btn-primary" style="white-space:nowrap;font-size:0.82rem;padding:0.5rem 0.85rem">Save Key</button>
-          </div>
-        </div>
-      </details>
 
       <!-- Upload / Paste -->
       <div style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1rem">

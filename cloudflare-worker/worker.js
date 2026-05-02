@@ -238,6 +238,40 @@ export default {
       await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
       return cors(JSON.stringify({ ok: true, date, patched: Object.keys(body).filter(k => allowed.includes(k)) }));
     }
+    // ── POST /ai-health  (AI health document analysis) ─────────────────
+    if (method === 'POST' && url.pathname === '/ai-health') {
+      const apiKey = env.ANTHROPIC_API_KEY;
+      if (!apiKey) return cors('{"error":"ANTHROPIC_API_KEY secret not set on this Worker"}', 503);
+
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+
+      const { type, content, mediaType } = body;
+      if (!content) return cors('{"error":"content required"}', 400);
+
+      const prompt = 'You are a helpful health assistant. Analyze this personal health document and respond with these five bold sections:\n\n**Summary**\nPlain-language overview of what the document says.\n\n**Key Findings**\nThe most important numbers, results, or diagnoses.\n\n**Areas to Watch**\nAnything needing attention, follow-up, or improvement.\n\n**Positive Signs**\nWhat looks healthy or is trending in the right direction.\n\n**Suggested Next Steps**\nPractical things to discuss with the doctor or act on.\n\nBe warm, clear, and avoid jargon. This is for personal understanding, not medical advice.';
+
+      const msgContent = type === 'image'
+        ? [ { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: content } },
+            { type: 'text', text: prompt } ]
+        : prompt + '\n\nDocument:\n' + content;
+
+      const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500,
+          messages: [{ role: 'user', content: msgContent }] }),
+      });
+
+      const aiData = await aiResp.json();
+      if (aiData.error) return cors(JSON.stringify({ error: aiData.error.message }), aiResp.status);
+      return cors(JSON.stringify({ analysis: aiData.content[0].text }));
+    }
+
 
     return cors('{"error":"Not found"}', 404);
   },
