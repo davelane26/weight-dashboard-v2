@@ -25,7 +25,7 @@ const BMI_CATS = [
   { label: 'Obese III',      range: 'BMI ≥ 40',    min: 40,   max: Infinity, icon: '⚫' },
 ];
 
-const TABS          = ['weight', 'glucose', 'activity', 'projector', 'medication'];
+const TABS          = ['weight', 'glucose', 'activity', 'projector', 'medication', 'photos', 'health'];
 const TAB_ORDER_KEY = 'wt_v2_tab_order';
 
 // ── Mutable global state ─────────────────────────────────────────────

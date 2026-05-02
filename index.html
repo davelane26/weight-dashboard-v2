@@ -47,6 +47,8 @@
   <script src="activity.js?v=99" defer></script>
   <script src="enhancements.js?v=5" defer></script>
   <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
+<script src="photos.js?v=1" defer></script>
+<script src="health.js?v=1"  defer></script>
 </head>
 <body>
 
@@ -84,6 +86,8 @@
     <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">🩸 Glucose</button>
     <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true" onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">🏃 Activity</button>
     <button class="tab-btn" role="tab" id="tab-btn-medication" draggable="true" onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">💊 Medication</button>
+    <button class="tab-btn" role="tab" id="tab-btn-photos" draggable="true" onclick="switchTab('photos')" aria-selected="false" aria-controls="tab-photos">📷 Photos</button>
+    <button class="tab-btn" role="tab" id="tab-btn-health" draggable="true" onclick="switchTab('health')" aria-selected="false" aria-controls="tab-health">🏥 Health</button>
   </nav>
 
   <!-- ── Weight tab ── -->
@@ -542,6 +546,164 @@
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right">Data from your Mounjaro journey tracker &middot; Updates when you edit the spreadsheet</p>
   </div><!-- /tab-medication -->
 
+  <!-- Photos tab -->
+  <div id="tab-photos" role="tabpanel" aria-labelledby="tab-btn-photos" hidden>
+
+    <div id="photos-login" class="card fade-in" style="max-width:420px;margin:2rem auto">
+      <h2 class="card-title">&#128274; Progress Photos</h2>
+      <p style="font-size:0.82rem;color:#6d7a95;margin-bottom:1.25rem">This section is password-protected. Please log in to continue.</p>
+      <div style="display:flex;flex-direction:column;gap:0.85rem">
+        <div>
+          <label for="photos-username" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.35rem">Username</label>
+          <input type="text" id="photos-username" placeholder="Username" autocomplete="username"
+            style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
+        </div>
+        <div>
+          <label for="photos-password" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.35rem">Password</label>
+          <input type="password" id="photos-password" placeholder="Password" autocomplete="current-password"
+            style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
+        </div>
+        <p id="photos-login-error" style="color:#ea1100;font-size:0.8rem;font-weight:600;display:none;margin:0">Invalid credentials. Please try again.</p>
+        <button onclick="photosLogin()" class="btn-primary" style="width:100%;padding:0.65rem;font-size:0.9rem;font-weight:700">Login</button>
+      </div>
+    </div>
+
+    <div id="photos-content" style="display:none">
+      <div style="display:flex;justify-content:flex-end;padding:0 0 0.75rem">
+        <button onclick="photosLogout()" class="btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.85rem">&#128274; Log Out</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+        <div class="card fade-in card--accent-blue">
+          <h2 class="card-title" style="margin-bottom:0.75rem">&#128247; Before</h2>
+          <div id="photos-before-preview"
+            style="width:100%;min-height:200px;border-radius:10px;background:linear-gradient(135deg,#eff4ff,#dbeafe);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:0.85rem">
+            <span style="font-size:0.8rem;color:#6d7a95;text-align:center;padding:1rem">No photo yet</span>
+          </div>
+          <input type="file" id="photos-before-input" accept="image/*" style="display:none" />
+          <button id="photos-before-btn" class="btn-primary" style="width:100%;font-size:0.85rem">Upload Before Photo</button>
+        </div>
+        <div class="card fade-in card--accent-green">
+          <h2 class="card-title" style="margin-bottom:0.75rem">&#128248; After</h2>
+          <div id="photos-after-preview"
+            style="width:100%;min-height:200px;border-radius:10px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:0.85rem">
+            <span style="font-size:0.8rem;color:#6d7a95;text-align:center;padding:1rem">No photo yet</span>
+          </div>
+          <input type="file" id="photos-after-input" accept="image/*" style="display:none" />
+          <button id="photos-after-btn" class="btn-primary" style="width:100%;font-size:0.85rem;background:linear-gradient(135deg,#2a8703,#16a34a)">Upload After Photo</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-photos -->
+
+  <!-- Health tab -->
+  <div id="tab-health" role="tabpanel" aria-labelledby="tab-btn-health" hidden>
+
+    <section class="card fade-in card--accent-blue" aria-label="Doctor visit summary">
+      <h2 class="card-title">&#127973; Doctor Visit Summary</h2>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label for="health-visit-date" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0053e2;display:block;margin-bottom:0.35rem">Visit Date</label>
+          <input type="date" id="health-visit-date" oninput="healthSave()"
+            style="padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340;width:100%;box-sizing:border-box" />
+        </div>
+        <div>
+          <label for="health-visit-notes" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0053e2;display:block;margin-bottom:0.35rem">Visit Notes</label>
+          <textarea id="health-visit-notes" rows="7" oninput="healthSave()"
+            placeholder="Paste your doctor visit notes, diagnoses, recommendations..."
+            style="width:100%;box-sizing:border-box;padding:0.65rem 0.75rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.88rem;line-height:1.6;color:#1a2340;resize:vertical;font-family:inherit"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fade-in card--accent-gold" aria-label="Key health metrics">
+      <h2 class="card-title">&#128202; Key Metrics</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">Values from your most recent lab results or check-up.</p>
+      <div style="display:flex;flex-direction:column">
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.8rem 0;border-bottom:1px solid #e5e9f5">
+          <div style="flex:1">
+            <label for="hm-weight-val" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.3rem">&#9878; Weight</label>
+            <input type="text" id="hm-weight-val" placeholder="e.g. 285 lbs" oninput="healthSave()"
+              style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.88rem;font-weight:600;color:#1a2340" />
+          </div>
+          <select id="hm-weight-status" class="hm-status-select"
+            style="flex-shrink:0;padding:0.4rem 0.75rem;border-radius:20px;border:1.5px solid #86efac;background:#dcfce7;color:#166534;font-size:0.72rem;font-weight:700;cursor:pointer">
+            <option value="good">Good</option>
+            <option value="watch">Watch</option>
+            <option value="attention">Needs Attention</option>
+          </select>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.8rem 0;border-bottom:1px solid #e5e9f5">
+          <div style="flex:1">
+            <label for="hm-bp-val" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.3rem">&#10084; Blood Pressure</label>
+            <input type="text" id="hm-bp-val" placeholder="e.g. 120/80 mmHg" oninput="healthSave()"
+              style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.88rem;font-weight:600;color:#1a2340" />
+          </div>
+          <select id="hm-bp-status" class="hm-status-select"
+            style="flex-shrink:0;padding:0.4rem 0.75rem;border-radius:20px;border:1.5px solid #86efac;background:#dcfce7;color:#166534;font-size:0.72rem;font-weight:700;cursor:pointer">
+            <option value="good">Good</option>
+            <option value="watch">Watch</option>
+            <option value="attention">Needs Attention</option>
+          </select>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.8rem 0;border-bottom:1px solid #e5e9f5">
+          <div style="flex:1">
+            <label for="hm-a1c-val" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.3rem">&#129978; Blood Sugar A1C</label>
+            <input type="text" id="hm-a1c-val" placeholder="e.g. 6.5%" oninput="healthSave()"
+              style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.88rem;font-weight:600;color:#1a2340" />
+          </div>
+          <select id="hm-a1c-status" class="hm-status-select"
+            style="flex-shrink:0;padding:0.4rem 0.75rem;border-radius:20px;border:1.5px solid #86efac;background:#dcfce7;color:#166534;font-size:0.72rem;font-weight:700;cursor:pointer">
+            <option value="good">Good</option>
+            <option value="watch">Watch</option>
+            <option value="attention">Needs Attention</option>
+          </select>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.8rem 0;border-bottom:1px solid #e5e9f5">
+          <div style="flex:1">
+            <label for="hm-cholesterol-val" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.3rem">&#129924; Cholesterol</label>
+            <input type="text" id="hm-cholesterol-val" placeholder="e.g. 190 mg/dL" oninput="healthSave()"
+              style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.88rem;font-weight:600;color:#1a2340" />
+          </div>
+          <select id="hm-cholesterol-status" class="hm-status-select"
+            style="flex-shrink:0;padding:0.4rem 0.75rem;border-radius:20px;border:1.5px solid #86efac;background:#dcfce7;color:#166534;font-size:0.72rem;font-weight:700;cursor:pointer">
+            <option value="good">Good</option>
+            <option value="watch">Watch</option>
+            <option value="attention">Needs Attention</option>
+          </select>
+        </div>
+
+        <div style="padding:0.8rem 0">
+          <label for="hm-drnotes-val" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.3rem">&#128221; Doctor Notes and Goals</label>
+          <div style="display:flex;align-items:flex-start;gap:0.75rem">
+            <textarea id="hm-drnotes-val" rows="4" oninput="healthSave()"
+              placeholder="Doctor notes, treatment goals, follow-up actions..."
+              style="flex:1;box-sizing:border-box;padding:0.45rem 0.6rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.88rem;color:#1a2340;resize:vertical;font-family:inherit;line-height:1.5"></textarea>
+            <select id="hm-drnotes-status" class="hm-status-select"
+              style="flex-shrink:0;padding:0.4rem 0.75rem;border-radius:20px;border:1.5px solid #86efac;background:#dcfce7;color:#166534;font-size:0.72rem;font-weight:700;cursor:pointer;align-self:flex-start">
+              <option value="good">Good</option>
+              <option value="watch">Watch</option>
+              <option value="attention">Needs Attention</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="card fade-in card--accent-green" aria-label="Next appointment">
+      <h2 class="card-title">&#128197; Next Appointment</h2>
+      <label for="health-next-appt" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#2a8703;display:block;margin-bottom:0.4rem">Appointment Date</label>
+      <input type="date" id="health-next-appt" oninput="healthSave()"
+        style="padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340;width:100%;box-sizing:border-box" />
+    </section>
+
+  </div><!-- /tab-health -->
+
 </main>
 
 <footer>Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s</footer>
@@ -583,6 +745,14 @@
   <button class="mob-tab" role="tab" aria-selected="false" aria-label="Medication tab" onclick="switchTab('medication')" data-tab="medication">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="8" y="3" width="8" height="18" rx="2"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="10" y1="16" x2="12" y2="16"/></svg>
     <span>Meds</span>
+  </button>
+  <button class="mob-tab" role="tab" aria-selected="false" aria-label="Photos tab" onclick="switchTab('photos')" data-tab="photos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M9 5l1.5-2h3L15 5"/></svg>
+    <span>Photos</span>
+  </button>
+  <button class="mob-tab" role="tab" aria-selected="false" aria-label="Health tab" onclick="switchTab('health')" data-tab="health">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21C12 21 4 14.5 4 9a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 5.5-8 12-8 12z"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+    <span>Health</span>
   </button>
 </nav>
 
