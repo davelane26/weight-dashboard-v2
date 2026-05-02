@@ -249,7 +249,7 @@ export default {
       const { type, content, mediaType } = body;
       if (!content) return cors('{"error":"content required"}', 400);
 
-      const prompt = 'You are a helpful health assistant. Analyze this personal health document and respond with these five bold sections:\n\n**Summary**\nPlain-language overview of what the document says.\n\n**Key Findings**\nThe most important numbers, results, or diagnoses.\n\n**Areas to Watch**\nAnything needing attention, follow-up, or improvement.\n\n**Positive Signs**\nWhat looks healthy or is trending in the right direction.\n\n**Suggested Next Steps**\nPractical things to discuss with the doctor or act on.\n\nBe warm, clear, and avoid jargon. This is for personal understanding, not medical advice.';
+      const prompt = 'You are a helpful health assistant. Analyze this personal health document and return ONLY a valid JSON object with exactly this structure (no markdown code fences, no other text):\n\n{"analysis":"...","metrics":{"weight":null,"bp":null,"a1c":null,"cholesterol":null,"drnotes":null}}\n\nFor the \"analysis\" field: write a warm clear summary with these five markdown-bold sections: **Summary**, **Key Findings**, **Areas to Watch**, **Positive Signs**, **Suggested Next Steps**. Avoid jargon. This is for personal understanding not medical advice.\n\nFor the \"metrics\" field extract these values from the document (set to null if not mentioned):\n- \"weight\": body weight with unit e.g. \"285 lbs\"\n- \"bp\": blood pressure e.g. \"128/82 mmHg\"\n- \"a1c\": A1C percentage e.g. \"7.2%\"\n- \"cholesterol\": total cholesterol with unit e.g. \"195 mg/dL\"\n- \"drnotes\": one-sentence summary of main doctor recommendation or follow-up goal\n\nReturn ONLY the raw JSON object. No extra text.';
 
       const msgContent = type === 'image'
         ? [ { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: content } },
@@ -269,7 +269,15 @@ export default {
 
       const aiData = await aiResp.json();
       if (aiData.error) return cors(JSON.stringify({ error: aiData.error.message }), aiResp.status);
-      return cors(JSON.stringify({ analysis: aiData.content[0].text }));
+      const rawText = aiData.content[0].text;
+      let analysis = rawText;
+      let metrics = null;
+      try {
+        const cleaned = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (parsed.analysis) { analysis = parsed.analysis; metrics = parsed.metrics || null; }
+      } catch (e) { /* fall back to plain text */ }
+      return cors(JSON.stringify({ analysis, metrics }));
     }
 
 

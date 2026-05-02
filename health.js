@@ -114,6 +114,7 @@ async function healthAnalyzeDoc() {
     if (data.error) throw new Error(data.error);
     const dateStr = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     _healthRenderAnalysis(data.analysis, dateStr);
+    if (data.metrics) _healthFillMetrics(data.metrics);
     const d = _healthData() || {};
     d.lastAnalysis = { text: data.analysis, date: dateStr };
     localStorage.setItem(_HEALTH_KEY, JSON.stringify(d));
@@ -146,6 +147,17 @@ function _healthMarkdown(raw) {
     .replace(/\n\n/g, '<br><br>').replace(/\n/g, ' ');
 }
 
+
+function _healthFillMetrics(metrics) {
+  const fieldMap = { weight: 'weight', bp: 'bp', a1c: 'a1c', cholesterol: 'cholesterol', drnotes: 'drnotes' };
+  Object.entries(fieldMap).forEach(([key, field]) => {
+    if (metrics[key] != null) {
+      const el = document.getElementById('hm-' + field + '-val');
+      if (el) el.value = metrics[key];
+    }
+  });
+  healthSave();
+}
 function _esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
