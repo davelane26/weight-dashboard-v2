@@ -285,20 +285,32 @@ function healthCompare() {
   if (vA.id > vB.id) { const tmp = vA; vA = vB; vB = tmp; }
 
   const score = { good: 0, watch: 1, attention: 2 };
-  const bgOf  = s => ({ good: '#dcfce7', watch: '#fef9ec', attention: '#fff1f0' }[s] || '#f8f9ff');
-  const colOf = s => ({ good: '#166534', watch: '#995213', attention: '#ea1100' }[s] || '#1a2340');
-  const bdrOf = s => ({ good: '#86efac', watch: '#fde68a', attention: '#fecaca' }[s] || '#d0d5e8');
+  const bgOf  = s => ({ good: "#dcfce7", watch: "#fef9ec", attention: "#fff1f0" }[s] || "#f8f9ff");
+  const colOf = s => ({ good: "#166534", watch: "#995213", attention: "#ea1100" }[s] || "#1a2340");
+  const bdrOf = s => ({ good: "#86efac", watch: "#fde68a", attention: "#fecaca" }[s] || "#d0d5e8");
+  const lowerBetter = { weight: true, bp: true, a1c: true, cholesterol: true, drnotes: false };
+  const parseNum = str => { const m = String(str||"").match(/[0-9.]+/); return m ? parseFloat(m[0]) : null; };
 
   const rows = _HEALTH_METRIC_KEYS.map(k => {
-    const mA = (vA.metrics && vA.metrics[k]) || { val: '', status: 'good' };
-    const mB = (vB.metrics && vB.metrics[k]) || { val: '', status: 'good' };
+    const mA = (vA.metrics && vA.metrics[k]) || { val: "", status: "good" };
+    const mB = (vB.metrics && vB.metrics[k]) || { val: "", status: "good" };
     if (!mA.val && !mB.val) return null;
     const sA = score[mA.status] ?? 0;
     const sB = score[mB.status] ?? 0;
     let arrow, arrowColor, verdict;
-    if (sB < sA)      { arrow = '&#8593;'; arrowColor = '#16a34a'; verdict = 'Better'; }
-    else if (sB > sA) { arrow = '&#8595;'; arrowColor = '#ea1100'; verdict = 'Worse'; }
-    else              { arrow = '&#8594;'; arrowColor = '#6d7a95'; verdict = 'Same'; }
+    if (sB < sA) {
+      arrow = "&#8593;"; arrowColor = "#16a34a"; verdict = "Better";
+    } else if (sB > sA) {
+      arrow = "&#8595;"; arrowColor = "#ea1100"; verdict = "Worse";
+    } else if (mA.val !== mB.val) {
+      const nA = parseNum(mA.val), nB = parseNum(mB.val);
+      if (nA !== null && nB !== null && nA !== nB) {
+        const improved = lowerBetter[k] ? nB < nA : nB > nA;
+        arrow = improved ? "&#8593;" : "&#8595;";
+        arrowColor = improved ? "#16a34a" : "#ea1100";
+        verdict = improved ? "Better" : "Worse";
+      } else { arrow = "&#8646;"; arrowColor = "#6d7a95"; verdict = "Changed"; }
+    } else { arrow = "&#8594;"; arrowColor = "#6d7a95"; verdict = "Same"; }
     const badgeA = '<span style="font-size:0.75rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:10px;background:' + bgOf(mA.status) + ';color:' + colOf(mA.status) + ';border:1px solid ' + bdrOf(mA.status) + '">' + _esc(mA.val || '—') + '</span>';
     const badgeB = '<span style="font-size:0.75rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:10px;background:' + bgOf(mB.status) + ';color:' + colOf(mB.status) + ';border:1px solid ' + bdrOf(mB.status) + '">' + _esc(mB.val || '—') + '</span>';
     return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0;border-bottom:1px solid #d1fae5;flex-wrap:wrap">' +
