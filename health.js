@@ -163,15 +163,25 @@ function _healthVisitsSave(visits) {
 function healthSaveVisit() {
   const labelEl = document.getElementById('health-visit-label');
   const label   = labelEl ? labelEl.value.trim() : '';
-  const d       = _healthData() || {};
-  const visit   = {
+  // Read directly from DOM to capture current form state regardless of
+  // whether oninput/healthSave() has fired since page load.
+  const getV = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const metrics = {};
+  _HEALTH_METRIC_KEYS.forEach(k => {
+    const v = document.getElementById('hm-' + k + '-val');
+    const s = document.getElementById('hm-' + k + '-status');
+    if (v && s) metrics[k] = { val: v.value, status: s.value };
+  });
+  const visitDate = getV('health-visit-date');
+  const d = _healthData() || {};
+  const visit = {
     id:         Date.now(),
     savedAt:    new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    label:      label || d.visitDate || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    visitDate:  d.visitDate  || '',
-    visitNotes: d.visitNotes || '',
-    nextAppt:   d.nextAppt   || '',
-    metrics:    d.metrics    || {},
+    label:      label || visitDate || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    visitDate,
+    visitNotes: getV('health-visit-notes'),
+    nextAppt:   getV('health-next-appt'),
+    metrics,
     analysis:   d.lastAnalysis || null,
   };
   const visits = _healthVisits();
@@ -229,7 +239,7 @@ function healthRenderVisitHistory() {
   const bdrOf = s => ({ good: '#86efac', watch: '#fde68a', attention: '#fecaca' }[s] || '#d0d5e8');
   container.innerHTML = sorted.map(v => {
     const badges = _HEALTH_METRIC_KEYS
-      .filter(k => v.metrics[k] && v.metrics[k].val)
+      .filter(k => v.metrics && v.metrics[k] && v.metrics[k].val)
       .map(k => {
         const m = v.metrics[k];
         return '<span style="font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:10px;border:1px solid ' + bdrOf(m.status) + ';background:' + bgOf(m.status) + ';color:' + colOf(m.status) + '">' + _HEALTH_METRIC_LABELS[k] + '</span>';
@@ -270,7 +280,7 @@ function healthCompare() {
   const rows = _HEALTH_METRIC_KEYS.map(k => {
     const mA = (vA.metrics && vA.metrics[k]) || { val: '', status: 'good' };
     const mB = (vB.metrics && vB.metrics[k]) || { val: '', status: 'good' };
-    if (!mA.val && !mB.val) return '';
+    if (!mA.val && !mB.val) return null;
     const sA = score[mA.status] ?? 0;
     const sB = score[mB.status] ?? 0;
     let arrow, arrowColor, verdict;
@@ -286,14 +296,17 @@ function healthCompare() {
       badgeB +
       '<span style="font-size:0.72rem;font-weight:700;color:' + arrowColor + '">' + verdict + '</span>' +
       '</div>';
-  }).filter(Boolean).join('');
+  }).filter(Boolean);
+
+  const rowsHtml = rows.length
+    ? rows.join('')
+    : '<p style="font-size:0.8rem;color:#6d7a95">No metric values were recorded for these visits. Make sure to fill in the Key Metrics fields before saving a visit.</p>';
 
   const html =
     '<div style="font-size:0.75rem;color:#166534;margin-bottom:0.85rem;line-height:1.5">' +
     '<strong>' + _esc(vA.label) + '</strong> <span style="color:#6d7a95">(' + _esc(vA.savedAt) + ')</span>' +
     ' &rarr; <strong>' + _esc(vB.label) + '</strong> <span style="color:#6d7a95">(' + _esc(vB.savedAt) + ')</span>' +
-    '</div>' +
-    (rows || '<p style="font-size:0.8rem;color:#6d7a95">No metric values recorded for these visits.</p>');
+    '</div>' + rowsHtml;
 
   const wrap    = document.getElementById('health-compare-wrap');
   const content = document.getElementById('health-compare-content');
