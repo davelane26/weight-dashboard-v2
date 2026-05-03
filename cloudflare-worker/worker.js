@@ -224,7 +224,7 @@ export default {
         'sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
         'sleepAwakenings','timeInBed',
         // Heart / stress / battery
-        'restingHR','minHR','maxHR','avgHR','stressLevel','bodyBattery',
+        'restingHR','minHR','maxHR','avgHR','stressLevel','bodyBattery','fitnessAge',
         // Activity
         'steps','intensityMinutes','activeCalories','totalCalories','floorsClimbed',
       ];
