@@ -28,7 +28,8 @@ const CLOUD_URL     = `${FIREBASE_BASE}/medication/journey.json`;
 // ── Cloud sync ──────────────────────────────────────────────────────────────────
 async function fetchMedDataFromCloud() {
   try {
-    const resp = await fetch(CLOUD_URL + '?t=' + Date.now());
+    const _fetchToken = window.fbUser ? await window.fbUser.getIdToken() : null;
+    const resp = await fetch(CLOUD_URL + (_fetchToken ? "?auth=" + _fetchToken + "&t=" : "?t=") + Date.now());
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const json = await resp.json();
     if (json && Array.isArray(json.phases) && json.phases.length) return json;
@@ -41,7 +42,8 @@ async function fetchMedDataFromCloud() {
 
 async function pushMedDataToCloud(data) {
   try {
-    const resp = await fetch(CLOUD_URL, {
+    const _pushToken = window.fbUser ? await window.fbUser.getIdToken() : null;
+    const resp = await fetch(CLOUD_URL + (_pushToken ? "?auth=" + _pushToken : ""), {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(data),
