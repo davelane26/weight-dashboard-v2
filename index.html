@@ -28,6 +28,8 @@
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
     window.AI_HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/ai-health';
   </script>
+  <script>window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});</script>
+  <script type="module" src="auth.js?v=1"></script>
   <!-- Modular app split — load in dependency order, all defer = parsed in HTML order, executed after DOM ready -->
 <script src="app-config.js?v=1"   defer></script>
 <script src="app-utils.js?v=1"    defer></script>
@@ -53,6 +55,21 @@
 </head>
 <body>
 
+<div id="auth-overlay" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem">
+  <div style="text-align:center;max-width:340px">
+    <div style="font-size:3rem">&#9878;</div>
+    <h1 style="font-size:1.6rem;font-weight:800;color:#1a2340;letter-spacing:-0.02em;margin-top:0.4rem">David&apos;s Health Board</h1>
+    <p style="font-size:0.9rem;color:#6d7a95;margin-top:0.5rem;line-height:1.5">Sign in with Google to access your dashboard.</p>
+  </div>
+  <button onclick="window.fbSignIn && window.fbSignIn()"
+    style="display:flex;align-items:center;justify-content:center;gap:0.65rem;background:#fff;color:#1a2340;border:1.5px solid #d0d5e8;border-radius:10px;padding:0.75rem 1.75rem;font-size:0.95rem;font-weight:700;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1);font-family:inherit">
+    <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+    Sign in with Google
+  </button>
+  <p id="auth-error" style="color:#ea1100;font-size:0.82rem;font-weight:600;display:none">Sign-in failed. Please try again.</p>
+</div>
+
+
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
 <header class="header">
@@ -73,6 +90,10 @@
     <button id="export-card-btn" onclick="exportHealthCard()" aria-label="Export health card"
       style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
       🃏 <span class="export-card-label">Export Card</span>
+    </button>
+    <button id="header-signout-btn" onclick="window.fbSignOut && window.fbSignOut()" aria-label="Sign out"
+      style="display:none;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
+      Sign Out
     </button>
   </div>
 </header>
@@ -550,29 +571,18 @@
   <!-- Photos tab -->
   <div id="tab-photos" role="tabpanel" aria-labelledby="tab-btn-photos" hidden>
 
-    <div id="photos-login" class="card fade-in" style="max-width:420px;margin:2rem auto">
+    <div id="photos-login" class="card fade-in" style="max-width:420px;margin:2rem auto;display:none">
       <h2 class="card-title">&#128274; Progress Photos</h2>
-      <p style="font-size:0.82rem;color:#6d7a95;margin-bottom:1.25rem">This section is password-protected. Please log in to continue.</p>
-      <div style="display:flex;flex-direction:column;gap:0.85rem">
-        <div>
-          <label for="photos-username" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.35rem">Username</label>
-          <input type="text" id="photos-username" placeholder="Username" autocomplete="username"
-            style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
-        </div>
-        <div>
-          <label for="photos-password" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;display:block;margin-bottom:0.35rem">Password</label>
-          <input type="password" id="photos-password" placeholder="Password" autocomplete="current-password"
-            style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
-        </div>
-        <p id="photos-login-error" style="color:#ea1100;font-size:0.8rem;font-weight:600;display:none;margin:0">Invalid credentials. Please try again.</p>
-        <button onclick="photosLogin()" class="btn-primary" style="width:100%;padding:0.65rem;font-size:0.9rem;font-weight:700">Login</button>
-      </div>
+      <p style="font-size:0.82rem;color:#6d7a95;margin-bottom:1.25rem">Sign in with Google to view your progress photos.</p>
+      <button onclick="window.fbSignIn && window.fbSignIn()"
+        style="display:flex;align-items:center;justify-content:center;gap:0.65rem;width:100%;background:#fff;color:#1a2340;border:1.5px solid #d0d5e8;border-radius:10px;padding:0.7rem;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+        Sign in with Google
+      </button>
+      <p id="photos-login-error" style="color:#ea1100;font-size:0.8rem;font-weight:600;display:none;margin-top:0.75rem;text-align:center">Sign-in failed. Please try again.</p>
     </div>
 
-    <div id="photos-content" style="display:none">
-      <div style="display:flex;justify-content:flex-end;padding:0 0 0.75rem">
-        <button onclick="photosLogout()" class="btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.85rem">&#128274; Log Out</button>
-      </div>
+    <div id="photos-content">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
         <div class="card fade-in card--accent-blue">
           <h2 class="card-title" style="margin-bottom:0.75rem">&#128247; Before</h2>
