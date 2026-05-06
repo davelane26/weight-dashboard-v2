@@ -125,7 +125,8 @@ async function loadActivityData() {
   // 2. Fall back to Firebase (legacy)
   if (!data) {
     try {
-      const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json`);
+      const _fbToken = window.fbUser ? await window.fbUser.getIdToken() : null;
+      const res = await fetch(`${FIREBASE_GARMIN_URL}/garmin/latest.json${_fbToken ? "?auth=" + _fbToken : ""}`);
       data    = await res.json();
       allDays = [data];
       source  = 'Garmin via Firebase';
