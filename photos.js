@@ -1,19 +1,4 @@
-/* photos.js — Progress Photos tab (protected by app-level Google Sign-In) */
-
-function _photosShowContent() {
-  const login   = document.getElementById('photos-login');
-  const content = document.getElementById('photos-content');
-  if (login)   login.style.display   = 'none';
-  if (content) content.style.display = '';
-  _photosLoadPreviews();
-}
-
-function _photosShowLogin() {
-  const login   = document.getElementById('photos-login');
-  const content = document.getElementById('photos-content');
-  if (login)   login.style.display   = '';
-  if (content) content.style.display = 'none';
-}
+/* photos.js — Progress Photos tab */
 
 function _photosLoadPreviews() {
   ['before', 'after'].forEach(side => {
@@ -50,6 +35,8 @@ function photosHandleUpload(side, input) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  _photosLoadPreviews();
+
   const bBtn = document.getElementById('photos-before-btn');
   const aBtn = document.getElementById('photos-after-btn');
   if (bBtn) bBtn.addEventListener('click', () => document.getElementById('photos-before-input').click());
@@ -59,13 +46,4 @@ document.addEventListener('DOMContentLoaded', () => {
   const aInput = document.getElementById('photos-after-input');
   if (bInput) bInput.addEventListener('change', function() { photosHandleUpload('before', this); });
   if (aInput) aInput.addEventListener('change', function() { photosHandleUpload('after',  this); });
-});
-
-// Mirror app-level auth state into the photos tab
-document.addEventListener('firebase-auth-changed', e => {
-  if (e.detail.user) {
-    _photosShowContent();
-  } else {
-    _photosShowLogin();
-  }
 });
