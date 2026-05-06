@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   authDomain:        "weight-dashboard-6b5f3.firebaseapp.com",
   databaseURL:       "https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com",
   projectId:         "weight-dashboard-6b5f3",
-  storageBucket:     "weight-dashboard-6b5f3.appspot.com",
+  storageBucket:     "weight-dashboard-6b5f3.firebasestorage.app",
   messagingSenderId: "811571888069",
   appId:             "1:811571888069:web:149ea5fe30a320384b95ac",
 };
