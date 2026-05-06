@@ -141,10 +141,12 @@
 </head>
 <body>
 
+
 <div class="header">
   <h1>GARMIN SYNC</h1>
   <p>David's Health Dashboard</p>
 </div>
+
 
 <div class="instructions">
   <p>
@@ -154,6 +156,10 @@
   </p>
 </div>
 
+
+<div id="auth-bar" style="width:100%;max-width:400px;text-align:center;min-height:2.5rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:center"></div>
+
+<div id="sync-buttons" style="display:none;width:100%;max-width:400px">
 <div class="btn-group">
   <button class="btn btn-activity" onclick="syncActivity()">
     <div class="btn-left">
@@ -174,6 +180,8 @@
 
 <div class="status">
   <div class="status-card" id="statusCard">
+</div>
+
     <div class="status-title" id="statusTitle"></div>
     <div class="status-data" id="statusData"></div>
   </div>
@@ -206,19 +214,43 @@ function showLoading(msg) {
   card.className = 'status-card show';
   titleEl.innerHTML = '<span class="spinner"></span>' + msg;
   dataEl.innerHTML = '';
+
+<script>
+const F = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
+const W = 'https://glucose-relay.djtwo6.workers.dev';
+const GARMIN = 'https://connect.garmin.com';
+
+function getToday() { return new Date().toISOString().split('T')[0]; }
+
+function showStatus(type, title, lines) {
+  const card = document.getElementById('statusCard');
+  const titleEl = document.getElementById('statusTitle');
+  const dataEl = document.getElementById('statusData');
+  card.className = 'status-card show ' + type;
+  titleEl.textContent = title;
+  dataEl.innerHTML = lines.map(l => `${l[0]}: <span>${l[1]}</span>`).join('<br>');
+}
+
+function showLoading(msg) {
+  const card = document.getElementById('statusCard');
+  const titleEl = document.getElementById('statusTitle');
+  const dataEl = document.getElementById('statusData');
+  card.className = 'status-card show';
+  titleEl.innerHTML = '<span class="spinner"></span>' + msg;
+  dataEl.innerHTML = '';
 }
 
 async function pushData(data) {
+  const _t = window.fbUser ? await window.fbUser.getIdToken() : null;
+  const _a = _t ? '?auth=' + _t : '';
   const d = data.date;
   await Promise.all([
-    fetch(`${F}/garmin/${d}.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-    fetch(`${F}/garmin/latest.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    fetch(`${F}/garmin/${d}.json${_a}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    fetch(`${F}/garmin/latest.json${_a}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     fetch(`${W}/health/patch`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Origin': 'https://davelane26.github.io' }, body: JSON.stringify(data) })
   ]);
 }
 
-async function syncActivity() {
-  showLoading('Fetching from Garmin Connect...');
   const d = getToday();
   try {
     const data = { date: d, lastUpdated: new Date().toISOString(), source: 'garmin-web-sync' };
@@ -301,6 +333,42 @@ async function syncSleep() {
     showStatus('error', '✗ Error', [['Fix', 'Open connect.garmin.com and log in first']]);
   }
 }
+</script>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+
+const FIREBASE_CONFIG = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "weight-dashboard-6b5f3.firebaseapp.com",
+  databaseURL:       "https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com",
+  projectId:         "weight-dashboard-6b5f3",
+  storageBucket:     "weight-dashboard-6b5f3.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId:             "YOUR_APP_ID",
+};
+
+const app      = initializeApp(FIREBASE_CONFIG);
+const auth     = getAuth(app);
+const provider = new GoogleAuthProvider();
+window.fbUser  = null;
+
+window.syncSignIn  = () => signInWithPopup(auth, provider);
+window.syncSignOut = () => signOut(auth);
+
+onAuthStateChanged(auth, user => {
+  window.fbUser   = user;
+  const authBar   = document.getElementById('auth-bar');
+  const syncBtns  = document.getElementById('sync-buttons');
+  if (user) {
+    authBar.innerHTML = `<span style="color:var(--green);font-size:0.78rem">&#10003; ${user.displayName || user.email}</span>&nbsp;&nbsp;<button onclick="window.syncSignOut()" style="background:none;border:1px solid var(--muted);border-radius:6px;padding:0.2rem 0.65rem;color:var(--muted);font-size:0.7rem;cursor:pointer;font-family:inherit">Sign Out</button>`;
+    if (syncBtns) syncBtns.style.display = '';
+  } else {
+    authBar.innerHTML = '<button onclick="window.syncSignIn()" style="display:flex;align-items:center;gap:0.5rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.6rem 1.1rem;color:var(--text);font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit"><svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>Sign in to sync</button>';
+    if (syncBtns) syncBtns.style.display = 'none';
+  }
+});
 </script>
 
 </body>
