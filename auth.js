@@ -5,13 +5,13 @@ import {
 
 // Fill in from Firebase Console → Project Settings → Your apps → Web app
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
+  apiKey:            "AIzaSyDXkJd61sUGWdcTm5sOe7fIKxPNu-z0DjY",
   authDomain:        "weight-dashboard-6b5f3.firebaseapp.com",
   databaseURL:       "https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com",
   projectId:         "weight-dashboard-6b5f3",
   storageBucket:     "weight-dashboard-6b5f3.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId:             "YOUR_APP_ID",
+  messagingSenderId: "811571888069",
+  appId:             "1:811571888069:web:149ea5fe30a320384b95ac",
 };
 
 const app      = initializeApp(FIREBASE_CONFIG);
