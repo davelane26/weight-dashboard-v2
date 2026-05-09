@@ -68,6 +68,11 @@ function switchTab(name) {
       else if (typeof initMedication === 'function') initMedication();
     }, 50);
   }
+  if (name === 'charts') {
+    setTimeout(() => {
+      if (allData.length && typeof renderChartsTab === 'function') renderChartsTab(allData);
+    }, 0);
+  }
   document.querySelectorAll('.mob-tab').forEach(b => {
     const isActive = b.dataset.tab === name;
     b.classList.toggle('active', isActive);
