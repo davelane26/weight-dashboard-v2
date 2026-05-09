@@ -43,7 +43,6 @@ function renderAll() {
   if (typeof renderHeatmap      === 'function') renderHeatmap(allData);
   if (typeof renderReportCard   === 'function') renderReportCard();
   if (typeof refreshHealthScore === 'function') refreshHealthScore();
-  if (typeof renderChartsTab    === 'function' && localStorage.getItem('wt_v2_tab') === 'charts') renderChartsTab(allData);
 
   // Expose globally so medication.js can use weight readings for effectiveness calc
   window.allWeightData = allData;
