@@ -52,16 +52,24 @@ function renderAll() {
 }
 
 // ── Data loading ─────────────────────────────────────────────────────
+let _lastDataKey = null;
+
 async function loadData() {
   try {
     const resp = await fetch(DATA_URL + '?t=' + Date.now());
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const raw = await resp.json();
     if (!raw.length) throw new Error('empty');
-    allData = raw
+    const parsed = raw
       .map(r => ({ ...r, date: parseDate(r.date) }))
       .filter(r => r.date && r.weight)
       .sort((a, b) => a.date - b.date);
+    // Only re-render if the data actually changed (new reading or different latest weight)
+    const latest  = parsed[parsed.length - 1];
+    const dataKey = `${parsed.length}|${latest.date}|${latest.weight}`;
+    if (dataKey === _lastDataKey) return true;
+    _lastDataKey = dataKey;
+    allData = parsed;
     renderAll();
     return true;
   } catch (e) {
