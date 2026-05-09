@@ -51,6 +51,7 @@
   <script src="enhancements.js?v=5" defer></script>
   <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
 <script src="photos.js?v=2" defer></script>
+<script src="charts-tab.js?v=1" defer></script>
 <script src="health.js?v=11"  defer></script>
 </head>
 <body>
@@ -104,6 +105,7 @@
 
   <nav class="tab-nav" role="tablist" aria-label="Dashboard sections">
     <button class="tab-btn active" role="tab" id="tab-btn-weight" draggable="true" onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">⚖️ Weight</button>
+    <button class="tab-btn" role="tab" id="tab-btn-charts" draggable="true" onclick="switchTab('charts')" aria-selected="false" aria-controls="tab-charts">📊 Charts</button>
     <button class="tab-btn" role="tab" id="tab-btn-projector" draggable="true" onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">🔮 Projector</button>
     <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">🩸 Glucose</button>
     <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true" onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">🏃 Activity</button>
@@ -441,6 +443,53 @@
       </div>
     </section>
   </div><!-- /tab-projector -->
+
+  <!-- ── Charts tab ── -->
+  <div id="tab-charts" role="tabpanel" aria-labelledby="tab-btn-charts" hidden>
+    <div style="background:#0f172a;min-height:100vh;padding:1.25rem 1rem 2rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem">
+        <h2 style="color:#f1f5f9;font-size:1.1rem;font-weight:800;margin:0">⚖️ Weight Change</h2>
+        <div style="display:flex;gap:0.35rem">
+          <button class="ct-range-pill" data-range="1m" onclick="setChartsRange('1m')" style="background:#1e293b;color:#64748b;border:1.5px solid #334155;border-radius:6px;padding:0.25rem 0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer">1M</button>
+          <button class="ct-range-pill" data-range="3m" onclick="setChartsRange('3m')" style="background:#1e293b;color:#64748b;border:1.5px solid #334155;border-radius:6px;padding:0.25rem 0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer">3M</button>
+          <button class="ct-range-pill" data-range="6m" onclick="setChartsRange('6m')" style="background:#1e293b;color:#64748b;border:1.5px solid #334155;border-radius:6px;padding:0.25rem 0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer">6M</button>
+          <button class="ct-range-pill" data-range="all" onclick="setChartsRange('all')" style="background:#7c3aed;color:#fff;border:1.5px solid #7c3aed;border-radius:6px;padding:0.25rem 0.65rem;font-size:0.75rem;font-weight:700;cursor:pointer">All</button>
+        </div>
+      </div>
+      <!-- Stat cards 3×2 -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.55rem;margin-bottom:1.25rem">
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Total Lost</p>
+          <p id="ct-total-lost" style="font-size:1.25rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">BMI</p>
+          <p id="ct-bmi" style="font-size:1.25rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Weight</p>
+          <p id="ct-weight" style="font-size:1.05rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">% Lost</p>
+          <p id="ct-pct" style="font-size:1.25rem;font-weight:900;color:#34d399;line-height:1">—</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Wkly Avg</p>
+          <p id="ct-weekly-avg" style="font-size:1.05rem;font-weight:900;color:#34d399;line-height:1">—</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">To Goal</p>
+          <p id="ct-to-goal" style="font-size:0.95rem;font-weight:900;color:#60a5fa;line-height:1.2">—</p>
+        </div>
+      </div>
+      <!-- Dose-colored weight chart -->
+      <div style="position:relative;height:420px;margin:0 -0.25rem">
+        <canvas id="ct-mainChart" aria-label="Weight progress colored by Mounjaro dose phase"></canvas>
+      </div>
+      <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Color-coded by Mounjaro dose phase · openScale data</p>
+    </div>
+  </div><!-- /tab-charts -->
 
   <!-- ── Glucose tab ── -->
   <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
@@ -795,6 +844,10 @@
   <button class="mob-tab" role="tab" aria-selected="false" aria-label="Projector tab" onclick="switchTab('projector')" data-tab="projector">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
     <span>Projector</span>
+  </button>
+  <button class="mob-tab" role="tab" aria-selected="false" aria-label="Charts tab" onclick="switchTab('charts')" data-tab="charts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 18 9 12 13 16 21 6"/><polyline points="15 6 21 6 21 12"/></svg>
+    <span>Charts</span>
   </button>
   <button class="mob-tab" role="tab" aria-selected="false" aria-label="Glucose tab" onclick="switchTab('glucose')" data-tab="glucose">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>
