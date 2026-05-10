@@ -1,17 +1,13 @@
 {
-  "generated_at": "2026-05-03T14:10:57.217944+00:00",
-  "week_ending": "2026-05-03",
-  "summary": "David, what a fantastic week\u2014you're down 3.6 lbs over the past two weeks and closing in on 45 lbs lost from your starting point. Your consistency is really shining through with 14 days logged and a solid 1.8 lbs per week loss rate, plus you're averaging over 10,000 steps daily and getting 7.3 hours of sleep, which is exactly what your body needs right now. One thing I'd like you to focus on next week is your body battery\u2014it's sitting at 28, which suggests you might be pushing a bit hard without enough recovery time. Try adding one extra rest day or an easier movement day to help recharge. You're doing the work, and it's paying off in real, sustainable results.",
+  "generated_at": "2026-05-10T14:19:45.627005+00:00",
+  "week_ending": "2026-05-10",
+  "summary": "David, you've lost 45.6 pounds since starting\u2014that's a major accomplishment and puts you well on your way. This past two weeks showed a slower pace at 0.9 pounds, which is actually pretty normal and sustainable; you're averaging 0.45 pounds weekly, which is exactly the kind of steady progress that sticks. You logged 12 days out of 14, so you're staying engaged with your data, and that consistency matters more than any single week's number. Next week, let's focus on those two unlogged days\u2014keeping your Dexcom and Garmin insights visible every single day will help you spot patterns and keep momentum going. You're doing the hard work, and it's showing.",
   "stats": {
-    "days_with_readings": 14,
-    "latest_weight": 270.7,
-    "total_lost_from_start": 44.3,
-    "change_last_14d": -3.6,
-    "rate_lbs_per_week": 1.8,
-    "avg_weight": 272.1,
-    "avg_steps_7d": 10335,
-    "avg_sleep_hrs_7d": 7.3,
-    "avg_stress_7d": 32,
-    "avg_battery_7d": 28
+    "days_with_readings": 12,
+    "latest_weight": 269.4,
+    "total_lost_from_start": 45.6,
+    "change_last_14d": -0.9,
+    "rate_lbs_per_week": 0.45,
+    "avg_weight": 271.3
   }
 }
