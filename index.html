@@ -52,6 +52,7 @@
   <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
 <script src="photos.js?v=2" defer></script>
 <script src="charts-tab.js?v=1" defer></script>
+<script src="rate-analysis.js?v=1" defer></script>
 <script src="health.js?v=11"  defer></script>
 </head>
 <body>
@@ -488,6 +489,56 @@
         <canvas id="ct-mainChart" aria-label="Weight progress colored by Mounjaro dose phase"></canvas>
       </div>
       <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Color-coded by Mounjaro dose phase · openScale data</p>
+
+      <!-- ── Rate Analysis (de-skewed weekly rate) ── -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:2rem 0 0.9rem">
+        <h2 style="color:#f1f5f9;font-size:1.1rem;font-weight:800;margin:0">🎯 Real Weekly Rate</h2>
+        <span style="font-size:0.7rem;color:#64748b;font-weight:600">de-skewed for water/inflammation</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem;margin-bottom:1.25rem">
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Naive Avg</p>
+          <p id="ra-naive-rate" style="font-size:1.25rem;font-weight:900;color:#995213;line-height:1">—</p>
+          <p style="font-size:0.58rem;color:#475569;margin-top:0.2rem">lb/week · ⚠️ skewed</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem;outline:2px solid #34d399">
+          <p style="font-size:0.58rem;color:#34d399;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">⭐ True Rate</p>
+          <p id="ra-true-rate" style="font-size:1.25rem;font-weight:900;color:#34d399;line-height:1">—</p>
+          <p style="font-size:0.58rem;color:#475569;margin-top:0.2rem">lb/week · post-water</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Last 4 Weeks</p>
+          <p id="ra-recent-rate" style="font-size:1.25rem;font-weight:900;color:#60a5fa;line-height:1">—</p>
+          <p style="font-size:0.58rem;color:#475569;margin-top:0.2rem">lb/week · current</p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Total Lost (Med)</p>
+          <p id="ra-total-since-med" style="font-size:1.25rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
+          <p style="font-size:0.58rem;color:#475569;margin-top:0.2rem">lb · since Jan 29</p>
+        </div>
+      </div>
+
+      <!-- ── Body Composition chart ── -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:2rem 0 0.9rem">
+        <h2 style="color:#f1f5f9;font-size:1.1rem;font-weight:800;margin:0">💪 Body Composition</h2>
+        <span id="ra-bc-summary" style="font-size:0.7rem;color:#64748b;font-weight:600">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem;margin-bottom:1rem">
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Body Fat</p>
+          <p id="ra-bc-fat" style="font-size:1.25rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
+          <p id="ra-bc-fat-delta" style="font-size:0.65rem;font-weight:700;margin-top:0.2rem"></p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Muscle</p>
+          <p id="ra-bc-muscle" style="font-size:1.25rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
+          <p id="ra-bc-muscle-delta" style="font-size:0.65rem;font-weight:700;margin-top:0.2rem"></p>
+        </div>
+      </div>
+      <div style="position:relative;height:340px;margin:0 -0.25rem">
+        <canvas id="ra-bodycomp-chart" aria-label="Body fat percent and skeletal muscle percent over time"></canvas>
+      </div>
+      <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Body fat ↓ + muscle ↑ = losing fat, not muscle. 🎯</p>
     </div>
   </div><!-- /tab-charts -->
 
