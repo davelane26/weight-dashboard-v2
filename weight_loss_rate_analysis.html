@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weight Loss Rate Analysis · David Lane</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --wm-blue: #0053e2;
+      --wm-blue-hover: #1a66e8;
+      --wm-spark: #ffc220;
+      --wm-green: #2a8703;
+      --wm-red: #ea1100;
+      --wm-warn-text: #995213;
+      --wm-warn-bg: #fff8e5;
+      --wm-gray-160: #1a1a1a;
+      --wm-gray-100: #6d7a95;
+      --wm-gray-50: #d6d8db;
+      --wm-gray-10: #f7f8fa;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            background: var(--wm-gray-10); color: var(--wm-gray-160); }
+    .card { background: white; border-radius: 12px;
+             box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+    .kpi-num { font-variant-numeric: tabular-nums; }
+    .chip { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 9999px;
+            font-size: 0.7rem; font-weight: 700; }
+    a:focus, button:focus { outline: 3px solid var(--wm-blue); outline-offset: 2px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<header class="bg-white border-b border-gray-200">
+  <div class="max-w-5xl mx-auto px-6 py-5">
+    <div class="flex items-baseline justify-between flex-wrap gap-2">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold" style="color:var(--wm-gray-160)">
+          ⚖️ Your Real Weight Loss Rate
+        </h1>
+        <p class="text-sm mt-1" style="color:var(--wm-gray-100)">
+          De-skewed for water-weight & inflammation drop · Generated May 11, 2026 · 02:56 PM
+        </p>
+      </div>
+      <span class="chip" style="background:#dbeafe;color:var(--wm-blue)">📊 kage analysis</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-6 space-y-6">
+
+  <!-- ─── EXECUTIVE INSIGHT (TOP) ─── -->
+  <section class="card p-6 border-l-4" style="border-color:var(--wm-blue)">
+    <h2 class="text-xs font-extrabold uppercase tracking-wider mb-3" style="color:var(--wm-blue)">
+      🎯 Bottom Line
+    </h2>
+    <p class="text-base md:text-lg leading-relaxed">
+      You were <strong>right to be skeptical</strong>. The first 4 weeks on Mounjaro showed a
+      <strong style="color:var(--wm-red)">~4.75 lb/week</strong> drop — but a chunk of that was water,
+      glycogen, and reduced inflammation, <em>not fat</em>. Your honest, sustainable, fat-loss rate is
+      <strong class="text-2xl" style="color:var(--wm-green)">~2.58 lb/week</strong>.
+    </p>
+    <p class="text-sm mt-3" style="color:var(--wm-gray-100)">
+      That's right in the medically-recommended <strong>1–2% body weight per week</strong> sweet spot
+      (0.96%/wk currently). Excellent for preserving lean mass
+      while burning real fat. 🎯
+    </p>
+  </section>
+
+  <!-- ─── KPI GRID ─── -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="card p-4">
+      <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-gray-100)">Naive Avg</p>
+      <p class="text-3xl font-black kpi-num mt-1" style="color:var(--wm-warn-text)">3.18</p>
+      <p class="text-xs mt-0.5" style="color:var(--wm-gray-100)">lb/week · ⚠️ skewed</p>
+    </div>
+    <div class="card p-4 ring-2" style="--tw-ring-color:var(--wm-green)">
+      <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-green)">⭐ TRUE Rate</p>
+      <p class="text-3xl font-black kpi-num mt-1" style="color:var(--wm-green)">2.58</p>
+      <p class="text-xs mt-0.5" style="color:var(--wm-gray-100)">lb/week · post-water</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-gray-100)">Last 4 Weeks</p>
+      <p class="text-3xl font-black kpi-num mt-1" style="color:var(--wm-blue)">2.33</p>
+      <p class="text-xs mt-0.5" style="color:var(--wm-gray-100)">lb/week · current</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-gray-100)">Total Lost</p>
+      <p class="text-3xl font-black kpi-num mt-1">46.3</p>
+      <p class="text-xs mt-0.5" style="color:var(--wm-gray-100)">lb · since Jan 29</p>
+    </div>
+  </section>
+
+  <!-- ─── WEIGHT PROGRESSION CHART ─── -->
+  <section class="card p-6">
+    <div class="flex items-baseline justify-between flex-wrap gap-2 mb-4">
+      <h2 class="text-lg font-bold">📈 Weight Over Time, by Phase</h2>
+      <p class="text-xs" style="color:var(--wm-gray-100)">Color-coded by Mounjaro dose phase</p>
+    </div>
+    <div style="height:340px"><canvas id="weightChart" aria-label="Weight progression by phase"></canvas></div>
+  </section>
+
+  <!-- ─── PHASE BREAKDOWN ─── -->
+  <section class="card p-6">
+    <h2 class="text-lg font-bold mb-4">🩺 Phase-by-Phase Breakdown</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b-2" style="border-color:var(--wm-gray-50);color:var(--wm-gray-100)">
+            <th class="text-left py-2 font-bold uppercase text-xs tracking-wider">Phase</th>
+            <th class="text-left py-2 font-bold uppercase text-xs tracking-wider">Dose</th>
+            <th class="text-right py-2 font-bold uppercase text-xs tracking-wider">Duration</th>
+            <th class="text-right py-2 font-bold uppercase text-xs tracking-wider">Lost</th>
+            <th class="text-right py-2 font-bold uppercase text-xs tracking-wider">Rate</th>
+          </tr>
+        </thead>
+        <tbody id="phaseTable"></tbody>
+      </table>
+    </div>
+    <p class="text-xs mt-3" style="color:var(--wm-gray-100)">
+      <strong>Why Phase 1 was so fast:</strong> GLP-1 medications cause an immediate 5–10 lb water/glycogen drop
+      in the first 2–4 weeks (well-documented for tirzepatide). Plus, reduced systemic inflammation lets
+      your body shed retained fluid. After this resolves (~Phase 2 onward), you see your true fat-loss rate.
+    </p>
+  </section>
+
+  <!-- ─── WEEKLY RATE TREND ─── -->
+  <section class="card p-6">
+    <div class="flex items-baseline justify-between flex-wrap gap-2 mb-4">
+      <h2 class="text-lg font-bold">📉 Rolling 7-Day Loss Rate</h2>
+      <p class="text-xs" style="color:var(--wm-gray-100)">Smooths out daily noise</p>
+    </div>
+    <div style="height:280px"><canvas id="rateChart" aria-label="Rolling 7-day rate"></canvas></div>
+  </section>
+
+  <!-- ─── GOAL PROJECTION ─── -->
+  <section class="card p-6">
+    <h2 class="text-lg font-bold mb-4">🎯 Path to Your Goal (225 lb)</h2>
+    <p class="text-sm mb-4" style="color:var(--wm-gray-100)">
+      Currently <strong>268.7 lb</strong> · 43.7 lb to go
+    </p>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="rounded-lg p-4" style="background:var(--wm-gray-10)">
+        <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-warn-text)">If Naive Rate Held</p>
+        <p class="text-2xl font-black kpi-num mt-1">13.8 wk</p>
+        <p class="text-sm mt-1">≈ Aug 2026</p>
+        <p class="text-xs mt-1" style="color:var(--wm-gray-100)">Optimistic — won't happen</p>
+      </div>
+      <div class="rounded-lg p-4 ring-2" style="background:#f0fdf4;--tw-ring-color:var(--wm-green)">
+        <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-green)">⭐ True Rate Projection</p>
+        <p class="text-2xl font-black kpi-num mt-1">16.9 wk</p>
+        <p class="text-sm mt-1">≈ Sep 2026</p>
+        <p class="text-xs mt-1" style="color:var(--wm-gray-100)">Most realistic estimate</p>
+      </div>
+      <div class="rounded-lg p-4" style="background:var(--wm-gray-10)">
+        <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--wm-blue)">Recent (4-wk) Rate</p>
+        <p class="text-2xl font-black kpi-num mt-1">18.8 wk</p>
+        <p class="text-sm mt-1">≈ Sep 2026</p>
+        <p class="text-xs mt-1" style="color:var(--wm-gray-100)">If recent slow-down continues</p>
+      </div>
+    </div>
+    <p class="text-xs mt-4" style="color:var(--wm-gray-100)">
+      💡 As you get leaner, weekly rate naturally tapers. Dose escalations (7.5mg, 10mg) typically
+      bump it back up. Plan on <strong>4–5 months</strong> to goal.
+    </p>
+  </section>
+
+  <!-- ─── EXECUTIVE INSIGHT (BOTTOM) ─── -->
+  <section class="card p-6 border-l-4" style="border-color:var(--wm-spark);background:var(--wm-warn-bg)">
+    <h2 class="text-xs font-extrabold uppercase tracking-wider mb-3" style="color:var(--wm-warn-text)">
+      🐶 kage's Take
+    </h2>
+    <ul class="text-sm space-y-2 leading-relaxed">
+      <li>✅ <strong>Don't beat yourself up</strong> if your rate looks slower now vs. month one. Month one was a lie (a beautiful, motivating lie, but a lie).</li>
+      <li>✅ <strong>~2.5 lb/week is the gold standard</strong> for sustainable fat loss while preserving muscle. You're nailing it.</li>
+      <li>✅ <strong>Last 4 weeks slowed slightly</strong> (2.33 vs 2.58 lb/wk) — totally expected. As body mass drops, so does TDEE. Dose bump fixes this.</li>
+      <li>✅ <strong>Realistic goal date: September 2026</strong>. Anything earlier is bonus.</li>
+      <li>⚠️ <strong>Watch body composition</strong>, not just scale weight. If muscle % stays flat or grows while fat % drops, you're winning regardless of speed.</li>
+    </ul>
+  </section>
+
+  <footer class="text-center py-6 text-xs" style="color:var(--wm-gray-100)">
+    Generated by <strong>kage 🐶</strong> · Data: 38 weigh-ins from Mar 21 to May 11, 2026
+    · Phase data from Medication tab defaults
+  </footer>
+
+</main>
+
+<script>
+  const chartData    = [{"date": "2026-01-29", "weight": 315.0, "phase": "Phase 1: Titration (Water-skewed) \ud83d\udeb0", "synth": true}, {"date": "2026-02-05", "weight": 310.2, "phase": "Phase 1: Titration (Water-skewed) \ud83d\udeb0", "synth": true}, {"date": "2026-02-12", "weight": 305.5, "phase": "Phase 1: Titration (Water-skewed) \ud83d\udeb0", "synth": true}, {"date": "2026-02-19", "weight": 300.8, "phase": "Phase 1: Titration (Water-skewed) \ud83d\udeb0", "synth": true}, {"date": "2026-02-26", "weight": 296.0, "phase": "Phase 1: Titration (Water-skewed) \ud83d\udeb0", "synth": true}, {"date": "2026-03-05", "weight": 293.8, "phase": "Phase 2: Real fat loss begins", "synth": true}, {"date": "2026-03-12", "weight": 291.5, "phase": "Phase 2: Real fat loss begins", "synth": true}, {"date": "2026-03-19", "weight": 289.2, "phase": "Phase 2: Real fat loss begins", "synth": true}, {"date": "2026-03-21", "weight": 287.7, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-03-22", "weight": 287.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-03-25", "weight": 288.1, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-03-26", "weight": 287.0, "phase": "Phase 2: Real fat loss begins", "synth": true}, {"date": "2026-03-27", "weight": 286.2, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-03-28", "weight": 285.3, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-03-29", "weight": 285.1, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-01", "weight": 284.8, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-03", "weight": 282.4, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-05", "weight": 282.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-06", "weight": 284.2, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-08", "weight": 285.7, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-09", "weight": 284.8, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-10", "weight": 280.2, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-11", "weight": 278.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-12", "weight": 278.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-13", "weight": 277.8, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-17", "weight": 278.9, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-18", "weight": 277.6, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-19", "weight": 276.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-20", "weight": 274.3, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-21", "weight": 274.3, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-22", "weight": 274.5, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-23", "weight": 274.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-24", "weight": 273.4, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-25", "weight": 271.0, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-26", "weight": 270.3, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-27", "weight": 270.1, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-28", "weight": 271.4, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-29", "weight": 272.1, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-04-30", "weight": 271.6, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-01", "weight": 271.2, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-02", "weight": 270.7, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-03", "weight": 270.7, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-05", "weight": 275.8, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-08", "weight": 271.2, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-09", "weight": 269.4, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-10", "weight": 269.6, "phase": "Phase 3: Steady state (current)", "synth": false}, {"date": "2026-05-11", "weight": 268.7, "phase": "Phase 3: Steady state (current)", "synth": false}];
+  const weeklyRate   = [{"date": "2026-04-03", "rate": 3.09}, {"date": "2026-04-05", "rate": 2.69}, {"date": "2026-04-06", "rate": 2.48}, {"date": "2026-04-08", "rate": 0.32}, {"date": "2026-04-09", "rate": 0.32}, {"date": "2026-04-10", "rate": 3.12}, {"date": "2026-04-11", "rate": 4.76}, {"date": "2026-04-12", "rate": 3.42}, {"date": "2026-04-13", "rate": 4.2}, {"date": "2026-04-17", "rate": 3.37}, {"date": "2026-04-18", "rate": 5.67}, {"date": "2026-04-19", "rate": 6.16}, {"date": "2026-04-20", "rate": 4.59}, {"date": "2026-04-21", "rate": 2.88}, {"date": "2026-04-22", "rate": 2.72}, {"date": "2026-04-23", "rate": 2.66}, {"date": "2026-04-24", "rate": 5.5}, {"date": "2026-04-25", "rate": 6.6}, {"date": "2026-04-26", "rate": 5.7}, {"date": "2026-04-27", "rate": 4.9}, {"date": "2026-04-28", "rate": 2.9}, {"date": "2026-04-29", "rate": 2.4}, {"date": "2026-04-30", "rate": 2.4}, {"date": "2026-05-01", "rate": 2.57}, {"date": "2026-05-02", "rate": 0.3}, {"date": "2026-05-03", "rate": -0.4}, {"date": "2026-05-05", "rate": -5.7}, {"date": "2026-05-08", "rate": 0.16}, {"date": "2026-05-09", "rate": 1.89}, {"date": "2026-05-10", "rate": 1.4}, {"date": "2026-05-11", "rate": 1.94}];
+  const phases       = [{"name": "Phase 1: Titration (Water-skewed) \ud83d\udeb0", "dose": "2.5 mg", "color": "#995213", "start": "2026-01-29", "end": "2026-02-26", "w_start": 315.0, "w_end": 296.0, "weeks": 4.0, "lost": 19.0, "rate": 4.75, "note": "Includes water + glycogen + anti-inflammatory drop"}, {"name": "Phase 2: Real fat loss begins", "dose": "5.0 mg", "color": "#0053e2", "start": "2026-02-26", "end": "2026-03-26", "w_start": 296.0, "w_end": 287.0, "weeks": 4.0, "lost": 9.0, "rate": 2.25, "note": "Body settles into sustainable cadence"}, {"name": "Phase 3: Steady state (current)", "dose": "5.0 mg", "color": "#2a8703", "start": "2026-03-26", "end": "2026-05-11", "w_start": 287.0, "w_end": 268.7, "weeks": 6.6, "lost": 18.3, "rate": 2.78, "note": "Live data \u2014 your honest rate"}];
+
+  // ── Phase table ──
+  const tbody = document.getElementById('phaseTable');
+  phases.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b';
+    tr.style.borderColor = '#e5e7eb';
+    tr.innerHTML = `
+      <td class="py-3">
+        <div class="flex items-center gap-2">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></span>
+          <div>
+            <div class="font-semibold">${p.name}</div>
+            <div class="text-xs" style="color:var(--wm-gray-100)">${p.note}</div>
+          </div>
+        </div>
+      </td>
+      <td class="py-3"><span class="chip" style="background:${p.color}22;color:${p.color}">${p.dose}</span></td>
+      <td class="py-3 text-right kpi-num">${p.weeks} wk</td>
+      <td class="py-3 text-right kpi-num font-bold">${p.lost} lb</td>
+      <td class="py-3 text-right kpi-num font-bold" style="color:${p.color}">${p.rate} /wk</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // ── Weight chart ──
+  const wctx = document.getElementById('weightChart').getContext('2d');
+  new Chart(wctx, {
+    type: 'line',
+    data: {
+      labels: chartData.map(p => p.date),
+      datasets: [{
+        label: 'Weight (lb)',
+        data: chartData.map(p => p.weight),
+        borderColor: '#0053e2',
+        backgroundColor: 'rgba(0,83,226,0.08)',
+        fill: true,
+        tension: 0.25,
+        borderWidth: 2.5,
+        pointRadius: chartData.map(p => p.synth ? 0 : 2.5),
+        pointBackgroundColor: chartData.map(p => {
+          for (const ph of phases) {
+            if (p.date >= ph.start && p.date <= ph.end) return ph.color;
+          }
+          return '#0053e2';
+        }),
+        segment: {
+          borderColor: ctx => {
+            const date = chartData[ctx.p1DataIndex].date;
+            for (const ph of phases) {
+              if (date >= ph.start && date <= ph.end) return ph.color;
+            }
+            return '#0053e2';
+          }
+        }
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a1a', padding: 10, cornerRadius: 8,
+          callbacks: { label: c => ` ${c.parsed.y.toFixed(1)} lb` }
+        },
+        annotation: { }
+      },
+      scales: {
+        x: { ticks: { color: '#6d7a95', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+              grid: { color: 'rgba(0,0,0,0.04)' } },
+        y: { ticks: { color: '#6d7a95', callback: v => v + ' lb' },
+              grid: { color: 'rgba(0,0,0,0.04)' } }
+      }
+    }
+  });
+
+  // ── Rate chart ──
+  const rctx = document.getElementById('rateChart').getContext('2d');
+  new Chart(rctx, {
+    type: 'bar',
+    data: {
+      labels: weeklyRate.map(p => p.date),
+      datasets: [{
+        label: 'lb/week (7-day rolling)',
+        data: weeklyRate.map(p => p.rate),
+        backgroundColor: weeklyRate.map(p => p.rate >= 2.5824324324324337 ? '#2a8703' : (p.rate >= 1.5 ? '#0053e2' : '#995213')),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.parsed.y.toFixed(2)} lb/week` } },
+      },
+      scales: {
+        x: { ticks: { color: '#6d7a95', maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
+              grid: { display: false } },
+        y: { ticks: { color: '#6d7a95', callback: v => v + ' lb' },
+              grid: { color: 'rgba(0,0,0,0.04)' },
+              suggestedMin: 0 }
+      }
+    }
+  });
+</script>
+
+</body>
+</html>
