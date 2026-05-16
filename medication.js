@@ -414,6 +414,9 @@ function renderMedAll() {
   try { renderMedPhases();       } catch(e) { console.error('[med] renderMedPhases',       e); }
   try { renderMedChart();        } catch(e) { console.error('[med] renderMedChart',        e); }
   try { renderMedEffectiveness();} catch(e) { console.error('[med] renderMedEffectiveness',e); }
+  try { renderShotStatus();      } catch(e) { console.error('[med] renderShotStatus',      e); }
+  try { renderSupply();          } catch(e) { console.error('[med] renderSupply',          e); }
+  try { renderShotHistory();     } catch(e) { console.error('[med] renderShotHistory',     e); }
 }
 
 // ── Edit Panel ────────────────────────────────────────────────────────────────
@@ -543,6 +546,339 @@ function saveMedData() {
     console.error('[medication] save error:', err);
     showMedToast('Save failed: ' + err.message, true);
   }
+}
+
+// ── Shot Log ──────────────────────────────────────────────────────────────────
+
+const SHOTS_KEY  = 'med_shots_v1';
+const SUPPLY_KEY = 'med_supply_v1';
+
+// Tirzepatide: t½ ~5 days (120h), Tmax ~68h
+// Semaglutide: t½ ~7 days (168h), Tmax ~63h
+const PK_PARAMS = {
+  tirzepatide: { ka: 0.030, ke: 0.00578, phasePeak: 48, phaseFade: 96  },
+  semaglutide: { ka: 0.040, ke: 0.00412, phasePeak: 48, phaseFade: 96  },
+};
+
+function getPKParams(medication) {
+  if (!medication) return PK_PARAMS.tirzepatide;
+  const m = medication.toLowerCase();
+  return (m.includes('ozempic') || m.includes('wegovy')) ? PK_PARAMS.semaglutide : PK_PARAMS.tirzepatide;
+}
+
+function pkConc(t, ka, ke) {
+  if (t < 0) return 0;
+  return Math.max(0, (Math.exp(-ke * t) - Math.exp(-ka * t)) / (ka - ke));
+}
+
+function buildPKCurve(pk) {
+  const pts = [];
+  for (let h = 0; h <= 168; h++) pts.push({ h, c: pkConc(h, pk.ka, pk.ke) });
+  const maxC = Math.max(...pts.map(p => p.c));
+  return pts.map(p => ({ h: p.h, pct: maxC > 0 ? (p.c / maxC) * 100 : 0 }));
+}
+
+function getShotPhase(hoursElapsed, pk) {
+  if (hoursElapsed < 0)            return { label: 'Scheduled',  color: '#6d7a95', bg: '#f5f6f8', desc: 'Shot scheduled in the future' };
+  if (hoursElapsed < pk.phasePeak) return { label: '↑ Rising',   color: '#0053e2', bg: '#eff4ff', desc: 'Drug absorbing — building toward peak effect' };
+  if (hoursElapsed < pk.phaseFade) return { label: '⚡ Peak',    color: '#2a8703', bg: '#f0fdf4', desc: 'At maximum concentration — appetite suppression strongest' };
+  if (hoursElapsed < 168)          return { label: '↓ Fading',   color: '#995213', bg: '#fef9ec', desc: 'Concentration declining — next dose approaching' };
+  return                                   { label: '⚠ Overdue', color: '#ea1100', bg: '#fff1f0', desc: 'Shot overdue — concentration very low' };
+}
+
+function loadShots()     { try { return JSON.parse(localStorage.getItem(SHOTS_KEY) || '[]'); } catch { return []; } }
+function saveShots(s)    { localStorage.setItem(SHOTS_KEY, JSON.stringify(s)); }
+function loadSupply()    { try { return JSON.parse(localStorage.getItem(SUPPLY_KEY) || 'null') || { pens: 0, dosesPerPen: 4, expirationDate: '' }; } catch { return { pens: 0, dosesPerPen: 4, expirationDate: '' }; } }
+function saveSupplyData(d) { localStorage.setItem(SUPPLY_KEY, JSON.stringify(d)); }
+
+// ── Shot Form ────────────────────────────────────────────────────────────────
+
+function toggleShotForm() {
+  const panel = _mEl('shot-form-panel');
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? 'block' : 'none';
+  if (!opening) return;
+
+  // Default to now
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const local = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  if (_mEl('shot-datetime')) _mEl('shot-datetime').value = local;
+
+  // Default medication to current phase dose
+  const curDose = loadMedData().phases.slice(-1)[0]?.dose;
+  if (curDose) {
+    const medEl = _mEl('shot-medication');
+    if (medEl) for (const o of medEl.options) { if (o.value.includes(curDose + 'mg')) { o.selected = true; break; } }
+  }
+
+  // Suggest next rotation site
+  const shots  = loadShots();
+  const sites  = ['Left Abdomen','Right Abdomen','Left Thigh','Right Thigh','Left Upper Arm','Right Upper Arm'];
+  if (shots.length) {
+    const lastSite = shots[shots.length - 1].site;
+    const next     = sites[(sites.indexOf(lastSite) + 1) % sites.length];
+    const siteEl   = _mEl('shot-site');
+    if (siteEl) for (const o of siteEl.options) { if (o.value === next) { o.selected = true; break; } }
+  }
+
+  // Pre-fill weight from live KPI
+  const wEl = _mEl('shot-weight');
+  if (wEl) { const cw = currentWeight(); if (cw && !isNaN(cw)) wEl.value = cw.toFixed(1); }
+}
+
+function saveShot() {
+  const datetime = _mEl('shot-datetime')?.value;
+  if (!datetime) { showMedToast('Please select a date and time', true); return; }
+
+  const symptoms = [];
+  document.querySelectorAll('#shot-symptoms-check input:checked').forEach(cb => symptoms.push(cb.value));
+
+  const shot = {
+    id:        Date.now(),
+    date:      datetime,
+    medication:_mEl('shot-medication')?.value  || '',
+    site:      _mEl('shot-site')?.value        || '',
+    weight:    parseFloat(_mEl('shot-weight')?.value) || null,
+    foodNoise: _mEl('shot-food-noise')?.value  || 'none',
+    symptoms,
+    notes:     _mEl('shot-notes')?.value?.trim() || '',
+  };
+
+  const shots = loadShots();
+  shots.push(shot);
+  shots.sort((a, b) => new Date(a.date) - new Date(b.date));
+  saveShots(shots);
+
+  // Reset checkboxes + notes
+  document.querySelectorAll('#shot-symptoms-check input').forEach(cb => cb.checked = false);
+  if (_mEl('shot-notes')) _mEl('shot-notes').value = '';
+
+  toggleShotForm();
+  renderShotStatus();
+  renderShotHistory();
+  showMedToast('✓ Shot logged');
+}
+
+function deleteShot(id) {
+  saveShots(loadShots().filter(s => s.id !== id));
+  renderShotStatus();
+  renderShotHistory();
+  showMedToast('Shot removed');
+}
+
+// ── PK Curve Chart ───────────────────────────────────────────────────────────
+
+let pkChartInst = null;
+
+function renderShotStatus() {
+  const shots    = loadShots();
+  const lastShot = shots.length ? shots[shots.length - 1] : null;
+  const labelEl  = _mEl('shot-last-label');
+  const badgeEl  = _mEl('shot-phase-badge');
+  const descEl   = _mEl('shot-phase-desc');
+  const cntEl    = _mEl('shot-countdown');
+
+  if (!lastShot) {
+    if (labelEl) labelEl.textContent = 'No shots logged yet';
+    if (badgeEl) badgeEl.textContent = '—';
+    if (descEl)  descEl.textContent  = 'Log your first shot to see the drug curve';
+    if (cntEl)   cntEl.textContent   = '';
+    renderPKChart(null, 0, PK_PARAMS.tirzepatide);
+    return;
+  }
+
+  const shotDate   = new Date(lastShot.date);
+  const now        = new Date();
+  const hoursAgo   = (now - shotDate) / 3600000;
+  const pk         = getPKParams(lastShot.medication);
+  const phase      = getShotPhase(hoursAgo, pk);
+  const nextShot   = new Date(shotDate.getTime() + 7 * 24 * 3600000);
+  const hoursLeft  = (nextShot - now) / 3600000;
+
+  if (labelEl) {
+    const d = shotDate;
+    labelEl.textContent = `Last: ${lastShot.medication} · ${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})} at ${d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} · ${lastShot.site}`;
+  }
+  if (badgeEl) { badgeEl.textContent = phase.label; badgeEl.style.background = phase.bg; badgeEl.style.color = phase.color; }
+  if (descEl)  descEl.textContent = phase.desc;
+  if (cntEl) {
+    if (hoursLeft > 0) {
+      const d = Math.floor(hoursLeft / 24), h = Math.floor(hoursLeft % 24);
+      cntEl.textContent = `Next shot in: ${d}d ${h}h`;
+      cntEl.style.color = hoursLeft < 24 ? '#ea1100' : '#374151';
+    } else {
+      cntEl.textContent = 'Shot overdue!';
+      cntEl.style.color = '#ea1100';
+    }
+  }
+
+  renderPKChart(lastShot, hoursAgo, pk);
+}
+
+function renderPKChart(lastShot, hoursAgo, pk) {
+  const canvas = _mEl('shotPKChart');
+  if (!canvas) return;
+  if (pkChartInst) { pkChartInst.destroy(); pkChartInst = null; }
+
+  const curve      = buildPKCurve(pk);
+  const labels     = curve.map(p => p.h % 24 === 0 ? `Day ${p.h / 24}` : '');
+  const mainColor  = lastShot ? '#7c3aed' : 'rgba(124,58,237,0.3)';
+  const fillColor  = lastShot ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.05)';
+
+  const datasets = [{
+    label: 'Drug level',
+    data:  curve.map(p => p.pct),
+    borderColor: mainColor,
+    backgroundColor: fillColor,
+    borderWidth: 2.5,
+    fill: true,
+    tension: 0.4,
+    pointRadius: 0,
+  }];
+
+  if (lastShot) {
+    const currentH   = Math.min(Math.round(hoursAgo), 168);
+    const currentPct = curve.find(p => p.h === currentH)?.pct ?? 0;
+    datasets.push({
+      label: 'Now',
+      data:  curve.map(p => p.h === currentH ? currentPct : null),
+      borderColor: '#ea1100',
+      backgroundColor: '#ea1100',
+      pointRadius: 8,
+      pointHoverRadius: 10,
+      showLine: false,
+    });
+  }
+
+  pkChartInst = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          filter: item => item.parsed.y != null,
+          callbacks: {
+            title: items => `Hour ${items[0].dataIndex}`,
+            label: c => c.dataset.label === 'Now' ? ' ← You are here' : ` ${c.parsed.y.toFixed(0)}% drug level`,
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 0, autoSkip: true }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        y: { min: 0, max: 105, ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      },
+    },
+  });
+}
+
+// ── Supply Tracker ────────────────────────────────────────────────────────────
+
+function toggleSupplyEdit() {
+  const form = _mEl('supply-edit-form');
+  if (!form) return;
+  const opening = form.style.display === 'none';
+  form.style.display = opening ? 'block' : 'none';
+  if (!opening) return;
+  const data = loadSupply();
+  if (_mEl('supply-input-pens')) _mEl('supply-input-pens').value = data.pens;
+  if (_mEl('supply-input-dpn'))  _mEl('supply-input-dpn').value  = data.dosesPerPen;
+  if (_mEl('supply-input-exp'))  _mEl('supply-input-exp').value  = data.expirationDate || '';
+}
+
+function saveSupply() {
+  saveSupplyData({
+    pens:           parseInt(_mEl('supply-input-pens')?.value) || 0,
+    dosesPerPen:    parseInt(_mEl('supply-input-dpn')?.value)  || 4,
+    expirationDate: _mEl('supply-input-exp')?.value || '',
+  });
+  toggleSupplyEdit();
+  renderSupply();
+  showMedToast('✓ Supply updated');
+}
+
+function renderSupply() {
+  const data       = loadSupply();
+  const totalDoses = data.pens * data.dosesPerPen;
+
+  _mSet('supply-pens',  data.pens);
+  _mSet('supply-doses', totalDoses);
+  _mSet('supply-weeks', totalDoses); // 1 dose/week
+
+  const expEl      = _mEl('supply-expires');
+  const daysLeftEl = _mEl('supply-days-left');
+  if (data.expirationDate) {
+    const exp      = new Date(data.expirationDate + 'T00:00:00');
+    const daysLeft = Math.ceil((exp - new Date()) / 86400000);
+    if (expEl)      expEl.textContent      = exp.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    if (daysLeftEl) {
+      daysLeftEl.textContent = daysLeft > 0 ? `${daysLeft} days left` : 'EXPIRED';
+      daysLeftEl.style.color = daysLeft < 30 ? '#ea1100' : '';
+    }
+  } else {
+    if (expEl)      expEl.textContent      = '—';
+    if (daysLeftEl) daysLeftEl.textContent = 'No expiry set';
+  }
+}
+
+// ── Shot History + CSV Export ─────────────────────────────────────────────────
+
+function renderShotHistory() {
+  const tbody = _mEl('shot-history-body');
+  if (!tbody) return;
+  const shots = loadShots().slice().reverse();
+
+  if (!shots.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:#6d7a95">No shots logged yet</td></tr>';
+    return;
+  }
+
+  const fnColor = { none: '#6d7a95', mild: '#995213', moderate: '#ea6000', severe: '#ea1100' };
+  const fnEmoji = { none: '🤫', mild: '😐', moderate: '😤', severe: '🍔' };
+
+  tbody.innerHTML = shots.map(s => {
+    const d    = new Date(s.date);
+    const date = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const time = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    const syms = s.symptoms?.length ? s.symptoms.map(x => x.replace(/_/g,' ')).join(', ') : '—';
+    const fn   = s.foodNoise || 'none';
+    return `<tr style="border-bottom:1px solid #f0f0f5">
+      <td style="padding:0.5rem 0.75rem;white-space:nowrap;font-weight:600">${date}<br><span style="font-size:0.7rem;color:#6d7a95;font-weight:400">${time}</span></td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.8rem">${s.medication}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.8rem;white-space:nowrap">${s.site}</td>
+      <td style="padding:0.5rem 0.75rem;font-weight:700">${s.weight ? s.weight + ' lbs' : '—'}</td>
+      <td style="padding:0.5rem 0.75rem;color:${fnColor[fn]};font-weight:600;white-space:nowrap">${fnEmoji[fn]} ${fn.charAt(0).toUpperCase()+fn.slice(1)}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.75rem;color:#6d7a95">${syms}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.75rem;color:#6d7a95;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.notes || '—'}</td>
+      <td style="padding:0.5rem 0.5rem"><button onclick="deleteShot(${s.id})" title="Delete" style="background:#fff1f0;color:#ea1100;border:1px solid #fecaca;border-radius:4px;padding:0.2rem 0.4rem;font-size:0.72rem;cursor:pointer">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function exportShotsCSV() {
+  const shots = loadShots();
+  if (!shots.length) { showMedToast('No shots to export', true); return; }
+  const headers = ['Date','Time','Medication','Site','Weight (lbs)','Food Noise','Symptoms','Notes'];
+  const rows = shots.map(s => {
+    const d = new Date(s.date);
+    return [
+      d.toLocaleDateString('en-CA'),
+      d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }),
+      s.medication, s.site, s.weight ?? '', s.foodNoise,
+      (s.symptoms || []).join('; '), s.notes || '',
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'glp1-shot-log.csv'; a.click();
+  URL.revokeObjectURL(url);
+  showMedToast('✓ CSV exported');
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────────────────

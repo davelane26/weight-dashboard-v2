@@ -649,6 +649,108 @@
         </div>
       </div>
     </section>
+
+    <!-- Shot Status + PK Curve -->
+    <section class="card fade-in card--accent-purple" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem">
+        <div>
+          <h2 class="card-title" style="margin-bottom:0.2rem">💉 Current Shot Status</h2>
+          <p style="font-size:0.78rem;color:#6d7a95" id="shot-last-label">No shots logged yet</p>
+        </div>
+        <button onclick="toggleShotForm()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">+ Log Shot</button>
+      </div>
+      <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.85rem;flex-wrap:wrap">
+        <div id="shot-phase-badge" style="font-size:0.78rem;font-weight:800;padding:0.3rem 0.9rem;border-radius:20px;background:#f5f3ff;color:#7c3aed;white-space:nowrap">—</div>
+        <div>
+          <p style="font-size:0.75rem;color:#6d7a95;margin:0" id="shot-phase-desc">Log your first shot to see the drug curve</p>
+          <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0.15rem 0 0" id="shot-countdown"></p>
+        </div>
+      </div>
+      <div style="height:175px"><canvas id="shotPKChart"></canvas></div>
+      <div style="display:flex;justify-content:space-between;margin-top:0.3rem">
+        <span style="font-size:0.65rem;color:#6d7a95">↑ Rising</span>
+        <span style="font-size:0.65rem;color:#6d7a95">⚡ Peak</span>
+        <span style="font-size:0.65rem;color:#6d7a95">↓ Fading</span>
+        <span style="font-size:0.65rem;color:#6d7a95">Day 7</span>
+      </div>
+    </section>
+
+    <!-- Log Shot Form -->
+    <section id="shot-form-panel" class="card fade-in card--accent-purple" style="display:none">
+      <h3 style="font-size:0.9rem;font-weight:800;color:#7c3aed;margin-bottom:1rem">💉 Log Injection</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div>
+          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">MEDICATION</label>
+          <select id="shot-medication" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+            <option>Mounjaro 2.5mg</option>
+            <option selected>Mounjaro 5mg</option>
+            <option>Mounjaro 7.5mg</option>
+            <option>Mounjaro 10mg</option>
+            <option>Mounjaro 12.5mg</option>
+            <option>Mounjaro 15mg</option>
+            <option>Ozempic 0.25mg</option>
+            <option>Ozempic 0.5mg</option>
+            <option>Ozempic 1mg</option>
+            <option>Ozempic 2mg</option>
+            <option>Wegovy 0.25mg</option>
+            <option>Wegovy 0.5mg</option>
+            <option>Wegovy 1mg</option>
+            <option>Wegovy 1.7mg</option>
+            <option>Wegovy 2.4mg</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">DATE &amp; TIME</label>
+          <input type="datetime-local" id="shot-datetime" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">INJECTION SITE</label>
+          <select id="shot-site" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+            <option>Left Abdomen</option>
+            <option>Right Abdomen</option>
+            <option>Left Thigh</option>
+            <option>Right Thigh</option>
+            <option>Left Upper Arm</option>
+            <option>Right Upper Arm</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">WEIGHT AT SHOT (lbs)</label>
+          <input type="number" step="0.1" id="shot-weight" placeholder="e.g. 287.5" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">FOOD NOISE</label>
+          <select id="shot-food-noise" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+            <option value="none">None — completely quiet</option>
+            <option value="mild">Mild — occasional thoughts</option>
+            <option value="moderate">Moderate — noticeable cravings</option>
+            <option value="severe">Severe — hard to resist</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">NOTES</label>
+          <input type="text" id="shot-notes" placeholder="Optional notes…" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="margin-bottom:0.85rem">
+        <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.4rem">SYMPTOMS (check all that apply)</label>
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem" id="shot-symptoms-check">
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="nausea" style="margin:0"> Nausea</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="fatigue" style="margin:0"> Fatigue</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="diarrhea" style="margin:0"> Diarrhea</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="constipation" style="margin:0"> Constipation</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="headache" style="margin:0"> Headache</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="vomiting" style="margin:0"> Vomiting</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="dizziness" style="margin:0"> Dizziness</label>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="injection_site" style="margin:0"> Injection site reaction</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button onclick="toggleShotForm()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
+        <button onclick="saveShot()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Log Shot</button>
+      </div>
+    </section>
+
     <section class="fade-in" style="margin-top:1rem">
       <div class="kpi-grid">
         <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">🏁 Start Weight</p><p class="kpi-value" style="color:#ea1100" id="med-start-weight">—</p><p class="kpi-unit">lbs</p></div>
@@ -658,7 +760,69 @@
         <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#995213">⚡ Avg/Week</p><p class="kpi-value" style="color:#995213" id="med-avg-per-week">—</p><p class="kpi-unit">lbs lost/week</p></div>
       </div>
     </section>
+    <!-- Supply Tracker -->
+    <section class="card fade-in card--accent-blue">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+        <h2 class="card-title" style="margin:0">📦 Supply Tracker</h2>
+        <button onclick="toggleSupplyEdit()" style="background:#0053e2;color:#fff;border:none;border-radius:8px;padding:0.35rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">✏️ Edit</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0891b2">💊 Pens</p><p class="kpi-value" style="color:#0891b2" id="supply-pens">—</p><p class="kpi-unit">in stock</p></div>
+        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#7c3aed">💉 Doses</p><p class="kpi-value" style="color:#7c3aed" id="supply-doses">—</p><p class="kpi-unit">remaining</p></div>
+        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2a8703">📅 Weeks</p><p class="kpi-value" style="color:#2a8703" id="supply-weeks">—</p><p class="kpi-unit">of supply</p></div>
+        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">⚠️ Expires</p><p class="kpi-value" style="font-size:1.1rem;color:#ea1100" id="supply-expires">—</p><p class="kpi-unit" id="supply-days-left">No expiry set</p></div>
+      </div>
+      <div id="supply-edit-form" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">PENS IN STOCK</label>
+            <input type="number" min="0" step="1" id="supply-input-pens" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">DOSES PER PEN</label>
+            <input type="number" min="1" step="1" id="supply-input-dpn" value="4" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">EXPIRATION DATE</label>
+            <input type="date" id="supply-input-exp" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+          <button onclick="toggleSupplyEdit()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
+          <button onclick="saveSupply()" style="background:#0053e2;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save</button>
+        </div>
+      </div>
+    </section>
+
     <section class="card fade-in card--accent-purple"><h2 class="card-title">📈 Dosage Phases</h2><div id="med-phases" style="display:flex;flex-direction:column;gap:0.75rem"></div></section>
+
+    <!-- Shot History -->
+    <section class="card fade-in card--accent-green">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+        <h2 class="card-title" style="margin:0">📋 Shot History</h2>
+        <button onclick="exportShotsCSV()" style="background:#2a8703;color:#fff;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer">⬇ Export CSV</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+          <thead>
+            <tr style="background:#f5f6f8;text-align:left">
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95;white-space:nowrap">Date</th>
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Medication</th>
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Site</th>
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Weight</th>
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Food Noise</th>
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Symptoms</th>
+              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Notes</th>
+              <th style="padding:0.5rem 0.5rem"></th>
+            </tr>
+          </thead>
+          <tbody id="shot-history-body">
+            <tr><td colspan="8" style="text-align:center;padding:1.5rem;color:#6d7a95">No shots logged yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="card fade-in card--accent-blue"><h2 class="card-title">📉 Weight Progress by Phase</h2><div style="height:280px"><canvas id="medWeightChart"></canvas></div></section>
     <section class="card fade-in card--accent-green">
       <h2 class="card-title">⚡ Dose Effectiveness</h2>
