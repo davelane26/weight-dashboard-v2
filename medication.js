@@ -553,6 +553,22 @@ function saveMedData() {
 const SHOTS_KEY  = 'med_shots_v1';
 const SUPPLY_KEY = 'med_supply_v1';
 
+const SHOT_DEFAULTS = [
+  { id:1,  date:'2026-01-29T17:30', medication:'Mounjaro 2.5mg', site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:2,  date:'2026-02-05T17:30', medication:'Mounjaro 2.5mg', site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:3,  date:'2026-02-12T17:30', medication:'Mounjaro 2.5mg', site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:4,  date:'2026-02-19T17:30', medication:'Mounjaro 2.5mg', site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:5,  date:'2026-02-26T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:6,  date:'2026-03-05T17:30', medication:'Mounjaro 5mg',   site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:7,  date:'2026-03-12T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:8,  date:'2026-03-19T17:30', medication:'Mounjaro 5mg',   site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:9,  date:'2026-03-26T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:10, date:'2026-04-02T17:30', medication:'Mounjaro 5mg',   site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:11, date:'2026-04-09T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:12, date:'2026-04-16T17:30', medication:'Mounjaro 5mg',   site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:13, date:'2026-04-23T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+];
+
 // Tirzepatide: t½ ~5 days (120h), Tmax ~68h
 // Semaglutide: t½ ~7 days (168h), Tmax ~63h
 const PK_PARAMS = {
@@ -615,7 +631,7 @@ function toggleShotForm() {
 
   // Suggest next rotation site
   const shots  = loadShots();
-  const sites  = ['Left Abdomen','Right Abdomen','Left Thigh','Right Thigh','Left Upper Arm','Right Upper Arm'];
+  const sites  = ['Abdomen Lower Left','Lower Mid','Abdomen Lower Right','Abdomen Upper Left','Abdomen Upper Right','Left Thigh','Right Thigh','Left Upper Arm','Right Upper Arm'];
   if (shots.length) {
     const lastSite = shots[shots.length - 1].site;
     const next     = sites[(sites.indexOf(lastSite) + 1) % sites.length];
@@ -883,6 +899,7 @@ function exportShotsCSV() {
 
 // ── Init ───────────────────────────────────────────────────────────────────────────────────
 function initMedication() {
+  if (localStorage.getItem(SHOTS_KEY) === null) saveShots(SHOT_DEFAULTS);
   renderMedAll();         // 1. Instant render from localStorage cache
   syncMedDataWithCloud(); // 2. Background merge with Firebase, re-render if newer
 }
