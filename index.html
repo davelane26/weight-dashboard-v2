@@ -620,219 +620,195 @@
 
   <!-- ── Medication tab ── -->
   <div id="tab-medication" role="tabpanel" aria-labelledby="tab-btn-medication" hidden>
-    <section class="card fade-in card--accent-purple">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
-        <div>
-          <h2 class="card-title" style="margin-bottom:0.2rem">💊 Mounjaro (Tirzepatide)</h2>
-          <p style="font-size:0.78rem;color:#6d7a95" id="med-start-label">Started January 29, 2026 &middot; GLP-1/GIP receptor agonist</p>
-        </div>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <div style="text-align:right">
-            <p style="font-size:0.7rem;color:#6d7a95;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Current Dose</p>
-            <p style="font-size:1.8rem;font-weight:900;color:#7c3aed;line-height:1" id="med-current-dose">—</p>
-            <p style="font-size:0.72rem;color:#6d7a95">mg / week</p>
-          </div>
-          <button onclick="toggleMedEdit()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">✏️ Edit</button>
-        </div>
-      </div>
-    </section>
-    <section id="med-edit-panel" class="card fade-in card--accent-purple" style="display:none">
-      <h3 style="font-size:0.9rem;font-weight:800;color:#7c3aed;margin-bottom:1rem">✏️ Edit Journey Data</h3>
-      <div style="margin-bottom:1rem"><label style="font-size:0.72rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.3rem">START DATE</label><input type="date" id="med-edit-start" style="border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.85rem;width:100%;box-sizing:border-box"></div>
-      <div style="margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center"><p style="font-size:0.72rem;font-weight:700;color:#6d7a95">PHASES</p><button onclick="medAddPhase()" style="background:#0053e2;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer">+ Add Phase</button></div>
-      <div id="med-edit-phases" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem"></div>
-      <div style="display:flex;gap:0.5rem;justify-content:space-between;align-items:center">
-        <button onclick="resetMedData()" style="background:none;color:#ea1100;border:none;font-size:0.72rem;font-weight:600;cursor:pointer;padding:0">Reset to defaults</button>
-        <div style="display:flex;gap:0.5rem">
-          <button onclick="toggleMedEdit()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
-          <button onclick="saveMedData()" style="background:#2a8703;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save</button>
-        </div>
-      </div>
-    </section>
+    <!-- Sub-tab nav -->
+    <div style="display:flex;gap:0.25rem;overflow-x:auto;padding:0.75rem 1rem 0;background:#f5f6f8;border-bottom:1px solid #e5e7eb;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      <button id="medtab-btn-dashboard" onclick="switchMedTab('dashboard')" style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:#534ab7;color:#fff">📊 Dashboard</button>
+      <button id="medtab-btn-phases"    onclick="switchMedTab('phases')"    style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">🌀 Phases</button>
+      <button id="medtab-btn-logshot"   onclick="switchMedTab('logshot')"   style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">💉 Log Shot</button>
+      <button id="medtab-btn-symptoms"  onclick="switchMedTab('symptoms')"  style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">🩺 Symptoms</button>
+      <button id="medtab-btn-supply"    onclick="switchMedTab('supply')"    style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">📦 Supply</button>
+      <button id="medtab-btn-history"   onclick="switchMedTab('history')"   style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">📋 History</button>
+    </div>
 
-    <!-- Shot Status + PK Curve -->
-    <section class="card fade-in card--accent-purple" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem">
-        <div>
-          <h2 class="card-title" style="margin-bottom:0.2rem">💉 Current Shot Status</h2>
-          <p style="font-size:0.78rem;color:#6d7a95" id="shot-last-label">No shots logged yet</p>
+    <!-- ── Dashboard panel ── -->
+    <div id="medpanel-dashboard">
+      <section class="fade-in" style="padding:0.75rem 1rem 0">
+        <div class="kpi-grid">
+          <div class="kpi" style="border-top-color:#534ab7;background:linear-gradient(135deg,#f0eeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#534ab7">💉 Total Shots</p><p class="kpi-value" style="color:#534ab7" id="g1-total-shots">—</p><p class="kpi-unit">injections</p></div>
+          <div class="kpi" style="border-top-color:#2f9e44;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2f9e44">🌀 Phase</p><p class="kpi-value" style="font-size:1rem;color:#2f9e44" id="g1-phase">—</p><p class="kpi-unit" id="g1-phase-hours"></p></div>
+          <div class="kpi" style="border-top-color:#1971c2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#1971c2">📅 Next Shot</p><p class="kpi-value" style="font-size:1rem;color:#1971c2" id="g1-next-shot">—</p><p class="kpi-unit" id="g1-next-hours"></p></div>
+          <div class="kpi" style="border-top-color:#f59f00;background:linear-gradient(135deg,#fff9db 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#f59f00">💊 Current Dose</p><p class="kpi-value" style="color:#f59f00" id="g1-dose">—</p><p class="kpi-unit">mg / week</p></div>
         </div>
-        <button onclick="toggleShotForm()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">+ Log Shot</button>
-      </div>
-      <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.85rem;flex-wrap:wrap">
-        <div id="shot-phase-badge" style="font-size:0.78rem;font-weight:800;padding:0.3rem 0.9rem;border-radius:20px;background:#f5f3ff;color:#7c3aed;white-space:nowrap">—</div>
-        <div>
-          <p style="font-size:0.75rem;color:#6d7a95;margin:0" id="shot-phase-desc">Log your first shot to see the drug curve</p>
-          <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0.15rem 0 0" id="shot-countdown"></p>
+      </section>
+      <section class="card fade-in" style="margin-top:0.75rem">
+        <h2 class="card-title" style="margin-bottom:0.5rem">💊 Drug Concentration Curve</h2>
+        <div style="height:175px"><canvas id="g1PkChart"></canvas></div>
+        <div style="display:flex;justify-content:space-between;margin-top:0.3rem">
+          <span style="font-size:0.65rem;color:#6d7a95">📈 Rise (Day 1–2)</span>
+          <span style="font-size:0.65rem;color:#534ab7">⚡ Peak (Day 2–3)</span>
+          <span style="font-size:0.65rem;color:#e67700">📉 Descent</span>
+          <span style="font-size:0.65rem;color:#c92a2a">⏰ Day 7</span>
         </div>
-      </div>
-      <div style="height:175px"><canvas id="shotPKChart"></canvas></div>
-      <div style="display:flex;justify-content:space-between;margin-top:0.3rem">
-        <span style="font-size:0.65rem;color:#6d7a95">↑ Rising</span>
-        <span style="font-size:0.65rem;color:#6d7a95">⚡ Peak</span>
-        <span style="font-size:0.65rem;color:#6d7a95">↓ Fading</span>
-        <span style="font-size:0.65rem;color:#6d7a95">Day 7</span>
-      </div>
-    </section>
+        <div style="margin-top:0.6rem;text-align:center">
+          <a href="#" onclick="switchMedTab('phases');return false" style="font-size:0.75rem;color:#534ab7;font-weight:600;text-decoration:none">View Phase Details →</a>
+        </div>
+      </section>
+    </div><!-- /medpanel-dashboard -->
 
-    <!-- Log Shot Form -->
-    <section id="shot-form-panel" class="card fade-in card--accent-purple" style="display:none">
-      <h3 style="font-size:0.9rem;font-weight:800;color:#7c3aed;margin-bottom:1rem">💉 Log Injection</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
-        <div>
-          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">MEDICATION</label>
-          <select id="shot-medication" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
-            <option>Mounjaro 2.5mg</option>
-            <option selected>Mounjaro 5mg</option>
-            <option>Mounjaro 7.5mg</option>
-            <option>Mounjaro 10mg</option>
-            <option>Mounjaro 12.5mg</option>
-            <option>Mounjaro 15mg</option>
-            <option>Ozempic 0.25mg</option>
-            <option>Ozempic 0.5mg</option>
-            <option>Ozempic 1mg</option>
-            <option>Ozempic 2mg</option>
-            <option>Wegovy 0.25mg</option>
-            <option>Wegovy 0.5mg</option>
-            <option>Wegovy 1mg</option>
-            <option>Wegovy 1.7mg</option>
-            <option>Wegovy 2.4mg</option>
-          </select>
+    <!-- ── Phases panel ── -->
+    <div id="medpanel-phases" hidden>
+      <section class="card fade-in" style="margin-top:0.75rem">
+        <h2 class="card-title" style="margin-bottom:0.25rem">🌀 Weekly Phase Cycle</h2>
+        <div style="display:flex;justify-content:center;margin:0.5rem 0 0.75rem">
+          <svg id="g1-dial" viewBox="0 0 200 200" width="220" height="220" style="overflow:visible"></svg>
         </div>
-        <div>
-          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">DATE &amp; TIME</label>
-          <input type="datetime-local" id="shot-datetime" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">INJECTION SITE</label>
-          <select id="shot-site" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
-            <option>Abdomen Lower Left</option>
-            <option>Lower Mid</option>
-            <option>Abdomen Lower Right</option>
-            <option>Abdomen Upper Left</option>
-            <option>Abdomen Upper Right</option>
-            <option>Left Thigh</option>
-            <option>Right Thigh</option>
-            <option>Left Upper Arm</option>
-            <option>Right Upper Arm</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">WEIGHT AT SHOT (lbs)</label>
-          <input type="number" step="0.1" id="shot-weight" placeholder="e.g. 287.5" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">FOOD NOISE</label>
-          <select id="shot-food-noise" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
-            <option value="none">None — completely quiet</option>
-            <option value="mild">Mild — occasional thoughts</option>
-            <option value="moderate">Moderate — noticeable cravings</option>
-            <option value="severe">Severe — hard to resist</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">NOTES</label>
-          <input type="text" id="shot-notes" placeholder="Optional notes…" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
-        </div>
-      </div>
-      <div style="margin-bottom:0.85rem">
-        <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.4rem">SYMPTOMS (check all that apply)</label>
-        <div style="display:flex;flex-wrap:wrap;gap:0.4rem" id="shot-symptoms-check">
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="nausea" style="margin:0"> Nausea</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="fatigue" style="margin:0"> Fatigue</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="diarrhea" style="margin:0"> Diarrhea</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="constipation" style="margin:0"> Constipation</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="headache" style="margin:0"> Headache</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="vomiting" style="margin:0"> Vomiting</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="dizziness" style="margin:0"> Dizziness</label>
-          <label style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;font-size:0.75rem;cursor:pointer"><input type="checkbox" value="injection_site" style="margin:0"> Injection site reaction</label>
-        </div>
-      </div>
-      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
-        <button onclick="toggleShotForm()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
-        <button onclick="saveShot()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Log Shot</button>
-      </div>
-    </section>
+        <p style="text-align:center;font-size:0.88rem;color:#374151;font-weight:700;margin:0 0 1rem" id="g1-dial-countdown"></p>
+        <div id="g1-phase-cards" style="display:flex;flex-direction:column;gap:0.6rem"></div>
+      </section>
+    </div><!-- /medpanel-phases -->
 
-    <section class="fade-in" style="margin-top:1rem">
-      <div class="kpi-grid">
-        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">🏁 Start Weight</p><p class="kpi-value" style="color:#ea1100" id="med-start-weight">—</p><p class="kpi-unit">lbs</p></div>
-        <div class="kpi" style="border-top-color:#0053e2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0053e2">📊 Current Weight</p><p class="kpi-value" style="color:#0053e2" id="med-current-weight">—</p><p class="kpi-unit">lbs</p></div>
-        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2a8703">📉 Total Lost</p><p class="kpi-value" style="color:#2a8703" id="med-total-lost">—</p><p class="kpi-unit">lbs</p></div>
-        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#7c3aed">📅 Weeks On</p><p class="kpi-value" style="color:#7c3aed" id="med-weeks-on">—</p><p class="kpi-unit">weeks</p></div>
-        <div class="kpi" style="border-top-color:#995213;background:linear-gradient(135deg,#fef9ec 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#995213">⚡ Avg/Week</p><p class="kpi-value" style="color:#995213" id="med-avg-per-week">—</p><p class="kpi-unit">lbs lost/week</p></div>
-      </div>
-    </section>
-    <!-- Supply Tracker -->
-    <section class="card fade-in card--accent-blue">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
-        <h2 class="card-title" style="margin:0">📦 Supply Tracker</h2>
-        <button onclick="toggleSupplyEdit()" style="background:#0053e2;color:#fff;border:none;border-radius:8px;padding:0.35rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">✏️ Edit</button>
-      </div>
-      <div class="kpi-grid">
-        <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0891b2">💊 Pens</p><p class="kpi-value" style="color:#0891b2" id="supply-pens">—</p><p class="kpi-unit">in stock</p></div>
-        <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#7c3aed">💉 Doses</p><p class="kpi-value" style="color:#7c3aed" id="supply-doses">—</p><p class="kpi-unit">remaining</p></div>
-        <div class="kpi" style="border-top-color:#2a8703;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2a8703">📅 Weeks</p><p class="kpi-value" style="color:#2a8703" id="supply-weeks">—</p><p class="kpi-unit">of supply</p></div>
-        <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">⚠️ Expires</p><p class="kpi-value" style="font-size:1.1rem;color:#ea1100" id="supply-expires">—</p><p class="kpi-unit" id="supply-days-left">No expiry set</p></div>
-      </div>
-      <div id="supply-edit-form" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+    <!-- ── Log Shot panel ── -->
+    <div id="medpanel-logshot" hidden>
+      <section class="card fade-in" style="margin-top:0.75rem">
+        <h2 class="card-title" style="margin-bottom:1rem">💉 Log Injection</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
           <div>
-            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">PENS IN STOCK</label>
-            <input type="number" min="0" step="1" id="supply-input-pens" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">MEDICATION</label>
+            <select id="g1-shot-med" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+              <option>Mounjaro 2.5mg</option>
+              <option selected>Mounjaro 5mg</option>
+              <option>Mounjaro 7.5mg</option>
+              <option>Mounjaro 10mg</option>
+              <option>Mounjaro 12.5mg</option>
+              <option>Mounjaro 15mg</option>
+              <option>Ozempic 0.25mg</option>
+              <option>Ozempic 0.5mg</option>
+              <option>Ozempic 1mg</option>
+              <option>Ozempic 2mg</option>
+              <option>Wegovy 0.25mg</option>
+              <option>Wegovy 2.4mg</option>
+            </select>
           </div>
           <div>
-            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">DOSES PER PEN</label>
-            <input type="number" min="1" step="1" id="supply-input-dpn" value="4" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">DATE &amp; TIME</label>
+            <input type="datetime-local" id="g1-shot-dt" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
           </div>
           <div>
-            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">EXPIRATION DATE</label>
-            <input type="date" id="supply-input-exp" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">INJECTION SITE</label>
+            <select id="g1-shot-site" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+              <option>Abdomen Lower Left</option>
+              <option>Lower Mid</option>
+              <option>Abdomen Lower Right</option>
+              <option>Left Thigh</option>
+              <option>Right Thigh</option>
+              <option>Left Upper Arm</option>
+              <option>Right Upper Arm</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">WEIGHT AT SHOT (lbs)</label>
+            <input type="number" step="0.1" id="g1-shot-weight" placeholder="e.g. 287.5" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">FOOD NOISE</label>
+            <select id="g1-shot-noise" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
+              <option value="none">None — completely quiet</option>
+              <option value="mild">Mild — occasional thoughts</option>
+              <option value="moderate">Moderate — noticeable cravings</option>
+              <option value="severe">Severe — hard to resist</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">NOTES</label>
+            <input type="text" id="g1-shot-notes" placeholder="Optional notes…" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.82rem;box-sizing:border-box">
           </div>
         </div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end">
-          <button onclick="toggleSupplyEdit()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
-          <button onclick="saveSupply()" style="background:#0053e2;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save</button>
+          <button onclick="switchMedTab('dashboard')" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer">Cancel</button>
+          <button onclick="saveGlp1Shot()" style="background:#534ab7;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Log Shot</button>
         </div>
-      </div>
-    </section>
+      </section>
+    </div><!-- /medpanel-logshot -->
 
-    <section class="card fade-in card--accent-purple"><h2 class="card-title">📈 Dosage Phases</h2><div id="med-phases" style="display:flex;flex-direction:column;gap:0.75rem"></div></section>
+    <!-- ── Symptoms panel ── -->
+    <div id="medpanel-symptoms" hidden>
+      <section class="card fade-in" style="margin-top:0.75rem">
+        <h2 class="card-title" style="margin-bottom:0.35rem">🩺 Symptom Tracker</h2>
+        <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">Tap to select symptoms you're experiencing now. Saved with today's date.</p>
+        <div id="g1-symptom-grid" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem"></div>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+          <button onclick="saveGlp1Symptoms()" style="background:#534ab7;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save Symptoms</button>
+        </div>
+        <div id="g1-symptom-history"></div>
+      </section>
+    </div><!-- /medpanel-symptoms -->
 
-    <!-- Shot History -->
-    <section class="card fade-in card--accent-green">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
-        <h2 class="card-title" style="margin:0">📋 Shot History</h2>
-        <button onclick="exportShotsCSV()" style="background:#2a8703;color:#fff;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer">⬇ Export CSV</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
-          <thead>
-            <tr style="background:#f5f6f8;text-align:left">
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95;white-space:nowrap">Date</th>
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Medication</th>
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Site</th>
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Weight</th>
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Food Noise</th>
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Symptoms</th>
-              <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Notes</th>
-              <th style="padding:0.5rem 0.5rem"></th>
-            </tr>
-          </thead>
-          <tbody id="shot-history-body">
-            <tr><td colspan="8" style="text-align:center;padding:1.5rem;color:#6d7a95">No shots logged yet</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <!-- ── Supply panel ── -->
+    <div id="medpanel-supply" hidden>
+      <section class="card fade-in card--accent-blue" style="margin-top:0.75rem">
+        <h2 class="card-title" style="margin-bottom:0.75rem">📦 Supply Tracker</h2>
+        <div class="kpi-grid" style="margin-bottom:0.75rem">
+          <div class="kpi" style="border-top-color:#534ab7;background:linear-gradient(135deg,#f0eeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#534ab7">💊 Pens</p><p class="kpi-value" style="color:#534ab7" id="g1-sup-pens">—</p><p class="kpi-unit">in stock</p></div>
+          <div class="kpi" style="border-top-color:#1971c2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#1971c2">💉 Doses</p><p class="kpi-value" style="color:#1971c2" id="g1-sup-doses">—</p><p class="kpi-unit">remaining</p></div>
+          <div class="kpi" style="border-top-color:#2f9e44;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2f9e44">📅 Weeks</p><p class="kpi-value" style="color:#2f9e44" id="g1-sup-weeks">—</p><p class="kpi-unit">of supply</p></div>
+          <div class="kpi" style="border-top-color:#ea1100;background:linear-gradient(135deg,#fff1f0 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#ea1100">⚠️ Expires</p><p class="kpi-value" style="font-size:1.1rem;color:#ea1100" id="g1-sup-exp">—</p><p class="kpi-unit" id="g1-sup-days">No expiry set</p></div>
+        </div>
+        <div style="margin-bottom:1rem">
+          <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
+            <span style="font-size:0.7rem;font-weight:700;color:#6d7a95">SUPPLY LEVEL</span>
+            <span style="font-size:0.7rem;font-weight:700;color:#534ab7" id="g1-sup-pct">0%</span>
+          </div>
+          <div style="height:10px;background:#e5e7eb;border-radius:99px;overflow:hidden">
+            <div id="g1-sup-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#534ab7,#7c6fe0);border-radius:99px;transition:width 0.4s"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">PENS IN STOCK</label>
+            <input type="number" min="0" id="g1-sup-input-pens" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">DOSES PER PEN</label>
+            <input type="number" min="1" id="g1-sup-input-dpn" value="4" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">EXPIRATION DATE</label>
+            <input type="date" id="g1-sup-input-exp" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.5rem;font-size:0.85rem;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end">
+          <button onclick="saveGlp1Supply()" style="background:#534ab7;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:700;cursor:pointer">✓ Save Supply</button>
+        </div>
+      </section>
+    </div><!-- /medpanel-supply -->
 
-    <section class="card fade-in card--accent-blue"><h2 class="card-title">📉 Weight Progress by Phase</h2><div style="height:280px"><canvas id="medWeightChart"></canvas></div></section>
-    <section class="card fade-in card--accent-green">
-      <h2 class="card-title">⚡ Dose Effectiveness</h2>
-      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Average lbs lost per week on each dose — estimated from your scale readings</p>
-      <div style="height:220px"><canvas id="medEffectivenessChart"></canvas></div>
-    </section>
-    <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right">Data from your Mounjaro journey tracker &middot; Updates when you edit the spreadsheet</p>
+    <!-- ── History panel ── -->
+    <div id="medpanel-history" hidden>
+      <section class="card fade-in card--accent-green" style="margin-top:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+          <h2 class="card-title" style="margin:0">📋 Shot History</h2>
+          <button onclick="exportGlp1CSV()" style="background:#2f9e44;color:#fff;border:none;border-radius:8px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer">⬇ Export CSV</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <thead>
+              <tr style="background:#f5f6f8;text-align:left">
+                <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95;white-space:nowrap">Date</th>
+                <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Medication</th>
+                <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Site</th>
+                <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Weight</th>
+                <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Food Noise</th>
+                <th style="padding:0.5rem 0.75rem;font-weight:700;color:#6d7a95">Notes</th>
+                <th style="padding:0.5rem 0.5rem"></th>
+              </tr>
+            </thead>
+            <tbody id="g1-history-body">
+              <tr><td colspan="7" style="text-align:center;padding:1.5rem;color:#6d7a95">No shots logged yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div><!-- /medpanel-history -->
   </div><!-- /tab-medication -->
 
   <!-- Photos tab -->
