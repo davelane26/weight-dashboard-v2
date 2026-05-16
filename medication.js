@@ -553,6 +553,8 @@ function saveMedData() {
 const SHOTS_KEY  = 'med_shots_v1';
 const SUPPLY_KEY = 'med_supply_v1';
 
+const SHOTS_SEED_VERSION = 2;
+
 const SHOT_DEFAULTS = [
   { id:1,  date:'2026-01-29T17:30', medication:'Mounjaro 2.5mg', site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
   { id:2,  date:'2026-02-05T17:30', medication:'Mounjaro 2.5mg', site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
@@ -567,6 +569,9 @@ const SHOT_DEFAULTS = [
   { id:11, date:'2026-04-09T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
   { id:12, date:'2026-04-16T17:30', medication:'Mounjaro 5mg',   site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'' },
   { id:13, date:'2026-04-23T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
+  { id:14, date:'2026-04-30T17:30', medication:'Mounjaro 5mg',   site:'Lower Mid',           weight:null, foodNoise:'none', symptoms:[], notes:'No Pain' },
+  { id:15, date:'2026-05-07T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'No Pain' },
+  { id:16, date:'2026-05-14T17:30', medication:'Mounjaro 5mg',   site:'Abdomen Lower Left', weight:null, foodNoise:'none', symptoms:[], notes:'' },
 ];
 
 // Tirzepatide: t½ ~5 days (120h), Tmax ~68h
@@ -899,7 +904,14 @@ function exportShotsCSV() {
 
 // ── Init ───────────────────────────────────────────────────────────────────────────────────
 function initMedication() {
-  if (localStorage.getItem(SHOTS_KEY) === null) saveShots(SHOT_DEFAULTS);
+  const seeded = parseInt(localStorage.getItem('med_shots_seed_v') || '0');
+  if (seeded < SHOTS_SEED_VERSION) {
+    const existing    = loadShots();
+    const existingIds = new Set(existing.map(s => s.id));
+    const toAdd       = SHOT_DEFAULTS.filter(s => !existingIds.has(s.id));
+    if (toAdd.length) saveShots([...existing, ...toAdd].sort((a, b) => new Date(a.date) - new Date(b.date)));
+    localStorage.setItem('med_shots_seed_v', String(SHOTS_SEED_VERSION));
+  }
   renderMedAll();         // 1. Instant render from localStorage cache
   syncMedDataWithCloud(); // 2. Background merge with Firebase, re-render if newer
 }
