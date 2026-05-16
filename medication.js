@@ -457,8 +457,9 @@
     const pad = n => String(n).padStart(2, '0');
     dtEl.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T17:30`;
 
-    const shots  = loadShots();
-    const sites  = ['Abdomen Lower Left', 'Lower Mid'];
+    // Auto-rotate injection site
+    const shots = loadShots();
+    const sites = ['Abdomen Lower Left', 'Lower Mid'];
     if (shots.length) {
       const last    = shots[shots.length - 1];
       const lastIdx = sites.indexOf(last.site);
@@ -467,6 +468,31 @@
       if (siteEl) {
         for (const opt of siteEl.options) {
           if (opt.value === next) { opt.selected = true; break; }
+        }
+      }
+    }
+
+    // Auto-prefill weight from most recent scale reading (today or yesterday)
+    const weightEl   = document.getElementById('g1-shot-weight');
+    const weightNote = document.getElementById('g1-shot-weight-note');
+    if (weightEl && !weightEl.value && window.allWeightData && window.allWeightData.length) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 1);
+      cutoff.setHours(0, 0, 0, 0);
+
+      const recent = window.allWeightData
+        .filter(r => new Date(r.date) >= cutoff)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (recent.length) {
+        const reading = recent[0];
+        weightEl.value = reading.weight;
+        weightEl.style.borderColor = '#534ab7';
+        if (weightNote) {
+          const readingTime = new Date(reading.date).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+          const readingDay  = new Date(reading.date) < new Date(new Date().setHours(0,0,0,0)) ? 'yesterday' : 'today';
+          weightNote.textContent = 'Auto-filled from scale (' + readingDay + ' at ' + readingTime + ')';
+          weightNote.style.display = 'block';
         }
       }
     }
@@ -494,10 +520,12 @@
     shots.sort((a, b) => new Date(a.date) - new Date(b.date));
     saveShots(shots);
 
-    const notesEl  = document.getElementById('g1-shot-notes');
-    const weightEl = document.getElementById('g1-shot-weight');
-    if (notesEl)  notesEl.value  = '';
-    if (weightEl) weightEl.value = '';
+    const notesEl   = document.getElementById('g1-shot-notes');
+    const weightEl  = document.getElementById('g1-shot-weight');
+    const weightNote = document.getElementById('g1-shot-weight-note');
+    if (notesEl)   { notesEl.value = ''; }
+    if (weightEl)  { weightEl.value = ''; weightEl.style.borderColor = ''; }
+    if (weightNote){ weightNote.style.display = 'none'; weightNote.textContent = ''; }
 
     switchMedTab('dashboard');
   }
