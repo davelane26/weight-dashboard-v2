@@ -4,7 +4,7 @@
   const SYM_KEY  = 'glp1_sym_v4';
   const SUP_KEY  = 'glp1_sup_v4';
   const ACCENT   = '#534ab7';
-  const SEED_VER = 1;
+  const SEED_VER = 2;
 
   const PK = { ka: 0.03, ke: 0.00578 };
 
@@ -43,22 +43,22 @@
   ];
 
   const SHOT_SEED = [
-    { id:'i1',  date:'2026-01-29T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Abdomen Lower Left', imported:true },
-    { id:'i2',  date:'2026-02-05T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Lower Mid',          imported:true },
-    { id:'i3',  date:'2026-02-12T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Abdomen Lower Left', imported:true },
-    { id:'i4',  date:'2026-02-19T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Lower Mid',          imported:true },
-    { id:'i5',  date:'2026-02-26T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true },
-    { id:'i6',  date:'2026-03-05T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true },
-    { id:'i7',  date:'2026-03-12T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true },
-    { id:'i8',  date:'2026-03-19T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true },
-    { id:'i9',  date:'2026-03-26T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true },
-    { id:'i10', date:'2026-04-02T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true },
-    { id:'i11', date:'2026-04-09T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true },
-    { id:'i12', date:'2026-04-16T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true },
-    { id:'i13', date:'2026-04-23T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true },
-    { id:'i14', date:'2026-04-30T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true },
-    { id:'i15', date:'2026-05-07T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true },
-    { id:'i16', date:'2026-05-14T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true },
+    { id:'i1',  date:'2026-01-29T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Abdomen Lower Left', imported:true, weight:null  },
+    { id:'i2',  date:'2026-02-05T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Lower Mid',          imported:true, weight:null  },
+    { id:'i3',  date:'2026-02-12T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Abdomen Lower Left', imported:true, weight:null  },
+    { id:'i4',  date:'2026-02-19T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Lower Mid',          imported:true, weight:null  },
+    { id:'i5',  date:'2026-02-26T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:null  },
+    { id:'i6',  date:'2026-03-05T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:null  },
+    { id:'i7',  date:'2026-03-12T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:null  },
+    { id:'i8',  date:'2026-03-19T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:287.7 }, // Mar 21 (earliest scale reading)
+    { id:'i9',  date:'2026-03-26T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:288.1 }, // Mar 25 morning
+    { id:'i10', date:'2026-04-02T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:284.8 }, // Apr 1 morning
+    { id:'i11', date:'2026-04-09T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:284.8 }, // Apr 9 morning
+    { id:'i12', date:'2026-04-16T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:277.8 }, // Apr 13 morning (closest before)
+    { id:'i13', date:'2026-04-23T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:274.0 }, // Apr 23 morning
+    { id:'i14', date:'2026-04-30T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:271.6 }, // Apr 30 morning
+    { id:'i15', date:'2026-05-07T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:270.7 }, // May 3 morning (May 5 3am spike excluded)
+    { id:'i16', date:'2026-05-14T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:269.4 }, // May 14 morning
   ];
 
   // ── Storage ───────────────────────────────────────────────────────────────
@@ -74,11 +74,21 @@
     const seeded = parseInt(localStorage.getItem('glp1_seed_v') || '0');
     if (seeded >= SEED_VER) return;
     const existing = loadShots();
-    const ids = new Set(existing.map(s => s.id));
-    const toAdd = SHOT_SEED.filter(s => !ids.has(s.id));
-    if (toAdd.length) {
-      const merged = [...existing, ...toAdd].sort((a, b) => new Date(a.date) - new Date(b.date));
-      saveShots(merged);
+    const idMap = {};
+    existing.forEach(s => { idMap[s.id] = s; });
+    let changed = false;
+    SHOT_SEED.forEach(s => {
+      if (!idMap[s.id]) {
+        existing.push(s);
+        changed = true;
+      } else if (s.weight != null && idMap[s.id].weight == null) {
+        idMap[s.id].weight = s.weight; // backfill weight onto existing imported shot
+        changed = true;
+      }
+    });
+    if (changed) {
+      existing.sort((a, b) => new Date(a.date) - new Date(b.date));
+      saveShots(existing);
     }
     localStorage.setItem('glp1_seed_v', String(SEED_VER));
   }
@@ -179,6 +189,7 @@
     }
 
     drawPkChart(elapsed);
+    renderProgressCharts();
   }
 
   function drawPkChart(elapsed) {
@@ -229,6 +240,127 @@
         }
       }
     });
+  }
+
+  // ── Progress charts ───────────────────────────────────────────────────────
+  let g1WeightTrendChart = null;
+  let g1WeightChangeChart = null;
+
+  function buildProgressPoints() {
+    const shots = loadShots();
+    const pts   = [];
+    shots.forEach((s, idx) => {
+      if (s.weight == null) return;
+      const prev = pts.length ? pts[pts.length - 1] : null;
+      const change = prev ? +(prev.weight - s.weight).toFixed(1) : null; // positive = lost weight
+      pts.push({
+        label: 'Shot ' + (idx + 1),
+        shortLabel: '#' + (idx + 1),
+        date: s.date.slice(0, 10),
+        weight: s.weight,
+        change,
+      });
+    });
+    return pts;
+  }
+
+  function renderProgressCharts() {
+    const pts = buildProgressPoints();
+    if (pts.length < 2) return;
+
+    const labels      = pts.map(p => p.shortLabel);
+    const weights     = pts.map(p => p.weight);
+    const changes     = pts.slice(1).map(p => p.change); // first has no change
+    const changeLabels = pts.slice(1).map(p => p.shortLabel);
+    const changeColors = changes.map(c => c >= 0 ? '#2f9e44' : '#e03131');
+
+    // ── Weight trend line chart ───────────────────────────────────────────
+    const trendCanvas = document.getElementById('g1WeightTrendChart');
+    if (trendCanvas && typeof Chart !== 'undefined') {
+      if (g1WeightTrendChart) { g1WeightTrendChart.destroy(); g1WeightTrendChart = null; }
+      const tctx  = trendCanvas.getContext('2d');
+      const tgrad = tctx.createLinearGradient(0, 0, 0, 150);
+      tgrad.addColorStop(0, 'rgba(83,74,183,0.25)');
+      tgrad.addColorStop(1, 'rgba(83,74,183,0.02)');
+      g1WeightTrendChart = new Chart(trendCanvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: weights,
+            borderColor: ACCENT,
+            backgroundColor: tgrad,
+            borderWidth: 2.5,
+            pointBackgroundColor: ACCENT,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: true,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: ctx => pts[ctx[0].dataIndex].label + ' · ' + pts[ctx[0].dataIndex].date,
+                label: ctx => ctx.parsed.y.toFixed(1) + ' lbs',
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 9 }, color: '#9aa5b4' }, grid: { display: false } },
+            y: {
+              ticks: { font: { size: 9 }, color: '#9aa5b4', callback: v => v + ' lbs' },
+              grid: { color: '#f0f1f5' },
+              suggestedMin: Math.min(...weights) - 3,
+              suggestedMax: Math.max(...weights) + 3,
+            }
+          }
+        }
+      });
+    }
+
+    // ── Weekly change bar chart ───────────────────────────────────────────
+    const changeCanvas = document.getElementById('g1WeightChangeChart');
+    if (changeCanvas && typeof Chart !== 'undefined') {
+      if (g1WeightChangeChart) { g1WeightChangeChart.destroy(); g1WeightChangeChart = null; }
+      g1WeightChangeChart = new Chart(changeCanvas, {
+        type: 'bar',
+        data: {
+          labels: changeLabels,
+          datasets: [{
+            data: changes,
+            backgroundColor: changeColors,
+            borderRadius: 5,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: ctx => pts[ctx[0].dataIndex + 1].label + ' · ' + pts[ctx[0].dataIndex + 1].date,
+                label: ctx => {
+                  const v = ctx.parsed.y;
+                  return v >= 0 ? '−' + v.toFixed(1) + ' lbs lost' : '+' + Math.abs(v).toFixed(1) + ' lbs gained';
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 9 }, color: '#9aa5b4' }, grid: { display: false } },
+            y: {
+              ticks: { font: { size: 9 }, color: '#9aa5b4', callback: v => (v >= 0 ? '−' : '+') + Math.abs(v) + ' lbs' },
+              grid: { color: '#f0f1f5' },
+            }
+          }
+        }
+      });
+    }
   }
 
   // ── Phases dial ───────────────────────────────────────────────────────────
