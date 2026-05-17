@@ -520,9 +520,11 @@
     shots.sort((a, b) => new Date(a.date) - new Date(b.date));
     saveShots(shots);
 
+    const dtEl2      = document.getElementById('g1-shot-dt');
     const notesEl   = document.getElementById('g1-shot-notes');
     const weightEl  = document.getElementById('g1-shot-weight');
     const weightNote = document.getElementById('g1-shot-weight-note');
+    if (dtEl2)     { dtEl2.value = ''; }
     if (notesEl)   { notesEl.value = ''; }
     if (weightEl)  { weightEl.value = ''; weightEl.style.borderColor = ''; }
     if (weightNote){ weightNote.style.display = 'none'; weightNote.textContent = ''; }
