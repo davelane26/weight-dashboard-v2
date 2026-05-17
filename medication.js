@@ -4,7 +4,8 @@
   const SYM_KEY  = 'glp1_sym_v4';
   const SUP_KEY  = 'glp1_sup_v4';
   const ACCENT   = '#534ab7';
-  const SEED_VER = 2;
+  const SEED_VER              = 2;
+  const JOURNEY_START_WEIGHT  = 315; // lbs on Jan 29, 2026
 
   const PK = { ka: 0.03, ke: 0.00578 };
 
@@ -188,8 +189,18 @@
       setText('g1-dose', '—');
     }
 
+    // Current weight + total lost from allWeightData
+    if (window.allWeightData && window.allWeightData.length) {
+      const latest = window.allWeightData[window.allWeightData.length - 1];
+      const cur    = latest.weight;
+      setText('g1-cur-weight', cur.toFixed(1));
+      setText('g1-total-lost', (JOURNEY_START_WEIGHT - cur).toFixed(1));
+    }
+
+    updateReminder(elapsed);
     drawPkChart(elapsed);
     renderProgressCharts();
+    renderBodyCompChart();
   }
 
   function drawPkChart(elapsed) {
@@ -237,6 +248,102 @@
         scales: {
           x: { ticks: { font: { size: 9 }, maxRotation: 0, color: '#9aa5b4', autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
           y: { min: 0, max: 108, ticks: { font: { size: 9 }, color: '#9aa5b4', callback: v => v + '%' }, grid: { color: '#f0f1f5' } }
+        }
+      }
+    });
+  }
+
+  // ── Shot reminder banner ──────────────────────────────────────────────────
+  function updateReminder(elapsed) {
+    const banner = document.getElementById('g1-reminder');
+    const text   = document.getElementById('g1-reminder-text');
+    if (!banner || !text) return;
+
+    if (elapsed === null) { banner.setAttribute('hidden', ''); return; }
+
+    const hoursLeft = 168 - (elapsed % 168);
+
+    if (elapsed >= 168) {
+      const overH = Math.floor(elapsed - 168);
+      banner.removeAttribute('hidden');
+      banner.style.borderColor = '#e03131';
+      banner.style.background  = '#fff1f0';
+      text.style.color = '#b91c1c';
+      text.textContent = '⚠️ Shot overdue by ' + overH + 'h — log it when you take it';
+    } else if (hoursLeft <= 8) {
+      banner.removeAttribute('hidden');
+      banner.style.borderColor = '#e67700';
+      banner.style.background  = '#fff4e6';
+      text.style.color = '#c05621';
+      text.textContent = '💉 Shot day! Log your Mounjaro after your 17:30 dose';
+    } else if (elapsed >= 144) {
+      const h = Math.floor(hoursLeft);
+      banner.removeAttribute('hidden');
+      banner.style.borderColor = '#f59f00';
+      banner.style.background  = '#fff9db';
+      text.style.color = '#b45309';
+      text.textContent = '⏰ Shot due in ~' + h + 'h — good time to weigh yourself tomorrow morning';
+    } else {
+      banner.setAttribute('hidden', '');
+    }
+  }
+
+  // ── Body composition chart ────────────────────────────────────────────────
+  let g1BodyCompChart = null;
+
+  function getDailyReadings() {
+    if (!window.allWeightData || !window.allWeightData.length) return [];
+    const byDay = {};
+    window.allWeightData.forEach(r => {
+      const day = new Date(r.date).toISOString().slice(0, 10);
+      if (!byDay[day] || new Date(r.date) > new Date(byDay[day].date)) {
+        byDay[day] = r;
+      }
+    });
+    return Object.values(byDay).sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
+
+  function renderBodyCompChart() {
+    const canvas = document.getElementById('g1BodyCompChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const daily = getDailyReadings();
+    if (daily.length < 2) return;
+
+    const labels = daily.map(r => {
+      const d = new Date(r.date);
+      return (d.getMonth() + 1) + '/' + d.getDate();
+    });
+    const fatData    = daily.map(r => r.bodyFat  != null ? +Number(r.bodyFat).toFixed(1)  : null);
+    const muscleData = daily.map(r => r.muscle    != null ? +Number(r.muscle).toFixed(1)   : null);
+    const waterData  = daily.map(r => r.water     != null ? +Number(r.water).toFixed(1)    : null);
+
+    if (g1BodyCompChart) { g1BodyCompChart.destroy(); g1BodyCompChart = null; }
+
+    g1BodyCompChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label:'Body Fat %', data:fatData,    borderColor:'#e03131', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:true },
+          { label:'Muscle %',   data:muscleData, borderColor:'#2f9e44', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:true },
+          { label:'Water %',    data:waterData,  borderColor:'#1971c2', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:true },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '%' } }
+        },
+        scales: {
+          x: { ticks: { font:{ size:9 }, color:'#9aa5b4', maxRotation:45, autoSkip:true, maxTicksLimit:10 }, grid:{ display:false } },
+          y: {
+            ticks: { font:{ size:9 }, color:'#9aa5b4', callback: v => v + '%' },
+            grid:  { color:'#f0f1f5' },
+            suggestedMin: 28,
+            suggestedMax: 55,
+          }
         }
       }
     });

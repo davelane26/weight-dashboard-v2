@@ -632,12 +632,18 @@
 
     <!-- ── Dashboard panel ── -->
     <div id="medpanel-dashboard">
+      <!-- Shot reminder banner -->
+      <div id="g1-reminder" hidden style="margin:0.75rem 1rem 0;padding:0.65rem 1rem;border-radius:10px;border-left:4px solid #f59f00;background:#fff9db">
+        <p style="font-size:0.82rem;font-weight:700;margin:0" id="g1-reminder-text"></p>
+      </div>
       <section class="fade-in" style="padding:0.75rem 1rem 0">
         <div class="kpi-grid">
           <div class="kpi" style="border-top-color:#534ab7;background:linear-gradient(135deg,#f0eeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#534ab7">💉 Total Shots</p><p class="kpi-value" style="color:#534ab7" id="g1-total-shots">—</p><p class="kpi-unit">injections</p></div>
           <div class="kpi" style="border-top-color:#2f9e44;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2f9e44">🌀 Phase</p><p class="kpi-value" style="font-size:1rem;color:#2f9e44" id="g1-phase">—</p><p class="kpi-unit" id="g1-phase-hours"></p></div>
           <div class="kpi" style="border-top-color:#1971c2;background:linear-gradient(135deg,#eff4ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#1971c2">📅 Next Shot</p><p class="kpi-value" style="font-size:1rem;color:#1971c2" id="g1-next-shot">—</p><p class="kpi-unit" id="g1-next-hours"></p></div>
           <div class="kpi" style="border-top-color:#f59f00;background:linear-gradient(135deg,#fff9db 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#f59f00">💊 Current Dose</p><p class="kpi-value" style="color:#f59f00" id="g1-dose">—</p><p class="kpi-unit">mg / week</p></div>
+          <div class="kpi" style="border-top-color:#0891b2;background:linear-gradient(135deg,#ecfeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0891b2">⚖️ Current Weight</p><p class="kpi-value" style="color:#0891b2" id="g1-cur-weight">—</p><p class="kpi-unit">lbs</p></div>
+          <div class="kpi" style="border-top-color:#2f9e44;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2f9e44">🏆 Total Lost</p><p class="kpi-value" style="color:#2f9e44" id="g1-total-lost">—</p><p class="kpi-unit">lbs since Jan 29</p></div>
         </div>
       </section>
       <section class="card fade-in" style="margin-top:0.75rem">
@@ -662,6 +668,16 @@
         <div style="display:flex;gap:1rem;margin-top:0.4rem">
           <span style="font-size:0.65rem;color:#2f9e44;font-weight:700">■ Lost weight</span>
           <span style="font-size:0.65rem;color:#e03131;font-weight:700">■ Gained weight</span>
+        </div>
+      </section>
+      <section class="card fade-in" style="margin-top:0.75rem">
+        <h2 class="card-title" style="margin-bottom:0.2rem">💪 Body Composition Trend</h2>
+        <p style="font-size:0.7rem;color:#6d7a95;margin-bottom:0.5rem">Body fat, muscle &amp; water % — daily from your scale</p>
+        <div style="height:190px"><canvas id="g1BodyCompChart"></canvas></div>
+        <div style="display:flex;gap:1rem;margin-top:0.4rem;flex-wrap:wrap">
+          <span style="font-size:0.65rem;color:#e03131;font-weight:700">■ Body Fat %</span>
+          <span style="font-size:0.65rem;color:#2f9e44;font-weight:700">■ Muscle %</span>
+          <span style="font-size:0.65rem;color:#1971c2;font-weight:700">■ Water %</span>
         </div>
       </section>
     </div><!-- /medpanel-dashboard -->
