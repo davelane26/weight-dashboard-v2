@@ -60,6 +60,27 @@
     return Object.values(byDay).sort((a, b) => a.date - b.date);
   }
 
+  // ── Regression rate ──────────────────────────────────────────────────
+  function computeRegressionRate(data) {
+    if (!data || data.length < 3) return { rate: null, n: 0 };
+    const today  = data[data.length - 1].date;
+    const cutoff = today.getTime() - 28 * 86_400_000;
+    const win    = data.filter(r => r.date.getTime() >= cutoff);
+    if (win.length < 3) return { rate: null, n: win.length };
+
+    const t0  = win[0].date.getTime();
+    const pts = win.map(r => [(r.date.getTime() - t0) / 86_400_000, r.weight]);
+    const n   = pts.length;
+    const sx  = pts.reduce((s, p) => s + p[0], 0);
+    const sy  = pts.reduce((s, p) => s + p[1], 0);
+    const sxy = pts.reduce((s, p) => s + p[0] * p[1], 0);
+    const sx2 = pts.reduce((s, p) => s + p[0] * p[0], 0);
+    const denom = n * sx2 - sx * sx;
+    if (denom === 0) return { rate: null, n };
+    const b = (n * sxy - sx * sy) / denom; // lbs/day, negative = losing
+    return { rate: -b * 7, n }; // positive = lbs lost per week
+  }
+
   // ── Rate KPIs ────────────────────────────────────────────────────────
   function computeRateKPIs() {
     const med    = loadMedPhases();
@@ -99,7 +120,8 @@
       }
     }
 
-    return { naiveRate, trueRate, recentRate, totalLost };
+    const reg = computeRegressionRate(data);
+    return { naiveRate, trueRate, recentRate, totalLost, regressionRate: reg.rate, regressionN: reg.n };
   }
 
   function renderRateKPIs() {
@@ -111,6 +133,16 @@
     set('ra-true-rate',       fmt(k.trueRate));
     set('ra-recent-rate',     fmt(k.recentRate));
     set('ra-total-since-med', k.totalLost == null ? '—' : k.totalLost.toFixed(1));
+    set('ra-regression-rate', fmt(k.regressionRate));
+    const noteEl = $('ra-regression-note');
+    if (noteEl && k.regressionN) {
+      const gap = k.recentRate != null ? (k.recentRate - (k.regressionRate || 0)).toFixed(2) : null;
+      noteEl.textContent = k.regressionN + ' readings · ' +
+        (gap != null ? (parseFloat(gap) > 0
+          ? 'endpoint overstates by ' + gap + ' lb/wk'
+          : 'endpoint understates by ' + Math.abs(gap).toFixed(2) + ' lb/wk')
+        : '');
+    }
   }
 
   // ── Body composition chart ──────────────────────────────────────────
