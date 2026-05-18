@@ -13,10 +13,17 @@
   'use strict';
 
   // ── Titration constants ────────────────────────────────────────────
-  const TITRATION_DATE   = new Date('2026-05-18T12:00:00');
-  const TITRATION_WEIGHT = 268.5;   // lbs on titration day
-  const DOSE_LABEL       = '7.5mg Mounjaro';
-  const JOURNEY_START_W  = 315.0;   // Jan 29 2026
+  const TITRATION_DATE  = new Date('2026-05-21T12:00:00');  // first 7.5mg shot
+  const DOSE_LABEL      = '7.5mg Mounjaro';
+  const JOURNEY_START_W = 315.0;  // Jan 29, 2026
+
+  // Start weight = last scale reading on or before shot day.
+  // Falls back to 268.5 (last known reading) until May 21 syncs.
+  function getTitrationWeight() {
+    if (!window.allData || !allData.length) return 268.5;
+    const candidates = allData.filter(r => r.date <= TITRATION_DATE);
+    return candidates.length ? candidates[candidates.length - 1].weight : 268.5;
+  }
 
   const SCENARIOS = [
     { key: 'cons', label: 'Conservative', rate: 0.75, color: '#995213', dash: [6, 4] },
@@ -25,7 +32,7 @@
   ];
 
   const MILESTONES = [265, 260, 255, 250, 245, 240, 235, 230];
-  const PROJ_WEEKS = 20;   // how far ahead to draw projection lines
+  const PROJ_WEEKS = 20;
 
   // ── Chart instance ─────────────────────────────────────────────────
   let _chart = null;
@@ -43,7 +50,7 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  // Deduplicate scale readings — keep last reading per calendar day
+  // Deduplicate — keep last reading per calendar day
   function dedupeByDay(rows) {
     const map = {};
     rows.forEach(r => {
@@ -53,13 +60,14 @@
     return Object.values(map).sort((a, b) => a.date - b.date);
   }
 
-  // Readings on/after titration date
+  // Readings strictly after the shot day (shot-day weight = pre-shot baseline)
   function postTitrationData() {
     if (!window.allData || !allData.length) return [];
-    return dedupeByDay(allData.filter(r => r.date >= TITRATION_DATE));
+    const dayAfter = addDays(TITRATION_DATE, 1);
+    return dedupeByDay(allData.filter(r => r.date >= dayAfter));
   }
 
-  // Compute lbs/week from a set of readings spanning at least 7 days
+  // Compute lbs/week from readings spanning at least 7 days
   function computePace(readings) {
     if (readings.length < 2) return null;
     const first = readings[0];
@@ -69,32 +77,32 @@
     return (first.weight - last.weight) / (days / 7);
   }
 
-  // Which scenario bracket does a rate fall in?
+  // Which scenario bucket does a rate fall in?
   function paceLabel(rate) {
-    if (rate == null)  return { text: 'No data yet — check back after ≥7 days', color: '#6d7a95' };
-    if (rate < 0.3)    return { text: `${rate.toFixed(2)} lbs/wk — Below conservative 📊`, color: '#ea1100' };
-    if (rate < 1.25)   return { text: `${rate.toFixed(2)} lbs/wk — Conservative pace 🟡`, color: '#995213' };
-    if (rate < 2.15)   return { text: `${rate.toFixed(2)} lbs/wk — Moderate pace 🔵`,     color: '#0053e2' };
-    return               { text: `${rate.toFixed(2)} lbs/wk — Optimistic pace 🟢`,         color: '#2a8703' };
+    if (rate == null) return { text: 'No data yet — check back after 7+ days on 7.5mg', color: '#6d7a95' };
+    if (rate < 0.3)   return { text: `${rate.toFixed(2)} lbs/wk — Below conservative`, color: '#ea1100' };
+    if (rate < 1.25)  return { text: `${rate.toFixed(2)} lbs/wk — Conservative pace`, color: '#995213' };
+    if (rate < 2.15)  return { text: `${rate.toFixed(2)} lbs/wk — Moderate pace`,     color: '#0053e2' };
+    return               { text: `${rate.toFixed(2)} lbs/wk — Optimistic pace`,        color: '#2a8703' };
   }
 
   // ── Chart ──────────────────────────────────────────────────────────
   function buildChartData() {
-    // X-axis spans from TITRATION_DATE to PROJ_WEEKS out
-    const endDate  = addDays(TITRATION_DATE, PROJ_WEEKS * 7);
-    const labels   = [];
+    const startW  = getTitrationWeight();
+    const endDate = addDays(TITRATION_DATE, PROJ_WEEKS * 7);
+    const labels  = [];
     const dateObjs = [];
+
     for (let d = new Date(TITRATION_DATE); d <= endDate; d = addDays(d, 7)) {
       labels.push(fmtShort(d));
       dateObjs.push(new Date(d));
     }
 
-    // Scenario projection datasets
     const scenarioDatasets = SCENARIOS.map(s => ({
-      label: `${s.label} (${s.rate} lbs/wk)`,
-      data: dateObjs.map((d, i) => {
+      label:           `${s.label} (${s.rate} lbs/wk)`,
+      data:            dateObjs.map(d => {
         const weeks = (d - TITRATION_DATE) / (7 * 86_400_000);
-        return Math.max(100, TITRATION_WEIGHT - s.rate * weeks);
+        return Math.max(100, startW - s.rate * weeks);
       }),
       borderColor:     s.color,
       backgroundColor: s.color + '18',
@@ -106,15 +114,11 @@
       tension:         0,
     }));
 
-    // Actual post-titration weights — scatter-style dots
-    const postData = postTitrationData();
-    const actualPoints = dateObjs.map(d => {
-      // find the closest actual reading within ±3 days of this label date
-      const match = postData.find(r =>
-        Math.abs(r.date - d) < 3 * 86_400_000
-      );
-      return match ? match.weight : null;
-    });
+    // Actual post-titration weights overlaid as gold dots
+    const postData     = postTitrationData();
+    const actualPoints = dateObjs.map(d =>
+      (postData.find(r => Math.abs(r.date - d) < 3 * 86_400_000) || {}).weight ?? null
+    );
 
     const actualDataset = {
       label:           'Actual weight',
@@ -135,11 +139,9 @@
   function renderChart() {
     const canvas = document.getElementById('tj-chart');
     if (!canvas || typeof Chart === 'undefined') return;
-
     if (_chart) { _chart.destroy(); _chart = null; }
 
     const { labels, datasets } = buildChartData();
-
     _chart = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: { labels, datasets },
@@ -152,19 +154,13 @@
             display:  true,
             position: 'bottom',
             labels: {
-              color:       '#1a2340',
-              font:        { size: 11, weight: '600' },
-              boxWidth:    16,
-              padding:     12,
-              usePointStyle: true,
+              color: '#1a2340', font: { size: 11, weight: '600' },
+              boxWidth: 16, padding: 12, usePointStyle: true,
             },
           },
           tooltip: {
-            backgroundColor: '#1a2340',
-            padding:         10,
-            cornerRadius:    8,
-            titleColor:      '#f1f5f9',
-            bodyColor:       '#cbd5e1',
+            backgroundColor: '#1a2340', padding: 10, cornerRadius: 8,
+            titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
             callbacks: {
               label: c => c.parsed.y != null
                 ? ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)} lbs`
@@ -174,18 +170,13 @@
         },
         scales: {
           x: {
-            ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 0, maxTicksLimit: 8 },
-            grid:  { color: 'rgba(0,0,0,0.06)' },
+            ticks:  { color: '#6d7a95', font: { size: 10 }, maxRotation: 0, maxTicksLimit: 8 },
+            grid:   { color: 'rgba(0,0,0,0.06)' },
             border: { display: false },
           },
           y: {
             position: 'right',
-            reverse:  false,
-            ticks: {
-              color:    '#6d7a95',
-              font:     { size: 10 },
-              callback: v => v + ' lbs',
-            },
+            ticks:  { color: '#6d7a95', font: { size: 10 }, callback: v => v + ' lbs' },
             grid:   { color: 'rgba(0,0,0,0.06)', borderDash: [4, 4] },
             border: { display: false },
           },
@@ -196,36 +187,35 @@
 
   // ── Milestone table ────────────────────────────────────────────────
   function renderMilestoneTable() {
-    const tbody = document.getElementById('tj-milestones');
+    const tbody  = document.getElementById('tj-milestones');
     if (!tbody) return;
+    const startW = getTitrationWeight();
 
-    const rows = MILESTONES
-      .filter(m => m < TITRATION_WEIGHT)
-      .map(m => {
-        const cells = SCENARIOS.map(s => {
-          const weeks   = (TITRATION_WEIGHT - m) / s.rate;
-          const eta     = addDays(TITRATION_DATE, weeks * 7);
-          const isPast  = eta < new Date();
-          return `<td style="padding:0.45rem 0.75rem;font-size:0.78rem;font-weight:700;
-                    color:${isPast ? '#6d7a95' : s.color};white-space:nowrap">
-                    ${fmtDate(eta)}${isPast ? ' ✓' : ''}
-                  </td>`;
-        }).join('');
-
-        const totalLost = JOURNEY_START_W - m;
-        return `<tr style="border-bottom:1px solid #e5e9f5">
-          <td style="padding:0.45rem 0.75rem;font-size:0.82rem;font-weight:800;
-                     color:#1a2340;white-space:nowrap">
-            ${m} lbs
-            <span style="font-size:0.65rem;color:#6d7a95;font-weight:600;margin-left:0.3rem">
-              (${totalLost.toFixed(0)} lost total)
-            </span>
-          </td>
-          ${cells}
-        </tr>`;
+    const rows = MILESTONES.filter(m => m < startW).map(m => {
+      const cells = SCENARIOS.map(s => {
+        const weeks  = (startW - m) / s.rate;
+        const eta    = addDays(TITRATION_DATE, weeks * 7);
+        const isPast = eta < new Date();
+        return `<td style="padding:0.45rem 0.75rem;font-size:0.78rem;font-weight:700;
+                  color:${isPast ? '#6d7a95' : s.color};white-space:nowrap">
+                  ${fmtDate(eta)}${isPast ? ' \u2713' : ''}
+                </td>`;
       }).join('');
 
-    tbody.innerHTML = rows || '<tr><td colspan="4" style="padding:1rem;color:#6d7a95;text-align:center">All milestones above current weight</td></tr>';
+      const totalFromJourney = (JOURNEY_START_W - m).toFixed(0);
+      return `<tr style="border-bottom:1px solid #e5e9f5">
+        <td style="padding:0.45rem 0.75rem;font-size:0.82rem;font-weight:800;color:#1a2340;white-space:nowrap">
+          ${m} lbs
+          <span style="font-size:0.65rem;color:#6d7a95;font-weight:600;margin-left:0.3rem">
+            (${totalFromJourney} lost total)
+          </span>
+        </td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rows ||
+      '<tr><td colspan="4" style="padding:1rem;color:#6d7a95;text-align:center">All milestones above current weight</td></tr>';
   }
 
   // ── Pace badge ─────────────────────────────────────────────────────
@@ -253,28 +243,25 @@
 
   // ── Stats strip ────────────────────────────────────────────────────
   function renderStatsStrip() {
-    const el = id => document.getElementById(id);
-    const post = postTitrationData();
+    const get = id => document.getElementById(id);
+    const post   = postTitrationData();
+    const startW = getTitrationWeight();
 
-    // Days on 7.5mg
-    const daysOn = Math.floor((Date.now() - TITRATION_DATE) / 86_400_000);
-    if (el('tj-stat-days'))  el('tj-stat-days').textContent  = daysOn + ' days';
+    const daysOn  = Math.max(0, Math.floor((Date.now() - TITRATION_DATE) / 86_400_000));
+    const latestW = post.length ? post[post.length - 1].weight : startW;
+    const lost    = startW - latestW;
+    const total   = JOURNEY_START_W - latestW;
 
-    // Lost since titration
-    const latestW = post.length ? post[post.length - 1].weight : TITRATION_WEIGHT;
-    const lost    = TITRATION_WEIGHT - latestW;
-    if (el('tj-stat-lost'))  el('tj-stat-lost').textContent  =
-      (lost >= 0 ? '-' : '+') + Math.abs(lost).toFixed(1) + ' lbs';
-    if (el('tj-stat-lost'))  el('tj-stat-lost').style.color  =
-      lost >= 0 ? '#2a8703' : '#ea1100';
-
-    // Total journey loss
-    const totalLost = JOURNEY_START_W - latestW;
-    if (el('tj-stat-total')) el('tj-stat-total').textContent =
-      '-' + totalLost.toFixed(1) + ' lbs';
-
-    // Current weight
-    if (el('tj-stat-now'))   el('tj-stat-now').textContent   = latestW.toFixed(1) + ' lbs';
+    if (get('tj-stat-days'))  get('tj-stat-days').textContent  =
+      daysOn > 0 ? daysOn + ' days' : 'Starting May 21';
+    if (get('tj-stat-lost'))  {
+      get('tj-stat-lost').textContent = daysOn > 0
+        ? (lost >= 0 ? '-' : '+') + Math.abs(lost).toFixed(1) + ' lbs'
+        : '--';
+      get('tj-stat-lost').style.color = lost >= 0 ? '#2a8703' : '#ea1100';
+    }
+    if (get('tj-stat-total')) get('tj-stat-total').textContent = '-' + total.toFixed(1) + ' lbs';
+    if (get('tj-stat-now'))   get('tj-stat-now').textContent   = latestW.toFixed(1) + ' lbs';
   }
 
   // ── Main render ────────────────────────────────────────────────────
