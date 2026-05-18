@@ -53,6 +53,7 @@
 <script src="photos.js?v=2" defer></script>
 <script src="charts-tab.js?v=1" defer></script>
 <script src="rate-analysis.js?v=1" defer></script>
+<script src="titration-trajectory.js?v=1" defer></script>
 <script src="health.js?v=11"  defer></script>
 </head>
 <body>
@@ -93,6 +94,10 @@
       style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
       🃏 <span class="export-card-label">Export Card</span>
     </button>
+    <a id="add-weighin-btn" href="add-weighin.html" aria-label="Add a manual weigh-in"
+      style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);text-decoration:none;display:inline-block">
+      ➕ <span class="add-weighin-label">Add Weigh-In</span>
+    </a>
     <button id="header-signout-btn" onclick="window.fbSignOut && window.fbSignOut()" aria-label="Sign out"
       style="display:none;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
       Sign Out
@@ -443,6 +448,83 @@
         </div>
       </div>
     </section>
+    <!-- 7.5mg Titration Trajectory Card -->
+    <section class="card fade-in" aria-label="7.5mg titration trajectory"
+      style="margin-top:1.25rem;border-top:3px solid #0053e2">
+
+      <h2 class="card-title">&#128137; 7.5mg Titration Trajectory</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Titrated <strong>May 18, 2026</strong> &middot; Starting weight <strong>268.5 lbs</strong>
+        &middot; Journey start <strong>315.0 lbs (Jan 29)</strong>
+      </p>
+
+      <!-- Stats strip -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:1.25rem">
+        <div style="background:#f0f4ff;border-radius:10px;padding:0.7rem;text-align:center">
+          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Days on 7.5mg</p>
+          <p id="tj-stat-days" style="font-size:1.1rem;font-weight:800;color:#0053e2">—</p>
+        </div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:0.7rem;text-align:center">
+          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Lost since titration</p>
+          <p id="tj-stat-lost" style="font-size:1.1rem;font-weight:800;color:#2a8703">—</p>
+        </div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:0.7rem;text-align:center">
+          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Total journey loss</p>
+          <p id="tj-stat-total" style="font-size:1.1rem;font-weight:800;color:#2a8703">—</p>
+        </div>
+        <div style="background:#f0f4ff;border-radius:10px;padding:0.7rem;text-align:center">
+          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Current weight</p>
+          <p id="tj-stat-now" style="font-size:1.1rem;font-weight:800;color:#1a2340">—</p>
+        </div>
+      </div>
+
+      <!-- Current pace badge -->
+      <div id="tj-pace-badge"
+        style="background:#f8f9fe;border:1.5px solid #d0d5e8;border-radius:10px;
+               padding:0.65rem 1rem;margin-bottom:1.25rem;min-height:2.5rem">
+      </div>
+
+      <!-- Projection chart -->
+      <div style="position:relative;height:260px;margin-bottom:1.5rem">
+        <canvas id="tj-chart"></canvas>
+      </div>
+
+      <!-- Scenario legend -->
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;font-size:0.72rem;font-weight:700">
+        <span style="color:#995213">&#9632; Conservative (0.75 lbs/wk)</span>
+        <span style="color:#0053e2">&#9632; Moderate (1.75 lbs/wk)</span>
+        <span style="color:#2a8703">&#9632; Optimistic (2.50 lbs/wk)</span>
+        <span style="color:#ffc220">&#9679; Actual weight</span>
+      </div>
+
+      <!-- Milestone table -->
+      <p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;
+                color:#6d7a95;margin-bottom:0.6rem">Milestone ETAs</p>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
+          <thead>
+            <tr style="border-bottom:2px solid #e5e9f5">
+              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
+                         text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95">Target</th>
+              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
+                         text-transform:uppercase;letter-spacing:0.08em;color:#995213">Conservative</th>
+              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
+                         text-transform:uppercase;letter-spacing:0.08em;color:#0053e2">Moderate</th>
+              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
+                         text-transform:uppercase;letter-spacing:0.08em;color:#2a8703">Optimistic</th>
+            </tr>
+          </thead>
+          <tbody id="tj-milestones"></tbody>
+        </table>
+      </div>
+
+      <p style="font-size:0.65rem;color:#9aa5b4;margin-top:1rem">
+        Projections use linear rates derived from your 5mg history.
+        Actual pace updates automatically as new scale readings sync.
+        Titration decisions are always your provider&rsquo;s call. &#128138;
+      </p>
+    </section>
+
   </div><!-- /tab-projector -->
 
   <!-- ── Charts tab ── -->
