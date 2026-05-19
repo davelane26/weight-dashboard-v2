@@ -31,7 +31,7 @@
     { key: 'opt',  label: 'Optimistic',   rate: 2.50, color: '#2a8703', dash: [3, 2] },
   ];
 
-  const MILESTONES = [265, 260, 255, 250, 245, 240, 235, 230];
+  const MILESTONES = [265, 260, 255, 250, 245, 240, 235, 230, 225, 220];
   const PROJ_WEEKS = 20;
 
   // ── Chart instance ─────────────────────────────────────────────────
@@ -287,6 +287,7 @@
       return out;
     };
     wrapped.__tjHooked = true;
+    if (orig.__r220Hooked) wrapped.__r220Hooked = true;
     window.switchTab = wrapped;
     return true;
   }
