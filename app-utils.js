@@ -50,21 +50,31 @@ function movingAvg(arr, window = 7) {
 
 // ── Linear regression → lbs/day slope ────────────────────────────────
 // Uses last `days` of data so recent trend matters more than old data.
-function weightTrendSlope(data, days = 30) {
+// ── Shared regression engine ─────────────────────────────────────────
+// Single source of truth used by: journey projector, Charts tab, Road to 220,
+// BMI timeline, goal ETA — everything. Uses a calendar-day window so all
+// consumers compute identically regardless of how dense the readings are.
+function regressionSlopeLbsPerDay(data, calendarDays = 28) {
   const byDay  = {};
   data.forEach(r => { byDay[r.date.toDateString()] = r; });
   const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
-  const recent = daily.slice(-days);
-  if (recent.length < 3) return null;
-  const origin = recent[0].date.getTime();
-  const pts    = recent.map(r => ({ x: (r.date.getTime() - origin) / 86400000, y: r.weight }));
-  const n      = pts.length;
-  const sx     = pts.reduce((s, p) => s + p.x, 0);
-  const sy     = pts.reduce((s, p) => s + p.y, 0);
-  const sxy    = pts.reduce((s, p) => s + p.x * p.y, 0);
-  const sx2    = pts.reduce((s, p) => s + p.x * p.x, 0);
-  const denom  = n * sx2 - sx * sx;
-  return denom === 0 ? null : (n * sxy - sx * sy) / denom; // lbs per day
+  if (!daily.length) return null;
+  const cutoff = daily[daily.length - 1].date.getTime() - calendarDays * 86_400_000;
+  const win    = daily.filter(r => r.date.getTime() >= cutoff);
+  if (win.length < 3) return null;
+  const t0  = win[0].date.getTime();
+  const pts = win.map(r => [(r.date.getTime() - t0) / 86_400_000, r.weight]);
+  const n   = pts.length;
+  const sx  = pts.reduce((s, p) => s + p[0], 0);
+  const sy  = pts.reduce((s, p) => s + p[1], 0);
+  const sxy = pts.reduce((s, p) => s + p[0] * p[1], 0);
+  const sx2 = pts.reduce((s, p) => s + p[0] * p[0], 0);
+  const den = n * sx2 - sx * sx;
+  return den === 0 ? null : (n * sxy - sx * sy) / den; // lbs/day, negative = losing
+}
+
+function weightTrendSlope(data, days = 28) {
+  return regressionSlopeLbsPerDay(data, days);
 }
 
 // ── Streak counter (consecutive calendar-day readings) ───────────────

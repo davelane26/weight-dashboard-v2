@@ -60,25 +60,17 @@
     return Object.values(byDay).sort((a, b) => a.date - b.date);
   }
 
-  // ── Regression rate ──────────────────────────────────────────────────
+  // ── Regression rate ──────────────────────────────────────────────
+  // Delegates to the shared regressionSlopeLbsPerDay in app-utils.js —
+  // same 28-day calendar window used everywhere across the dashboard.
   function computeRegressionRate(data) {
     if (!data || data.length < 3) return { rate: null, n: 0 };
-    const today  = data[data.length - 1].date;
+    const slope = regressionSlopeLbsPerDay(data, 28);
+    const today = data[data.length - 1].date;
     const cutoff = today.getTime() - 28 * 86_400_000;
-    const win    = data.filter(r => r.date.getTime() >= cutoff);
-    if (win.length < 3) return { rate: null, n: win.length };
-
-    const t0  = win[0].date.getTime();
-    const pts = win.map(r => [(r.date.getTime() - t0) / 86_400_000, r.weight]);
-    const n   = pts.length;
-    const sx  = pts.reduce((s, p) => s + p[0], 0);
-    const sy  = pts.reduce((s, p) => s + p[1], 0);
-    const sxy = pts.reduce((s, p) => s + p[0] * p[1], 0);
-    const sx2 = pts.reduce((s, p) => s + p[0] * p[0], 0);
-    const denom = n * sx2 - sx * sx;
-    if (denom === 0) return { rate: null, n };
-    const b = (n * sxy - sx * sy) / denom; // lbs/day, negative = losing
-    return { rate: -b * 7, n }; // positive = lbs lost per week
+    const n = [...new Set(data.filter(r => r.date.getTime() >= cutoff)
+      .map(r => r.date.toDateString()))].length;
+    return { rate: slope != null ? -slope * 7 : null, n }; // positive = lbs lost/week
   }
 
   // ── Rate KPIs ────────────────────────────────────────────────────────
@@ -134,6 +126,11 @@
     set('ra-recent-rate',     fmt(k.recentRate));
     set('ra-total-since-med', k.totalLost == null ? '—' : k.totalLost.toFixed(1));
     set('ra-regression-rate', fmt(k.regressionRate));
+    // ── Expose regression rate globally so every projector component uses the
+    // same number as the Charts tab. Only override if we have a valid value.
+    if (k.regressionRate != null && !isNaN(k.regressionRate)) {
+      projSlopeLbsPerDay = -(k.regressionRate / 7); // back to lbs/day, negative
+    }
     const noteEl = $('ra-regression-note');
     if (noteEl && k.regressionN) {
       const gap = k.recentRate != null ? (k.recentRate - (k.regressionRate || 0)).toFixed(2) : null;
