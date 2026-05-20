@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Weigh-In · Weight Dashboard</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    /* Match Charts tab dark slate aesthetic */
+    :root {
+      --bg:        #0f172a;
+      --card:      #1e293b;
+      --card-hov:  #243248;
+      --border:    #334155;
+      --text:      #f1f5f9;
+      --text-dim:  #cbd5e1;
+      --text-mute: #64748b;
+      --accent:    #34d399;
+      --accent-h:  #10b981;
+      --warn:      #f59e0b;
+      --err:       #f87171;
+      --link:      #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 1rem; }
+    h1 { font-size: 1.25rem; font-weight: 800; margin: 0 0 0.25rem; }
+    .sub { color: var(--text-mute); font-size: 0.8rem; margin: 0 0 1.25rem; }
+    .back { display: inline-block; color: var(--link); text-decoration: none; font-size: 0.8rem;
+            font-weight: 600; margin-bottom: 0.75rem; }
+    .back:hover, .back:focus { text-decoration: underline; }
+    .card { background: var(--card); border-radius: 14px; padding: 1.1rem;
+            margin-bottom: 0.9rem; border: 1px solid var(--border); }
+    .card h2 { font-size: 0.95rem; font-weight: 800; margin: 0 0 0.85rem;
+               display: flex; align-items: center; gap: 0.5rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+    @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 0.06em; font-weight: 700; color: var(--text-mute);
+            margin-bottom: 0.3rem; }
+    label .req { color: var(--err); }
+    label .auto { color: var(--text-mute); font-weight: 500; text-transform: none; letter-spacing: 0; font-size: 0.7rem; }
+    input, select {
+      width: 100%; padding: 0.55rem 0.7rem; background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.95rem;
+      font-variant-numeric: tabular-nums;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent);
+                                box-shadow: 0 0 0 3px rgba(52,211,153,0.15); }
+    input[readonly] { background: #0a1220; color: var(--text-mute); cursor: not-allowed; }
+    .actions { display: flex; gap: 0.6rem; margin-top: 0.5rem; }
+    button {
+      flex: 1; padding: 0.85rem 1rem; border-radius: 10px; border: none;
+      font-size: 0.95rem; font-weight: 800; cursor: pointer; transition: background .15s;
+    }
+    .btn-primary    { background: var(--accent); color: #052e1f; }
+    .btn-primary:hover, .btn-primary:focus { background: var(--accent-h); }
+    .btn-primary:disabled { background: var(--border); color: var(--text-mute); cursor: not-allowed; }
+    .btn-secondary  { background: var(--card); color: var(--text-dim); border: 1.5px solid var(--border); }
+    .btn-secondary:hover, .btn-secondary:focus { background: var(--card-hov); }
+    .status { padding: 0.7rem 0.9rem; border-radius: 8px; font-size: 0.85rem;
+              font-weight: 600; margin-top: 0.75rem; display: none; }
+    .status.ok   { background: rgba(52,211,153,0.12); color: var(--accent); border: 1px solid var(--accent); display: block; }
+    .status.err  { background: rgba(248,113,113,0.10); color: var(--err);    border: 1px solid var(--err);    display: block; }
+    .status.info { background: rgba(96,165,250,0.10); color: var(--link);   border: 1px solid var(--link);   display: block; }
+    .help { font-size: 0.72rem; color: var(--text-mute); margin-top: 0.4rem; }
+    .help a { color: var(--link); }
+    .preview { background: #0a1220; padding: 0.75rem; border-radius: 8px;
+               font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+               font-size: 0.72rem; color: var(--text-dim); white-space: pre-wrap;
+               max-height: 240px; overflow: auto; border: 1px solid var(--border); }
+    details > summary { cursor: pointer; color: var(--text-mute); font-size: 0.8rem;
+                        font-weight: 600; padding: 0.3rem 0; list-style: none; }
+    details > summary::before { content: "▸ "; }
+    details[open] > summary::before { content: "▾ "; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <a href="index.html" class="back">← Back to Dashboard</a>
+  <h1>➕ Add Weigh-In</h1>
+  <p class="sub">Manually log a measurement that didn't come through openScale/MQTT. Pushes directly to <code>Weight-tracker/data.json</code>.</p>
+
+  <!-- ── Form ── -->
+  <form id="weighinForm" autocomplete="off">
+
+    <!-- Weight + date -->
+    <div class="card">
+      <h2>⚖️ Required</h2>
+      <div class="grid">
+        <div>
+          <label for="weight">Weight (lb) <span class="req">*</span></label>
+          <input type="number" id="weight" name="weight" step="0.1" min="0" max="999" required inputmode="decimal">
+        </div>
+        <div>
+          <label for="datetime">Date / time <span class="req">*</span></label>
+          <input type="datetime-local" id="datetime" name="datetime" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body comp -->
+    <div class="card">
+      <h2>💪 Body Composition <span style="font-size:0.7rem;color:var(--text-mute);font-weight:500">(optional · pre-filled from last weigh-in)</span></h2>
+      <div class="grid">
+        <div>
+          <label for="bodyFat">Body Fat (%)</label>
+          <input type="number" id="bodyFat" step="0.1" min="0" max="100" inputmode="decimal">
+        </div>
+        <div>
+          <label for="muscle">Muscle (%)</label>
+          <input type="number" id="muscle" step="0.1" min="0" max="100" inputmode="decimal">
+        </div>
+        <div>
+          <label for="water">Water (%)</label>
+          <input type="number" id="water" step="0.1" min="0" max="100" inputmode="decimal">
+        </div>
+        <div>
+          <label for="bone">Bone (lb)</label>
+          <input type="number" id="bone" step="0.1" min="0" max="50" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-computed (informational, editable) -->
+    <div class="card">
+      <h2>🧮 Auto-Computed <span style="font-size:0.7rem;color:var(--text-mute);font-weight:500">(editable)</span></h2>
+      <div class="grid">
+        <div>
+          <label for="weight_kg">Weight (kg) <span class="auto">· from lb</span></label>
+          <input type="number" id="weight_kg" step="0.01" inputmode="decimal">
+        </div>
+        <div>
+          <label for="bmi">BMI <span class="auto">· height 75 in</span></label>
+          <input type="number" id="bmi" step="0.01" inputmode="decimal">
+        </div>
+        <div>
+          <label for="bmr">BMR (kcal) <span class="auto">· scaled</span></label>
+          <input type="number" id="bmr" step="1" inputmode="numeric">
+        </div>
+        <div>
+          <label for="tdee">TDEE (kcal) <span class="auto">· scaled</span></label>
+          <input type="number" id="tdee" step="1" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+
+    <!-- GitHub PAT -->
+    <div class="card">
+      <h2>🔑 GitHub Token <span style="font-size:0.7rem;color:var(--text-mute);font-weight:500">(saved locally, never sent anywhere else)</span></h2>
+      <div>
+        <label for="ghToken">Personal Access Token (with <code>repo</code> scope)</label>
+        <input type="password" id="ghToken" placeholder="ghp_…" autocomplete="off">
+        <p class="help">
+          Create one at <a href="https://github.com/settings/tokens/new?scopes=repo&description=Weight%20dashboard%20add-weighin" target="_blank" rel="noopener">github.com/settings/tokens/new</a> with <strong>repo</strong> scope. Stored in your browser's localStorage only.
+        </p>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="card">
+      <details>
+        <summary>👀 Preview JSON entry</summary>
+        <pre id="preview" class="preview" style="margin-top:0.5rem">{ }</pre>
+      </details>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button type="button" class="btn-secondary" onclick="resetForm()">Reset</button>
+      <button type="submit" id="submitBtn" class="btn-primary">📤 Submit weigh-in</button>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  </form>
+
+</div>
+
+<script>
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────
+const REPO       = 'davelane26/Weight-tracker';
+const FILE_PATH  = 'data.json';
+const RAW_URL    = `https://raw.githubusercontent.com/${REPO}/main/${FILE_PATH}`;
+const API_BASE   = `https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`;
+const HEIGHT_IN  = 75;          // 6'3" — derived from your existing data (BMI 35.96 @ 287.7 lb)
+const TZ_OFFSET  = '-0600';     // Match your existing data's offset (Mountain Time)
+
+const $ = id => document.getElementById(id);
+
+// ── Element refs ─────────────────────────────────────────────────────
+const els = ['weight','datetime','bodyFat','muscle','water','bone',
+             'weight_kg','bmi','bmr','tdee','ghToken'].reduce((m,id) => (m[id]=$(id), m), {});
+
+// ── Local storage for token + last-known body comp ──────────────────
+const TOKEN_KEY = 'wd_gh_token_v1';
+const LAST_KEY  = 'wd_last_weighin_v1';
+
+els.ghToken.value = localStorage.getItem(TOKEN_KEY) || '';
+els.ghToken.addEventListener('change', () =>
+  localStorage.setItem(TOKEN_KEY, els.ghToken.value.trim()));
+
+// ── Helpers ──────────────────────────────────────────────────────────
+const round = (v, n=2) => v == null || isNaN(v) ? null : Number(v.toFixed(n));
+
+function lbToKg(lb)   { return lb / 2.2046226218; }
+function bmiOf(lb, in_) { return lb * 703 / (in_ * in_); }
+
+function formatLocalDateTime(d = new Date()) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function buildEntry() {
+  const w  = parseFloat(els.weight.value);
+  if (!w || w <= 0) return null;
+
+  // datetime-local is local clock; format like existing data: "2026-05-11T13:56-0600"
+  const dtLocal = els.datetime.value || formatLocalDateTime();
+  const datePart = `${dtLocal}${TZ_OFFSET}`;
+
+  const entry = {
+    date:       datePart,
+    weight:     round(w, 1),
+    weight_kg:  round(parseFloat(els.weight_kg.value) || lbToKg(w), 2),
+    bmi:        round(parseFloat(els.bmi.value) || bmiOf(w, HEIGHT_IN), 2),
+  };
+  // Optional fields
+  const opt = ['bmr','bodyFat','bone','muscle','tdee','water'];
+  for (const k of opt) {
+    const v = parseFloat(els[k].value);
+    if (!isNaN(v) && v !== 0) entry[k] = round(v, k==='bmr'||k==='tdee' ? 0 : 2);
+  }
+  return entry;
+}
+
+function refreshPreview() {
+  const e = buildEntry();
+  $('preview').textContent = e ? JSON.stringify(e, null, 2) : '(enter weight to see preview)';
+}
+
+function autoCompute() {
+  const w = parseFloat(els.weight.value);
+  if (!w) return;
+  if (!els.weight_kg.value || els.weight_kg.dataset.auto === '1') {
+    els.weight_kg.value = round(lbToKg(w), 2); els.weight_kg.dataset.auto = '1';
+  }
+  if (!els.bmi.value || els.bmi.dataset.auto === '1') {
+    els.bmi.value = round(bmiOf(w, HEIGHT_IN), 2); els.bmi.dataset.auto = '1';
+  }
+  // Scale BMR/TDEE proportionally from last known
+  const last = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+  if (last && last.weight) {
+    if ((!els.bmr.value || els.bmr.dataset.auto === '1') && last.bmr) {
+      els.bmr.value = Math.round(last.bmr * w / last.weight); els.bmr.dataset.auto = '1';
+    }
+    if ((!els.tdee.value || els.tdee.dataset.auto === '1') && last.tdee) {
+      els.tdee.value = Math.round(last.tdee * w / last.weight); els.tdee.dataset.auto = '1';
+    }
+  }
+  refreshPreview();
+}
+
+['weight','weight_kg','bmi','bmr','tdee','bodyFat','muscle','water','bone','datetime'].forEach(id => {
+  els[id].addEventListener('input', e => {
+    if (id === 'weight') return autoCompute();
+    if (['weight_kg','bmi','bmr','tdee'].includes(id)) e.target.dataset.auto = '0';
+    refreshPreview();
+  });
+});
+
+function resetForm() {
+  document.getElementById('weighinForm').reset();
+  ['weight_kg','bmi','bmr','tdee'].forEach(k => els[k].dataset.auto = '1');
+  els.ghToken.value = localStorage.getItem(TOKEN_KEY) || '';
+  els.datetime.value = formatLocalDateTime();
+  prefillFromLast();
+  refreshPreview();
+}
+window.resetForm = resetForm;
+
+// ── Pre-fill body comp from last weigh-in ────────────────────────────
+async function prefillFromLast() {
+  try {
+    const r = await fetch(RAW_URL + '?t=' + Date.now());
+    if (!r.ok) throw new Error('fetch data.json: ' + r.status);
+    const arr = await r.json();
+    if (!Array.isArray(arr) || !arr.length) return;
+    arr.sort((a,b) => (a.date > b.date ? 1 : -1));
+    const last = arr[arr.length - 1];
+    localStorage.setItem(LAST_KEY, JSON.stringify(last));
+    if (!els.bodyFat.value && last.bodyFat) els.bodyFat.value = last.bodyFat;
+    if (!els.muscle.value  && last.muscle)  els.muscle.value  = last.muscle;
+    if (!els.water.value   && last.water)   els.water.value   = last.water;
+    if (!els.bone.value    && last.bone)    els.bone.value    = last.bone;
+    setStatus(`✓ Pre-filled from last weigh-in (${last.date.slice(0,10)} · ${last.weight} lb)`, 'info');
+    autoCompute();
+  } catch (e) {
+    console.warn('prefill failed', e);
+    setStatus(`⚠️ Couldn't pre-fill: ${e.message}`, 'err');
+  }
+}
+
+// ── Status ───────────────────────────────────────────────────────────
+function setStatus(msg, kind='info') {
+  const el = $('status');
+  el.className = 'status ' + kind;
+  el.textContent = msg;
+}
+
+// ── Submit ───────────────────────────────────────────────────────────
+async function commitToGitHub(entry) {
+  const token = els.ghToken.value.trim();
+  if (!token) throw new Error('GitHub token required');
+
+  // 1. Get current file (need its SHA for the PUT)
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept':        'application/vnd.github.v3+json',
+  };
+  setStatus('Fetching current data.json…', 'info');
+  const getResp = await fetch(API_BASE + '?ref=main', { headers });
+  if (!getResp.ok) throw new Error(`GET data.json: ${getResp.status} ${await getResp.text()}`);
+  const meta = await getResp.json();
+
+  // 2. Decode, append, compute next ID
+  const current = JSON.parse(atob(meta.content.replace(/\n/g, '')));
+  if (!Array.isArray(current)) throw new Error('data.json is not an array');
+  const nextId = (current.reduce((m, r) => Math.max(m, r.id || 0), 0) || 0) + 1;
+  entry.id = nextId;
+  current.push(entry);
+  current.sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  // 3. PUT it back
+  setStatus('Committing to GitHub…', 'info');
+  const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(current, null, 2))));
+  const putResp = await fetch(API_BASE, {
+    method: 'PUT', headers,
+    body: JSON.stringify({
+      message: `Add manual weigh-in: ${entry.weight} lb at ${entry.date}`,
+      content: newContent,
+      sha:     meta.sha,
+      branch:  'main',
+    }),
+  });
+  if (!putResp.ok) throw new Error(`PUT data.json: ${putResp.status} ${await putResp.text()}`);
+  const result = await putResp.json();
+  return { id: nextId, commit: result.commit?.sha?.slice(0,7), total: current.length };
+}
+
+document.getElementById('weighinForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const entry = buildEntry();
+  if (!entry) { setStatus('⚠️ Enter a valid weight', 'err'); return; }
+
+  $('submitBtn').disabled = true;
+  try {
+    const { id, commit, total } = await commitToGitHub(entry);
+    setStatus(`✅ Committed entry #${id} (${total} total) · ${commit}. Dashboard refreshes in ~30s.`, 'ok');
+    // Persist this entry as new "last" for next prefill
+    localStorage.setItem(LAST_KEY, JSON.stringify({ ...entry, weight: entry.weight }));
+  } catch (e) {
+    console.error(e);
+    setStatus(`❌ ${e.message}`, 'err');
+  } finally {
+    $('submitBtn').disabled = false;
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────────────
+els.datetime.value = formatLocalDateTime();
+prefillFromLast();
+refreshPreview();
+</script>
+</body>
+</html>
