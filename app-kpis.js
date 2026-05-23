@@ -102,7 +102,7 @@ function renderJourney(latest, data) {
   const slopePerDay = weightTrendSlope(data);
   const _ph1Loss  = 19;
   const _ph1Wks   = 4;
-  const _totWks   = (latest.date - start) / 86400000 / 7;
+  const _totWks   = (latest.date - new Date(START_DATE)) / 86400000 / 7;
   const _trueRate = (lost - _ph1Loss) / Math.max(0.1, _totWks - _ph1Wks);
   projSlopeLbsPerDay = -(_trueRate / 7);
   projLatestWeight   = latest.weight;
@@ -364,4 +364,5 @@ function renderCalories(latest) {
   countUp('cal-lose1',    energy.tdee - 500,  0);
   countUp('cal-lose2',    energy.tdee - 1000, 0);
 }
+
 
