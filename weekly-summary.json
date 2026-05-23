@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-05-17T14:25:13.032848+00:00",
-  "week_ending": "2026-05-17",
-  "summary": "Hey David, what a week! You're sitting at 269.2 lbs now, which means you've crushed 45.8 lbs since you started\u2014that's a huge milestone and a real testament to your consistency with Mounjaro and staying engaged with your data. Your loss rate this past two weeks was 0.75 lbs per week, which is exactly the sustainable pace that leads to lasting results. I noticed you logged 11 days out of 14, so let's aim for capturing those last few days next week\u2014your Dexcom and Garmin give you such valuable insights that every logged day helps you spot patterns. You're doing the real work here, and it shows.",
+  "generated_at": "2026-05-23T17:13:01.826168+00:00",
+  "week_ending": "2026-05-23",
+  "summary": "David, what a fantastic week\u2014you've dropped 5 pounds over the past 14 days and you're now at 264.6 lbs, which means you've crushed 50.4 pounds total since starting. That's a solid 2.5 pounds per week, and your consistency with 13 logged days shows you're really committed to this journey. Your Dexcom and Garmin data are clearly helping you make smarter choices day to day. Next week, I'd love to see you dial in one specific meal or snack time where you feel the most challenged\u2014that's where your CGM insights can shine brightest. You're doing the work that matters, and the scale is honest proof of that.",
   "stats": {
-    "days_with_readings": 11,
-    "latest_weight": 269.2,
-    "total_lost_from_start": 45.8,
-    "change_last_14d": -1.5,
-    "rate_lbs_per_week": 0.75,
-    "avg_weight": 270.4
+    "days_with_readings": 13,
+    "latest_weight": 264.6,
+    "total_lost_from_start": 50.4,
+    "change_last_14d": -5.0,
+    "rate_lbs_per_week": 2.5,
+    "avg_weight": 268.8
   }
 }
