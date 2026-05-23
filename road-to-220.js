@@ -83,7 +83,7 @@
     const etaHTML = `
       <div style="background:#f5f0ff;border:1.5px solid #c4b5fd;border-radius:12px;padding:0.9rem 1.1rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
         <div>
-          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.2rem">📅 Regression ETA at 220 lbs</p>
+          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.2rem">📅 True Rate ETA at 220 lbs</p>
           <p style="font-size:1.05rem;font-weight:900;color:#1a2340">${etaStr}</p>
         </div>
         ${daysAway != null ? `<div style="text-align:right">
@@ -140,3 +140,4 @@
     }
   });
 })();
+
