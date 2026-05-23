@@ -20,11 +20,18 @@
   // Start weight = last scale reading on or before shot day.
   function getProjBase() {
     if (window.projLatestDate) return new Date(projLatestDate);
-    if (window.allData && allData.length) return new Date(allData[allData.length - 1].date);
+    if (window.allData && allData.length) return allData[allData.length - 1].weight;
     return new Date();
   }
 
   function getTitrationWeight() {
+    // Returns pre-shot baseline weight (on or before shot day) for stats
+    const endOfShotDay = new Date(TITRATION_DATE.getFullYear(), TITRATION_DATE.getMonth(), TITRATION_DATE.getDate(), 23, 59, 59, 999);
+    const candidates = allData.filter(r => r.date <= endOfShotDay);
+    return candidates.length ? candidates[candidates.length - 1].weight : 268.5;
+  }
+
+  function getProjWeight() {
     if (window.projLatestWeight) return projLatestWeight;
     if (window.allData && allData.length) return allData[allData.length - 1].weight;
     return 268.5;
@@ -93,7 +100,7 @@
 
   // ── Chart ──────────────────────────────────────────────────────────
   function buildChartData() {
-    const startW  = getTitrationWeight();
+    const startW  = getProjWeight();
     const projBase = getProjBase();
     const endDate = addDays(projBase, PROJ_WEEKS * 7);
     const labels  = [];
@@ -195,7 +202,7 @@
   function renderMilestoneTable() {
     const tbody  = document.getElementById('tj-milestones');
     if (!tbody) return;
-    const startW = getTitrationWeight();
+    const startW = getProjWeight();
 
     const rows = MILESTONES.filter(m => m < startW).map(m => {
       const cells = SCENARIOS.map(s => {
@@ -307,5 +314,6 @@
     }
   });
 })();
+
 
 
