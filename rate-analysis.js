@@ -128,8 +128,8 @@
     set('ra-regression-rate', fmt(k.regressionRate));
     // ── Expose regression rate globally so every projector component uses the
     // same number as the Charts tab. Only override if we have a valid value.
-    if (k.regressionRate != null && !isNaN(k.regressionRate)) {
-      projSlopeLbsPerDay = -(k.regressionRate / 7); // back to lbs/day, negative
+    if (k.trueRate != null && !isNaN(k.trueRate)) {
+      projSlopeLbsPerDay = -(k.trueRate / 7); // back to lbs/day, negative
     }
     const noteEl = $('ra-regression-note');
     if (noteEl && k.regressionN) {
@@ -335,3 +335,4 @@
     }
   });
 })();
+
