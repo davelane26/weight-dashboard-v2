@@ -6,7 +6,7 @@
 // ── Config ───────────────────────────────────────────────────────────
 const DATA_URL     = 'https://davelane26.github.io/Weight-tracker/data.json';
 const START_WEIGHT = 315.0;
-const START_DATE   = 'Jan 23, 2026';
+const START_DATE   = 'Jan 29, 2026';
 const REFRESH_MS   = 30_000;
 
 const ACTIVITY_LEVELS = {
@@ -42,3 +42,4 @@ let activityLevel      = 'moderate';
 let projSlopeLbsPerDay = null;   // negative = losing weight
 let projLatestWeight   = null;
 let projLatestDate     = null;
+
