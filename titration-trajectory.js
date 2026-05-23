@@ -20,11 +20,12 @@
   // Start weight = last scale reading on or before shot day.
   function getProjBase() {
     if (window.projLatestDate) return new Date(projLatestDate);
-    if (window.allData && allData.length) return allData[allData.length - 1].weight;
+    if (window.allData && allData.length) return new Date(allData[allData.length - 1].date);
     return new Date();
   }
 
   function getTitrationWeight() {
+    if (!window.allData || !allData.length) return 268.5;
     // Returns pre-shot baseline weight (on or before shot day) for stats
     const endOfShotDay = new Date(TITRATION_DATE.getFullYear(), TITRATION_DATE.getMonth(), TITRATION_DATE.getDate(), 23, 59, 59, 999);
     const candidates = allData.filter(r => r.date <= endOfShotDay);
