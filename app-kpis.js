@@ -98,9 +98,13 @@ function renderJourney(latest, data) {
   }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
-  // Compute & expose current 30-day trend for projector + ETA math.
+  // Compute & expose true (de-skewed) rate for projector + ETA math.
   const slopePerDay = weightTrendSlope(data);
-  projSlopeLbsPerDay = slopePerDay;
+  const _ph1Loss  = 19;
+  const _ph1Wks   = 4;
+  const _totWks   = (latest.date - start) / 86400000 / 7;
+  const _trueRate = (lost - _ph1Loss) / Math.max(0.1, _totWks - _ph1Wks);
+  projSlopeLbsPerDay = -(_trueRate / 7);
   projLatestWeight   = latest.weight;
   projLatestDate     = latest.date;
 
@@ -123,12 +127,9 @@ function renderJourney(latest, data) {
   // Projector blurb with current trend rate
   const blurb = document.getElementById('proj-trend-blurb');
   if (blurb) {
-    if (slopePerDay !== null) {
-      const wkRate = Math.abs(slopePerDay * 7).toFixed(1);
-      const dir    = slopePerDay < 0 ? 'losing' : 'gaining';
-      blurb.textContent = `Based on your 30-day trend — currently ${dir} ~${wkRate} lbs/week`;
-    } else {
-      blurb.textContent = 'Not enough data yet for a trend (need ~30 days of readings)';
+    {
+      const wkRate = Math.abs(projSlopeLbsPerDay * 7).toFixed(1);
+      blurb.textContent = `Based on your de-skewed true rate  14 currently losing ~` + wkRate + ` lbs/week`;
     }
   }
 
@@ -363,3 +364,4 @@ function renderCalories(latest) {
   countUp('cal-lose1',    energy.tdee - 500,  0);
   countUp('cal-lose2',    energy.tdee - 1000, 0);
 }
+
