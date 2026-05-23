@@ -18,11 +18,10 @@
   const JOURNEY_START_W = 315.0;  // Jan 29, 2026
 
   // Start weight = last scale reading on or before shot day.
-  // Falls back to 268.5 (last known reading) until May 21 syncs.
   function getTitrationWeight() {
-    if (!window.allData || !allData.length) return 268.5;
-    const candidates = allData.filter(r => r.date <= TITRATION_DATE);
-    return candidates.length ? candidates[candidates.length - 1].weight : 268.5;
+    if (window.projLatestWeight) return projLatestWeight;
+    if (window.allData && allData.length) return allData[allData.length - 1].weight;
+    return 268.5;
   }
 
   const SCENARIOS = [
@@ -301,3 +300,4 @@
     }
   });
 })();
+
