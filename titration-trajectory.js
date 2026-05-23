@@ -18,6 +18,12 @@
   const JOURNEY_START_W = 315.0;  // Jan 29, 2026
 
   // Start weight = last scale reading on or before shot day.
+  function getProjBase() {
+    if (window.projLatestDate) return new Date(projLatestDate);
+    if (window.allData && allData.length) return new Date(allData[allData.length - 1].date);
+    return new Date();
+  }
+
   function getTitrationWeight() {
     if (window.projLatestWeight) return projLatestWeight;
     if (window.allData && allData.length) return allData[allData.length - 1].weight;
@@ -88,11 +94,12 @@
   // ── Chart ──────────────────────────────────────────────────────────
   function buildChartData() {
     const startW  = getTitrationWeight();
-    const endDate = addDays(TITRATION_DATE, PROJ_WEEKS * 7);
+    const projBase = getProjBase();
+    const endDate = addDays(projBase, PROJ_WEEKS * 7);
     const labels  = [];
     const dateObjs = [];
 
-    for (let d = new Date(TITRATION_DATE); d <= endDate; d = addDays(d, 7)) {
+    for (let d = new Date(projBase); d <= endDate; d = addDays(d, 7)) {
       labels.push(fmtShort(d));
       dateObjs.push(new Date(d));
     }
@@ -100,7 +107,7 @@
     const scenarioDatasets = SCENARIOS.map(s => ({
       label:           `${s.label} (${s.rate} lbs/wk)`,
       data:            dateObjs.map(d => {
-        const weeks = (d - TITRATION_DATE) / (7 * 86_400_000);
+        const weeks = (d - projBase) / (7 * 86_400_000);
         return Math.max(100, startW - s.rate * weeks);
       }),
       borderColor:     s.color,
@@ -193,7 +200,7 @@
     const rows = MILESTONES.filter(m => m < startW).map(m => {
       const cells = SCENARIOS.map(s => {
         const weeks  = (startW - m) / s.rate;
-        const eta    = addDays(TITRATION_DATE, weeks * 7);
+        const eta    = addDays(getProjBase(), weeks * 7);
         const isPast = eta < new Date();
         return `<td style="padding:0.45rem 0.75rem;font-size:0.78rem;font-weight:700;
                   color:${isPast ? '#6d7a95' : s.color};white-space:nowrap">
@@ -300,4 +307,5 @@
     }
   });
 })();
+
 
