@@ -19,13 +19,13 @@
 
   // Start weight = last scale reading on or before shot day.
   function getProjBase() {
-    if (window.projLatestDate) return new Date(projLatestDate);
-    if (window.allData && allData.length) return new Date(allData[allData.length - 1].date);
+    if (projLatestDate != null) return new Date(projLatestDate);
+    if (allData && allData.length) return new Date(allData[allData.length - 1].date);
     return new Date();
   }
 
   function getTitrationWeight() {
-    if (!window.allData || !allData.length) return 268.5;
+    if (!allData || !allData.length) return 268.5;
     // Returns pre-shot baseline weight (on or before shot day) for stats
     const endOfShotDay = new Date(TITRATION_DATE.getFullYear(), TITRATION_DATE.getMonth(), TITRATION_DATE.getDate(), 23, 59, 59, 999);
     const candidates = allData.filter(r => r.date <= endOfShotDay);
@@ -33,8 +33,8 @@
   }
 
   function getProjWeight() {
-    if (window.projLatestWeight) return projLatestWeight;
-    if (window.allData && allData.length) return allData[allData.length - 1].weight;
+    if (projLatestWeight != null) return projLatestWeight;
+    if (allData && allData.length) return allData[allData.length - 1].weight;
     return 268.5;
   }
 
@@ -75,7 +75,7 @@
 
   // Readings strictly after the shot day (shot-day weight = pre-shot baseline)
   function postTitrationData() {
-    if (!window.allData || !allData.length) return [];
+    if (!allData || !allData.length) return [];
     const dayAfter = addDays(TITRATION_DATE, 1);
     return dedupeByDay(allData.filter(r => r.date >= dayAfter));
   }
