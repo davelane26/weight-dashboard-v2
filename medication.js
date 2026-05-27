@@ -112,7 +112,7 @@
   }
   function getElapsedHours(shot) {
     if (!shot) return null;
-    return (Date.now() - new Date(shot.date).getTime()) / 3600000;
+    return Math.max(0, (Date.now() - new Date(shot.date).getTime()) / 3600000);
   }
   function getCurrentPhase(elapsedHours) {
     if (elapsedHours === null) return null;
