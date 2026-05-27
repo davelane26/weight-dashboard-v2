@@ -1,8 +1,9 @@
 // medication.js — GLP-1 Tracker v4
 (function () {
-  const GLP1_KEY = 'glp1_v4';
-  const SYM_KEY  = 'glp1_sym_v4';
-  const SUP_KEY  = 'glp1_sup_v4';
+  const GLP1_KEY       = 'glp1_v4';
+  const SYM_KEY        = 'glp1_sym_v4';
+  const SUP_KEY        = 'glp1_sup_v4';
+  const SHOTS_CLOUD_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com/glp1/shots.json';
   const ACCENT   = '#534ab7';
   const SEED_VER              = 2;
   const JOURNEY_START_WEIGHT  = 315; // lbs on Jan 29, 2026
@@ -69,6 +70,63 @@
   function saveSymptoms(s) { localStorage.setItem(SYM_KEY, JSON.stringify(s)); }
   function loadSupply()    { try { return JSON.parse(localStorage.getItem(SUP_KEY))  || {}; } catch(e) { return {}; } }
   function saveSupply(s)   { localStorage.setItem(SUP_KEY, JSON.stringify(s)); }
+
+  // ── Cloud sync (shots) ────────────────────────────────────────────────────
+  async function cloudShotURL() {
+    const token = window.fbUser ? await window.fbUser.getIdToken() : null;
+    return SHOTS_CLOUD_URL + (token ? '?auth=' + token : '');
+  }
+
+  async function fetchShotsFromCloud() {
+    try {
+      const base = await cloudShotURL();
+      const sep  = base.includes('?') ? '&' : '?';
+      const resp = await fetch(base + sep + 't=' + Date.now());
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const json = await resp.json();
+      return Array.isArray(json) ? json : [];
+    } catch (e) {
+      console.warn('[glp1] cloud fetch failed:', e.message);
+      return null;
+    }
+  }
+
+  async function pushShotsToCloud(shots) {
+    try {
+      const url  = await cloudShotURL();
+      const resp = await fetch(url, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(shots),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    } catch (e) {
+      console.warn('[glp1] cloud push failed:', e.message);
+    }
+  }
+
+  // On boot: merge cloud shots into local by ID (union), then re-render if anything new.
+  async function syncShotsWithCloud() {
+    const cloud = await fetchShotsFromCloud();
+    if (!cloud) return;
+
+    const local = loadShots();
+    const idMap = {};
+    local.forEach(s => { idMap[s.id] = s; });
+
+    let changed = false;
+    cloud.forEach(s => {
+      if (!idMap[s.id]) { local.push(s); changed = true; }
+    });
+
+    if (changed) {
+      local.sort((a, b) => new Date(a.date) - new Date(b.date));
+      saveShots(local);
+      renderGlp1Dashboard();
+      if (activeMedTab === 'history') renderGlp1History();
+      if (activeMedTab === 'phases')  renderGlp1Dial();
+    }
+  }
 
   // ── Seed ──────────────────────────────────────────────────────────────────
   function seed() {
@@ -626,6 +684,7 @@
     shots.push(shot);
     shots.sort((a, b) => new Date(a.date) - new Date(b.date));
     saveShots(shots);
+    pushShotsToCloud(shots);
 
     const dtEl2      = document.getElementById('g1-shot-dt');
     const notesEl   = document.getElementById('g1-shot-notes');
@@ -769,7 +828,9 @@
 
   function deleteGlp1Shot(id) {
     if (!confirm('Delete this shot?')) return;
-    saveShots(loadShots().filter(s => s.id !== id));
+    const updated = loadShots().filter(s => s.id !== id);
+    saveShots(updated);
+    pushShotsToCloud(updated);
     renderGlp1History();
   }
   window.deleteGlp1Shot = deleteGlp1Shot;
@@ -797,6 +858,7 @@
   function initGlp1() {
     seed();
     switchMedTab('dashboard');
+    syncShotsWithCloud(); // background merge — re-renders if cloud has shots not in local
     if (!window._glp1Interval) {
       window._glp1Interval = setInterval(() => {
         if (activeMedTab === 'dashboard') renderGlp1Dashboard();
