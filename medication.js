@@ -105,27 +105,32 @@
     }
   }
 
-  // On boot: merge cloud shots into local by ID (union), then re-render if anything new.
+  // On boot: full bidirectional merge by ID.
+  // Cloud → local: pull any shots the current device is missing.
+  // Local → cloud: push any shots the cloud is missing (covers shots logged before sync existed).
   async function syncShotsWithCloud() {
     const cloud = await fetchShotsFromCloud();
     if (!cloud) return;
 
-    const local = loadShots();
-    const idMap = {};
-    local.forEach(s => { idMap[s.id] = s; });
+    const local    = loadShots();
+    const cloudIds = new Set(cloud.map(s => s.id));
+    const localIds = new Set(local.map(s => s.id));
 
-    let changed = false;
+    let localChanged = false;
     cloud.forEach(s => {
-      if (!idMap[s.id]) { local.push(s); changed = true; }
+      if (!localIds.has(s.id)) { local.push(s); localChanged = true; }
     });
 
-    if (changed) {
+    if (localChanged) {
       local.sort((a, b) => new Date(a.date) - new Date(b.date));
       saveShots(local);
       renderGlp1Dashboard();
       if (activeMedTab === 'history') renderGlp1History();
       if (activeMedTab === 'phases')  renderGlp1Dial();
     }
+
+    // Push anything local that cloud didn't have (fire-and-forget)
+    if (local.some(s => !cloudIds.has(s.id))) pushShotsToCloud(local);
   }
 
   // ── Seed ──────────────────────────────────────────────────────────────────
