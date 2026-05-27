@@ -30,9 +30,21 @@ function renderKPIs(latest, prev) {
   const fd = prev?.bodyFat ? latest.bodyFat - prev.bodyFat : null;
   setHTML('kpi-fat-sub', fd != null ? delta(fd) + '% from last' : '');
 
+  const fatLbs  = latest.bodyFat && latest.weight ? +(latest.weight * latest.bodyFat / 100).toFixed(1) : null;
+  const pFatLbs = prev?.bodyFat  && prev?.weight  ? +(prev.weight  * prev.bodyFat  / 100).toFixed(1) : null;
+  fatLbs != null ? countUp('kpi-fat-lbs', fatLbs, 1) : setText('kpi-fat-lbs', '—');
+  const fld = fatLbs != null && pFatLbs != null ? +(fatLbs - pFatLbs).toFixed(1) : null;
+  setHTML('kpi-fat-lbs-sub', fld != null ? delta(fld) + ' lbs from last' : '');
+
   latest.muscle ? countUp('kpi-muscle', latest.muscle, 1, '%') : setText('kpi-muscle', '—');
   const md = prev?.muscle ? latest.muscle - prev.muscle : null;
   setHTML('kpi-muscle-sub', md != null ? delta(md, false) + '% from last' : '');
+
+  const muscleLbs  = latest.muscle && latest.weight ? +(latest.weight * latest.muscle / 100).toFixed(1) : null;
+  const pMuscleLbs = prev?.muscle  && prev?.weight  ? +(prev.weight  * prev.muscle  / 100).toFixed(1) : null;
+  muscleLbs != null ? countUp('kpi-muscle-lbs', muscleLbs, 1) : setText('kpi-muscle-lbs', '—');
+  const mld = muscleLbs != null && pMuscleLbs != null ? +(muscleLbs - pMuscleLbs).toFixed(1) : null;
+  setHTML('kpi-muscle-lbs-sub', mld != null ? delta(mld, false) + ' lbs from last' : '');
 
   latest.water ? countUp('kpi-water', latest.water, 0, '%') : setText('kpi-water', '—');
   const wad = prev?.water ? latest.water - prev.water : null;
