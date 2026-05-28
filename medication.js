@@ -3,7 +3,7 @@
   const GLP1_KEY       = 'glp1_v4';
   const SYM_KEY        = 'glp1_sym_v4';
   const SUP_KEY        = 'glp1_sup_v4';
-  const SHOTS_CLOUD_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com/glp1/shots.json';
+  const SHOTS_CLOUD_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com/medication/shots.json';
   const ACCENT   = '#534ab7';
   const SEED_VER              = 2;
   const JOURNEY_START_WEIGHT  = 315; // lbs on Jan 29, 2026
@@ -72,6 +72,14 @@
   function saveSupply(s)   { localStorage.setItem(SUP_KEY, JSON.stringify(s)); }
 
   // ── Cloud sync (shots) ────────────────────────────────────────────────────
+  function setShotSyncStatus(msg, color) {
+    const el = document.getElementById('g1-sync-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = color || '#6d7a95';
+    el.removeAttribute('hidden');
+  }
+
   async function cloudShotURL() {
     const token = window.fbUser ? await window.fbUser.getIdToken() : null;
     return SHOTS_CLOUD_URL + (token ? '?auth=' + token : '');
@@ -86,12 +94,14 @@
       const json = await resp.json();
       return Array.isArray(json) ? json : [];
     } catch (e) {
+      setShotSyncStatus('☁ Sync fetch failed: ' + e.message, '#e03131');
       console.warn('[glp1] cloud fetch failed:', e.message);
       return null;
     }
   }
 
   async function pushShotsToCloud(shots) {
+    setShotSyncStatus('☁ Pushing to cloud…', '#995213');
     try {
       const url  = await cloudShotURL();
       const resp = await fetch(url, {
@@ -100,7 +110,9 @@
         body:    JSON.stringify(shots),
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      setShotSyncStatus('☁ Synced ✓  ' + new Date().toLocaleTimeString(), '#2a8703');
     } catch (e) {
+      setShotSyncStatus('☁ Sync push failed: ' + e.message, '#e03131');
       console.warn('[glp1] cloud push failed:', e.message);
     }
   }
@@ -111,9 +123,14 @@
   async function syncShotsWithCloud() {
     // Auth must be resolved before any Firebase call — fbUser is null until
     // onAuthStateChanged fires, which can happen after this function is called.
+    setShotSyncStatus('☁ Waiting for auth…', '#6d7a95');
     if (window.authReadyPromise) await window.authReadyPromise;
-    if (!window.fbUser) return;
+    if (!window.fbUser) {
+      setShotSyncStatus('☁ Not signed in — sync skipped', '#e03131');
+      return;
+    }
 
+    setShotSyncStatus('☁ Fetching from cloud…', '#995213');
     const cloud = await fetchShotsFromCloud();
     if (!cloud) return;
 
@@ -135,7 +152,11 @@
     }
 
     // Push anything local that cloud didn't have (fire-and-forget)
-    if (local.some(s => !cloudIds.has(s.id))) pushShotsToCloud(local);
+    if (local.some(s => !cloudIds.has(s.id))) {
+      await pushShotsToCloud(local);
+    } else {
+      setShotSyncStatus('☁ Synced ✓  ' + new Date().toLocaleTimeString(), '#2a8703');
+    }
   }
 
   // ── Seed ──────────────────────────────────────────────────────────────────
