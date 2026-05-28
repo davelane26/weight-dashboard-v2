@@ -109,6 +109,11 @@
   // Cloud → local: pull any shots the current device is missing.
   // Local → cloud: push any shots the cloud is missing (covers shots logged before sync existed).
   async function syncShotsWithCloud() {
+    // Auth must be resolved before any Firebase call — fbUser is null until
+    // onAuthStateChanged fires, which can happen after this function is called.
+    if (window.authReadyPromise) await window.authReadyPromise;
+    if (!window.fbUser) return;
+
     const cloud = await fetchShotsFromCloud();
     if (!cloud) return;
 
@@ -863,12 +868,18 @@
   function initGlp1() {
     seed();
     switchMedTab('dashboard');
-    syncShotsWithCloud(); // background merge — re-renders if cloud has shots not in local
+    syncShotsWithCloud();
     if (!window._glp1Interval) {
       window._glp1Interval = setInterval(() => {
         if (activeMedTab === 'dashboard') renderGlp1Dashboard();
         if (activeMedTab === 'phases')    renderGlp1Dial();
       }, 60000);
+    }
+    // Re-sync whenever auth state changes (handles the case where medication tab
+    // loads before onAuthStateChanged fires — the event fires after auth resolves)
+    if (!window._glp1AuthListener) {
+      window._glp1AuthListener = true;
+      document.addEventListener('firebase-auth-changed', () => syncShotsWithCloud());
     }
   }
 
