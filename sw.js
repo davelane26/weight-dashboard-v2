@@ -10,7 +10,7 @@
      • Old caches purged on activate
    ──────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'health-board-v3-2';
+const CACHE_VERSION = 'health-board-v3-3';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

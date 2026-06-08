@@ -5,7 +5,7 @@
   const SUP_KEY        = 'glp1_sup_v4';
   const SHOTS_CLOUD_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com/medication/shots.json';
   const ACCENT   = '#534ab7';
-  const SEED_VER              = 2;
+  const SEED_VER              = 3;  // bumped for 7.5mg shots
   const JOURNEY_START_WEIGHT  = 315; // lbs on Jan 29, 2026
 
   const PK = { ka: 0.03, ke: 0.00578 };
@@ -61,6 +61,10 @@
     { id:'i14', date:'2026-04-30T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:271.6 }, // Apr 30 morning
     { id:'i15', date:'2026-05-07T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Abdomen Lower Left', imported:true, weight:270.7 }, // May 3 morning (May 5 3am spike excluded)
     { id:'i16', date:'2026-05-14T17:30', med:'Mounjaro 5mg',   dose:5.0, site:'Lower Mid',          imported:true, weight:269.4 }, // May 14 morning
+    // ── 7.5mg titration phase ──
+    { id:'i17', date:'2026-05-21T17:30', med:'Mounjaro 7.5mg', dose:7.5, site:'Abdomen Lower Left', imported:true, weight:268.5 }, // first 7.5mg shot
+    { id:'i18', date:'2026-05-28T17:30', med:'Mounjaro 7.5mg', dose:7.5, site:'Lower Mid',          imported:true, weight:264.0 }, // week 2 of 7.5mg
+    { id:'i19', date:'2026-06-04T17:30', med:'Mounjaro 7.5mg', dose:7.5, site:'Abdomen Lower Left', imported:true, weight:261.0 }, // week 3 of 7.5mg
   ];
 
   // ── Storage ───────────────────────────────────────────────────────────────
