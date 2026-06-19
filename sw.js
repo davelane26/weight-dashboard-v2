@@ -10,7 +10,7 @@
      • Old caches purged on activate
    ──────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'health-board-v3-3';
+const CACHE_VERSION = 'health-board-v3-4';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -22,6 +22,7 @@ const SHELL_ASSETS = [
   './activity_styles.css',
   './enhancements.css',
   './tokens.css',
+  './a11y.css',
   './icon.svg',
   './manifest.json',
 ];
