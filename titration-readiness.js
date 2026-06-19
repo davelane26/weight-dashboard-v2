@@ -34,8 +34,8 @@
   const PACE_WINDOW_DAYS      = 28;    // rolling window for trend-slope calc
   const MIN_READINGS_FOR_PACE = 3;     // need at least N readings in window
   const CLEAN_TAIL_DAYS       = 3;     // exclude this many days AFTER each event ends (water-weight lag)
-  const CLEAN_MIN_READINGS    = 5;     // need this many clean-day readings before clean trend overrides raw
-                                       // (low floor — noisy slope, but lets sparse loggers see the signal)
+  const CLEAN_MIN_READINGS    = 10;    // need this many clean-day readings before clean trend overrides raw
+                                       // (10 is the sweet spot for ~daily logging; lower = noisier slope)
 
   const COLORS = {
     HOLD:   '#6d7a95',
