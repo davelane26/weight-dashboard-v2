@@ -18,12 +18,20 @@
 (function () {
   'use strict';
 
-  // ── Thresholds & ladder (top-of-file = easy to tweak) ──────────────
-  const DOSE_LADDER       = [2.5, 5, 7.5, 10, 12.5, 15];  // mg
-  const MIN_WEEKS_ON_DOSE = 4;     // label minimum before considering up-titration
+  // Shared math/data helpers (DOSE_LADDER, preChangeBaseline, etc.)
+  // live in titration-utils.js. Bail loudly if it didn't load so we
+  // never silently fall back to a divergent calculation.
+  const TU = window.TitrationUtils;
+  if (!TU) {
+    console.warn('[titration-readiness] TitrationUtils missing — card disabled');
+    return;
+  }
+
+  // ── Thresholds (policy lives here, not in utils) ──────────────
+  const MIN_WEEKS_ON_DOSE = 4;     // Lilly label minimum before stepping up
   const READY_PACE_MAX    = 0.5;   // lbs/wk — under this for "ready"
   const WATCH_PACE_MAX    = 1.0;   // lbs/wk — under this for "watch"
-  const PACE_WINDOW_DAYS  = 28;    // rolling window for pace calc
+  const PACE_WINDOW_DAYS  = 28;    // rolling window for trend-slope calc
   const MIN_READINGS_FOR_PACE = 3; // need at least N readings in window
 
   const COLORS = {
@@ -44,7 +52,7 @@
     REGAIN: { color: COLORS.REGAIN, label: 'REGAIN',  blurb: 'Weight is trending up. Investigate before considering a dose change.' },
   };
 
-  // ── Helpers ────────────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────
   function loadShots() {
     try { return JSON.parse(localStorage.getItem('glp1_v4')) || []; }
     catch (e) { return []; }
@@ -57,72 +65,10 @@
       .sort((a, b) => a._dt - b._dt);
   }
 
-  function nextDose(current) {
-    const i = DOSE_LADDER.indexOf(current);
-    if (i < 0 || i === DOSE_LADDER.length - 1) return null;
-    return DOSE_LADDER[i + 1];
-  }
-
-  // First shot at the *current* dose (i.e. the up-titration moment)
-  function currentDoseStart(shots) {
-    if (!shots.length) return null;
-    const dose = shots[shots.length - 1].dose;
-    for (let i = shots.length - 1; i >= 0; i--) {
-      if (shots[i].dose !== dose) return shots[i + 1]._dt;
-    }
-    return shots[0]._dt;
-  }
-
-  // Linear-regression slope (lbs per day) over the readings provided.
-  // Returns null if fewer than 2 points or zero day-span.
-  function slopePerDay(readings) {
-    if (readings.length < 2) return null;
-    const t0 = readings[0].date.getTime();
-    const xs = readings.map(r => (r.date.getTime() - t0) / 86_400_000);
-    const ys = readings.map(r => r.weight);
-    const n  = xs.length;
-    const meanX = xs.reduce((a, b) => a + b, 0) / n;
-    const meanY = ys.reduce((a, b) => a + b, 0) / n;
-    let num = 0, den = 0;
-    for (let i = 0; i < n; i++) {
-      num += (xs[i] - meanX) * (ys[i] - meanY);
-      den += (xs[i] - meanX) ** 2;
-    }
-    if (den === 0) return null;
-    return num / den;
-  }
-
   // Readings in the last `days` days, sorted ascending.
   function recentReadings(days) {
-    const all = window.allWeightData || [];
-    if (!all.length) return [];
-    const cutoff = Date.now() - days * 86_400_000;
-    return all
-      .filter(r => r.date && r.date.getTime() >= cutoff)
-      .sort((a, b) => a.date - b.date);
-  }
-
-  function readingsSince(date) {
-    const all = window.allWeightData || [];
-    return all
-      .filter(r => r.date && r.date.getTime() >= date.getTime())
-      .sort((a, b) => a.date - b.date);
-  }
-
-  // Last weight reading on or before the end of the dose-change day.
-  // This is the apples-to-apples baseline for "loss on this dose" —
-  // mirrors the trajectory card's getTitrationWeight() so every
-  // card on the Projector tab tells the same story.
-  function preChangeBaseline(doseStart) {
-    const all = window.allWeightData || [];
-    const endOfStartDay = new Date(
-      doseStart.getFullYear(), doseStart.getMonth(), doseStart.getDate(),
-      23, 59, 59, 999
-    );
-    const candidates = all
-      .filter(r => r.date && r.date <= endOfStartDay)
-      .sort((a, b) => a.date - b.date);
-    return candidates.length ? candidates[candidates.length - 1].weight : null;
+    const cutoff = new Date(Date.now() - days * TU.MS_PER_DAY);
+    return TU.readingsSince(cutoff);
   }
 
   // ── Status decision ────────────────────────────────────────────────
@@ -148,15 +94,15 @@
         }
         return `Not enough weigh-ins in the last ${PACE_WINDOW_DAYS} days to compute a reliable pace. Log a few more readings.`;
       case 'RIDE':
-        return `Rolling 4-wk pace is ${paceStr} — ${currentDose}mg is still pulling its weight (you've lost ${lossOnDose.toFixed(1)} lbs on this dose). No reason to climb the ladder.`;
+        return `4-wk trend slope is ${paceStr} — ${currentDose}mg is still pulling its weight (you've lost ${lossOnDose.toFixed(1)} lbs on this dose). No reason to climb the ladder.`;
       case 'WATCH':
-        return `Pace has slowed to ${paceStr}. Not stalled yet — but trending toward the threshold. One more weigh-in cycle should clarify.`;
+        return `Trend has slowed to ${paceStr}. Not stalled yet — but trending toward the threshold. One more weigh-in cycle should clarify.`;
       case 'READY':
-        return `Pace is ${paceStr} over the last ${PACE_WINDOW_DAYS} days, after ${weeksOnDose.toFixed(1)} wks on ${currentDose}mg. By the "lowest effective dose for the longest time" rule you used on 5mg, this is the natural moment to discuss ${nextDoseMg}mg with your prescriber.`;
+        return `Current trend is ${paceStr} over the last ${PACE_WINDOW_DAYS} days, after ${weeksOnDose.toFixed(1)} wks on ${currentDose}mg. By the "lowest effective dose for the longest time" rule you used on 5mg, this is the natural moment to discuss ${nextDoseMg}mg with your prescriber.`;
       case 'MAX':
         return `You're on the top rung (15mg). Further escalation isn't an option — focus shifts to nutrition, training, and maintenance strategy.`;
       case 'REGAIN':
-        return `Pace is ${paceStr} (gaining). Don't titrate up to mask a behavioral or measurement issue — find the cause first (hydration, cycle, sodium, sleep, scale anomaly).`;
+        return `Trend is ${paceStr} (gaining). Don't titrate up to mask a behavioral or measurement issue — find the cause first (hydration, cycle, sodium, sleep, scale anomaly).`;
     }
     return '';
   }
@@ -167,9 +113,9 @@
       case 'HOLD':
         return 'Log weigh-ins weekly (ideally pre-shot day) so the pace estimate stabilises.';
       case 'RIDE':
-        return `When 4-wk pace drops under ${WATCH_PACE_MAX} lbs/wk, the widget will flip to WATCH. No action needed today.`;
+        return `When 4-wk trend drops under ${WATCH_PACE_MAX} lbs/wk, the widget will flip to WATCH. No action needed today.`;
       case 'WATCH':
-        return `If pace stays under ${READY_PACE_MAX} lbs/wk for another 1–2 weigh-ins, this card will flip to READY.`;
+        return `If trend stays under ${READY_PACE_MAX} lbs/wk for another 1–2 weigh-ins, this card will flip to READY.`;
       case 'READY':
         return `Bring your trajectory data to your next prescriber visit and discuss ${nextDoseMg}mg. Stay on ${currentDose}mg until they approve the change.`;
       case 'MAX':
@@ -192,16 +138,16 @@
     }
 
     const currentDose = shots[shots.length - 1].dose;
-    const doseStart   = currentDoseStart(shots);
-    const weeksOnDose = (Date.now() - doseStart.getTime()) / (7 * 86_400_000);
-    const nextDoseMg  = nextDose(currentDose);
+    const doseStart   = TU.currentDoseStart(shots);
+    const weeksOnDose = (Date.now() - doseStart.getTime()) / (7 * TU.MS_PER_DAY);
+    const nextDoseMg  = TU.nextDose(currentDose);
 
     // Loss on current dose: pre-change baseline (last weigh-in on or
     // before the up-titration day) vs latest reading. Using this
     // anchor matches the trajectory card's "Lost since titration" so
     // both numbers always agree.
-    const baseline      = preChangeBaseline(doseStart);
-    const doseReadings  = readingsSince(doseStart);
+    const baseline      = TU.preChangeBaseline(doseStart);
+    const doseReadings  = TU.readingsSince(doseStart);
     const latestReading = doseReadings.length
       ? doseReadings[doseReadings.length - 1]
       : null;
@@ -209,10 +155,14 @@
       ? baseline - latestReading.weight
       : 0;
 
-    // Rolling 4-week pace via linear regression
+    // 4-wk trend slope via linear regression. NOTE: this is the
+    // *current trajectory* through daily noise — it answers "is the
+    // dose still working RIGHT NOW?" and is intentionally different
+    // from the trajectory card's lifetime-of-dose endpoint pace.
+    // If the loss curve is flattening, this slope will be lower than
+    // (lossOnDose / weeksOnDose). That's the signal we want.
     const window28    = recentReadings(PACE_WINDOW_DAYS);
-    const slopePerDayVal = slopePerDay(window28);
-    const rollingPace = slopePerDayVal == null ? null : -slopePerDayVal * 7;  // positive = losing
+    const rollingPace = TU.slopePerWeek(window28);
 
     const ctx = { weeksOnDose, currentDose, nextDoseMg, rollingPace, lossOnDose,
                   paceReadings: window28.length };
@@ -241,7 +191,7 @@
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.9rem">
         ${statCell('Wks on dose', weeksOnDose.toFixed(1), '#0053e2')}
         ${statCell('Loss on dose', lossDisplay, lossOnDose >= 0 ? '#2a8703' : '#ea1100')}
-        ${statCell('4-wk pace', paceDisplay, s.color)}
+        ${statCell('4-wk trend', paceDisplay, s.color)}
         ${statCell('Readings (28d)', String(window28.length), '#1a2340')}
       </div>
 
@@ -265,7 +215,12 @@
       </div>
 
       <p style="font-size:0.65rem;color:#9aa5b4;margin:0">
-        Heuristic guidance only — every titration decision is your prescriber's call.
+        “4-wk trend” is a linear-regression slope through your last
+        ${PACE_WINDOW_DAYS} days of weigh-ins — it reads the
+        <em>current</em> trajectory through daily noise and can differ
+        from the trajectory card's lifetime-of-dose pace when the
+        loss curve is bending. Heuristic guidance only — every
+        titration decision is your prescriber's call.
       </p>`;
   }
 

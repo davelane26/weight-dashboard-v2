@@ -12,7 +12,17 @@
 (function () {
   'use strict';
 
-  // ── Titration constants ────────────────────────────────────────────
+  // Shared math/data helpers live in titration-utils.js so every
+  // Projector-tab card computes "baseline", "pace", etc. the same
+  // way. If that script didn't load, bail loudly rather than fall
+  // back to a divergent implementation.
+  const TU = window.TitrationUtils;
+  if (!TU) {
+    console.warn('[titration-trajectory] TitrationUtils missing — card disabled');
+    return;
+  }
+
+  // ── Titration constants ─────────────────────────────────
   const TITRATION_DATE  = new Date('2026-05-21T12:00:00');  // first 7.5mg shot
   const DOSE_LABEL      = '7.5mg Mounjaro';
   const JOURNEY_START_W = 315.0;  // Jan 29, 2026
@@ -25,11 +35,8 @@
   }
 
   function getTitrationWeight() {
-    if (!allData || !allData.length) return 268.5;
-    // Returns pre-shot baseline weight (on or before shot day) for stats
-    const endOfShotDay = new Date(TITRATION_DATE.getFullYear(), TITRATION_DATE.getMonth(), TITRATION_DATE.getDate(), 23, 59, 59, 999);
-    const candidates = allData.filter(r => r.date <= endOfShotDay);
-    return candidates.length ? candidates[candidates.length - 1].weight : 268.5;
+    const baseline = TU.preChangeBaseline(TITRATION_DATE, allData);
+    return baseline != null ? baseline : 268.5;
   }
 
   function getProjWeight() {
@@ -50,10 +57,11 @@
   // ── Chart instance ─────────────────────────────────────────────────
   let _chart = null;
 
-  // ── Helpers ────────────────────────────────────────────────────────
-  function addDays(date, days) {
-    return new Date(date.getTime() + days * 86_400_000);
-  }
+  // ── Helpers ─────────────────────────────────────────────
+  // Aliases for the shared helpers — keep local names so the rest of
+  // this file reads cleanly and call sites don't churn.
+  const addDays     = TU.addDays;
+  const dedupeByDay = TU.dedupeByDay;
 
   function fmtDate(d) {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -63,16 +71,6 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  // Deduplicate — keep last reading per calendar day
-  function dedupeByDay(rows) {
-    const map = {};
-    rows.forEach(r => {
-      const key = r.date.toDateString();
-      if (!map[key] || r.date > map[key].date) map[key] = r;
-    });
-    return Object.values(map).sort((a, b) => a.date - b.date);
-  }
-
   // Readings strictly after the shot day (shot-day weight = pre-shot baseline)
   function postTitrationData() {
     if (!allData || !allData.length) return [];
@@ -80,14 +78,12 @@
     return dedupeByDay(allData.filter(r => r.date >= dayAfter));
   }
 
-  // Compute lbs/week anchored on the pre-shot baseline and the
-  // shot date itself. Using the same anchor + clock as the headline
-  // stats ("Days on 7.5mg" + "Lost since titration") guarantees
-  // pace == lost / (days/7) — no algebraic surprises for the reader.
+  // Compute lbs/week anchored on the pre-shot baseline + shot date.
+  // Thin wrapper over TU.paceFromBaseline so the headline math is
+  // shared with every other titration card.
   function computePace(latestReading, daysOn) {
     if (!latestReading || daysOn < 7) return null;
-    const startW = getTitrationWeight();
-    return (startW - latestReading.weight) / (daysOn / 7);
+    return TU.paceFromBaseline(getTitrationWeight(), TITRATION_DATE, latestReading);
   }
 
   // Which scenario bucket does a rate fall in?
@@ -320,6 +316,4 @@
     }
   });
 })();
-
-
 
