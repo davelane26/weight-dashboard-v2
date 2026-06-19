@@ -109,6 +109,22 @@
       .sort((a, b) => a.date - b.date);
   }
 
+  // Last weight reading on or before the end of the dose-change day.
+  // This is the apples-to-apples baseline for "loss on this dose" —
+  // mirrors the trajectory card's getTitrationWeight() so every
+  // card on the Projector tab tells the same story.
+  function preChangeBaseline(doseStart) {
+    const all = window.allWeightData || [];
+    const endOfStartDay = new Date(
+      doseStart.getFullYear(), doseStart.getMonth(), doseStart.getDate(),
+      23, 59, 59, 999
+    );
+    const candidates = all
+      .filter(r => r.date && r.date <= endOfStartDay)
+      .sort((a, b) => a.date - b.date);
+    return candidates.length ? candidates[candidates.length - 1].weight : null;
+  }
+
   // ── Status decision ────────────────────────────────────────────────
   function decideStatus({ weeksOnDose, currentDose, rollingPace, paceReadings }) {
     if (currentDose >= 15)              return 'MAX';
@@ -180,10 +196,17 @@
     const weeksOnDose = (Date.now() - doseStart.getTime()) / (7 * 86_400_000);
     const nextDoseMg  = nextDose(currentDose);
 
-    // Loss on current dose: first weight on/after doseStart vs latest
-    const doseReadings = readingsSince(doseStart);
-    const lossOnDose   = doseReadings.length >= 2
-      ? doseReadings[0].weight - doseReadings[doseReadings.length - 1].weight
+    // Loss on current dose: pre-change baseline (last weigh-in on or
+    // before the up-titration day) vs latest reading. Using this
+    // anchor matches the trajectory card's "Lost since titration" so
+    // both numbers always agree.
+    const baseline      = preChangeBaseline(doseStart);
+    const doseReadings  = readingsSince(doseStart);
+    const latestReading = doseReadings.length
+      ? doseReadings[doseReadings.length - 1]
+      : null;
+    const lossOnDose = (baseline != null && latestReading)
+      ? baseline - latestReading.weight
       : 0;
 
     // Rolling 4-week pace via linear regression
