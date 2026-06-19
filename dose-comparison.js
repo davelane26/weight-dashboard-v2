@@ -130,8 +130,18 @@
     const lostLbs    = (baseline != null && endReading)
       ? baseline - endReading.weight
       : null;
-    const endpointPace = (lostLbs != null && weeks >= 1)
-      ? lostLbs / weeks
+    // Pace should be measured over the period we actually HAVE data
+    // for, not the whole dose duration. If the last weigh-in on a
+    // dose was 5 days ago, claiming a pace over 'shot date to today'
+    // pads the denominator with dry days and silently slows the
+    // displayed pace. This is exactly why dose-comparison disagreed
+    // with the trajectory card (which uses latest-reading-date as the
+    // endpoint). Now both cards measure the same thing.
+    const paceWeeks  = endReading
+      ? (endReading.date.getTime() - startDay.getTime()) / 86_400_000 / 7
+      : weeks;
+    const endpointPace = (lostLbs != null && paceWeeks >= 1)
+      ? lostLbs / paceWeeks
       : null;
 
     // Regression: fit a least-squares line through the baseline + all
@@ -157,6 +167,7 @@
       baselineSource: baseInfo.source,
       endReading,
       days, weeks,
+      paceWeeks,
       lostLbs,
       endpointPace,
       regressionPace,
@@ -247,7 +258,7 @@
       // that's too high.
       const mathHTML = (ep.baseline != null && ep.endReading)
         ? `<p style="font-size:0.62rem;color:#9aa5b4;margin:0.25rem 0 0;font-family:ui-monospace,monospace;line-height:1.3">
-             ${ep.baseline.toFixed(1)} \u2192 ${ep.endReading.weight.toFixed(1)} (${(ep.baseline - ep.endReading.weight).toFixed(1)} lbs / ${ep.weeks.toFixed(1)} wks)
+             ${ep.baseline.toFixed(1)} \u2192 ${ep.endReading.weight.toFixed(1)} (${(ep.baseline - ep.endReading.weight).toFixed(1)} lbs / ${ep.paceWeeks.toFixed(1)} wks)
            </p>`
         : '';
 
