@@ -199,10 +199,25 @@
     const status = decideStatus(ctx);
     const s = STATUS[status];
 
-    const fmtPace = p => p == null ? '—' :
+    const fmtPace = p => p == null ? '\u2014' :
       (p >= 0 ? p.toFixed(2) : '+' + Math.abs(p).toFixed(2)) + ' lbs/wk';
     const paceDisplay      = fmtPace(rollingPace);
     const cleanPaceDisplay = fmtPace(clean.slope);
+
+    // Cumulative dose pace = total loss / total weeks. This matches
+    // the trajectory card's headline pace. We show it as subtext on
+    // the "4-wk trend" stat so the user understands why the regression
+    // (last 28d slope) and the headline (cumulative) can differ: a
+    // front-loaded curve (big week-1 whoosh, then plateau) has a
+    // gentle regression line through the plateau but a steep
+    // cumulative pace from baseline. Both numbers are true; they
+    // answer different questions.
+    const cumulativePace = (weeksOnDose >= 1 && lossOnDose != null)
+      ? lossOnDose / weeksOnDose
+      : null;
+    const cumulativeSubtext = cumulativePace != null
+      ? `cumulative: ${fmtPace(cumulativePace)}`
+      : null;
 
     const lossSign = lossOnDose >= 0 ? '−' : '+';
     const lossDisplay = lossSign + Math.abs(lossOnDose).toFixed(1) + ' lbs';
@@ -229,7 +244,7 @@
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.9rem">
         ${statCell('Wks on dose', weeksOnDose.toFixed(1), '#0053e2')}
         ${statCell('Loss on dose', lossDisplay, lossOnDose >= 0 ? '#2a8703' : '#ea1100')}
-        ${statCell('4-wk trend (raw)', paceDisplay, decisionSource === 'clean' ? '#6d7a95' : s.color)}
+        ${statCell('4-wk trend (raw)', paceDisplay, decisionSource === 'clean' ? '#6d7a95' : s.color, cumulativeSubtext)}
         ${clean.slope != null
           ? statCell('Clean trend', cleanPaceDisplay, s.color, `${clean.cleanCount} of ${clean.totalCount}d`)
           : statCell('Readings (28d)', String(window28.length), '#1a2340',
@@ -341,8 +356,14 @@
     }).join('');
 
     const slopeStr = slopeLbsPerWk == null ? ''
-      : (slopeLbsPerWk >= 0 ? '−' : '+') + Math.abs(slopeLbsPerWk).toFixed(2) + ' lbs/wk';
-    const rangeStr = `${wMin.toFixed(1)} → ${wMax.toFixed(1)} lbs over ${PACE_WINDOW_DAYS}d`;
+      : (slopeLbsPerWk >= 0 ? '\u2212' : '+') + Math.abs(slopeLbsPerWk).toFixed(2) + ' lbs/wk';
+    // Show oldest → newest CHRONOLOGICALLY (not min→max). The arrow
+    // implies time direction; using min/max made the label read as if
+    // weight had gone UP when the slope right next to it showed it had
+    // gone DOWN. Confusing as hell. Now the arrow tells the truth.
+    const wFirst = readings[0].weight;
+    const wLast  = readings[readings.length - 1].weight;
+    const rangeStr = `${wFirst.toFixed(1)} \u2192 ${wLast.toFixed(1)} lbs over ${PACE_WINDOW_DAYS}d`;
 
     return `
       <div style="background:#f0f4ff;border-radius:10px;padding:0.55rem 0.7rem;margin-bottom:0.9rem">
