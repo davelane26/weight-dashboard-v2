@@ -130,6 +130,36 @@
     return -(num / den) * 7;  // negate so weight loss is positive
   }
 
+  // Clean-trend slope: same regression as slopePerWeek but first
+  // excludes any weigh-ins falling inside a flagged event range
+  // (plus a tail buffer to catch the water-weight lag that follows
+  // off-protocol periods). Answers "what's my trend on the days I
+  // was actually on protocol?"
+  //
+  // Returns { slope, cleanCount, totalCount, excludedCount, enoughData }.
+  // slope is null when fewer than opts.minClean clean readings remain.
+  function slopePerWeekClean(readings, events, opts) {
+    opts = opts || {};
+    const tailDays = opts.tailDays != null ? opts.tailDays : 3;
+    const minClean = opts.minClean != null ? opts.minClean : 10;
+    const all      = readings || [];
+    const flagged  = (events || []).map(e => ({
+      start: new Date(e.start),
+      end:   addDays(e.end ? new Date(e.end) : new Date(), tailDays),
+    }));
+    const clean = all.filter(r =>
+      !flagged.some(fr => r.date >= fr.start && r.date <= fr.end)
+    );
+    const enoughData = clean.length >= minClean;
+    return {
+      slope:         enoughData ? slopePerWeek(clean) : null,
+      cleanCount:    clean.length,
+      totalCount:    all.length,
+      excludedCount: all.length - clean.length,
+      enoughData,
+    };
+  }
+
   // ── Export ─────────────────────────────────────────────────────────
   window.TitrationUtils = {
     MS_PER_DAY,
@@ -144,5 +174,6 @@
     preChangeBaseline,
     paceFromBaseline,
     slopePerWeek,
+    slopePerWeekClean,
   };
 })();

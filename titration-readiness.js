@@ -83,8 +83,14 @@
   }
 
   function reasoningFor(status, ctx) {
-    const { weeksOnDose, currentDose, nextDoseMg, rollingPace, lossOnDose } = ctx;
-    const paceStr = rollingPace == null ? 'n/a' : rollingPace.toFixed(2) + ' lbs/wk';
+    const { weeksOnDose, currentDose, nextDoseMg, rollingPace, rawPace,
+            cleanResult, decisionSource, lossOnDose } = ctx;
+    const paceStr  = rollingPace == null ? 'n/a' : rollingPace.toFixed(2) + ' lbs/wk';
+    const rawStr   = rawPace == null    ? 'n/a' : rawPace.toFixed(2)    + ' lbs/wk';
+    const usingClean = decisionSource === 'clean';
+    const ctxNote = usingClean
+      ? ` (clean trend of ${cleanResult.cleanCount} on-protocol days out of ${cleanResult.totalCount}; raw was ${rawStr})`
+      : '';
 
     switch (status) {
       case 'HOLD':
@@ -94,15 +100,15 @@
         }
         return `Not enough weigh-ins in the last ${PACE_WINDOW_DAYS} days to compute a reliable pace. Log a few more readings.`;
       case 'RIDE':
-        return `4-wk trend slope is ${paceStr} — ${currentDose}mg is still pulling its weight (you've lost ${lossOnDose.toFixed(1)} lbs on this dose). No reason to climb the ladder.`;
+        return `4-wk trend slope is ${paceStr}${ctxNote} — ${currentDose}mg is still pulling its weight (you've lost ${lossOnDose.toFixed(1)} lbs on this dose). No reason to climb the ladder.`;
       case 'WATCH':
-        return `Trend has slowed to ${paceStr}. Not stalled yet — but trending toward the threshold. One more weigh-in cycle should clarify.`;
+        return `Trend has slowed to ${paceStr}${ctxNote}. Not stalled yet — but trending toward the threshold. One more weigh-in cycle should clarify.`;
       case 'READY':
-        return `Current trend is ${paceStr} over the last ${PACE_WINDOW_DAYS} days, after ${weeksOnDose.toFixed(1)} wks on ${currentDose}mg. By the "lowest effective dose for the longest time" rule you used on 5mg, this is the natural moment to discuss ${nextDoseMg}mg with your prescriber.`;
+        return `Current trend is ${paceStr}${ctxNote} over the last ${PACE_WINDOW_DAYS} days, after ${weeksOnDose.toFixed(1)} wks on ${currentDose}mg. By the "lowest effective dose for the longest time" rule you used on 5mg, this is the natural moment to discuss ${nextDoseMg}mg with your prescriber.`;
       case 'MAX':
         return `You're on the top rung (15mg). Further escalation isn't an option — focus shifts to nutrition, training, and maintenance strategy.`;
       case 'REGAIN':
-        return `Trend is ${paceStr} (gaining). Don't titrate up to mask a behavioral or measurement issue — find the cause first (hydration, cycle, sodium, sleep, scale anomaly).`;
+        return `Trend is ${paceStr}${ctxNote} (gaining). Don't titrate up to mask a behavioral or measurement issue — find the cause first (hydration, cycle, sodium, sleep, scale anomaly).`;
     }
     return '';
   }
@@ -164,23 +170,39 @@
     const window28    = recentReadings(PACE_WINDOW_DAYS);
     const rollingPace = TU.slopePerWeek(window28);
 
-    const ctx = { weeksOnDose, currentDose, nextDoseMg, rollingPace, lossOnDose,
-                  paceReadings: window28.length };
-    const status = decideStatus(ctx);
-    const s = STATUS[status];
-
-    const paceDisplay = rollingPace == null ? '—' :
-      (rollingPace >= 0 ? rollingPace.toFixed(2) : '+' + Math.abs(rollingPace).toFixed(2)) + ' lbs/wk';
-
-    const lossSign = lossOnDose >= 0 ? '−' : '+';
-    const lossDisplay = lossSign + Math.abs(lossOnDose).toFixed(1) + ' lbs';
-
     // Pull any events overlapping the 28-day pace window so we can
     // tell the user "hey, this trend might be lifestyle, not pharmacology"
     const winStart = new Date(Date.now() - PACE_WINDOW_DAYS * TU.MS_PER_DAY);
     const ctxEvents = (typeof window.getEventsInRange === 'function')
       ? window.getEventsInRange(winStart, new Date())
       : [];
+
+    // Clean trend = same regression with flagged days (plus tail)
+    // excluded. When we have enough clean readings, this drives the
+    // status verdict — it answers "what's my trend on the days I was
+    // actually on protocol?" Raw rolling pace stays visible so the
+    // user can see exactly what we computed and why we acted on it.
+    const clean = TU.slopePerWeekClean(window28, ctxEvents, {
+      tailDays: CLEAN_TAIL_DAYS,
+      minClean: CLEAN_MIN_READINGS,
+    });
+    const decisionPace   = clean.slope != null ? clean.slope : rollingPace;
+    const decisionSource = clean.slope != null ? 'clean' : 'raw';
+
+    const ctx = { weeksOnDose, currentDose, nextDoseMg,
+                  rollingPace: decisionPace, rawPace: rollingPace,
+                  cleanResult: clean, decisionSource, lossOnDose,
+                  paceReadings: window28.length };
+    const status = decideStatus(ctx);
+    const s = STATUS[status];
+
+    const fmtPace = p => p == null ? '—' :
+      (p >= 0 ? p.toFixed(2) : '+' + Math.abs(p).toFixed(2)) + ' lbs/wk';
+    const paceDisplay      = fmtPace(rollingPace);
+    const cleanPaceDisplay = fmtPace(clean.slope);
+
+    const lossSign = lossOnDose >= 0 ? '−' : '+';
+    const lossDisplay = lossSign + Math.abs(lossOnDose).toFixed(1) + ' lbs';
 
     root.innerHTML = `
       <!-- Badge + next-dose line -->
@@ -194,12 +216,15 @@
         </span>
       </div>
 
-      <!-- 4-stat grid -->
+      <!-- 4-stat grid — swap Readings tile for Clean trend when available -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.9rem">
         ${statCell('Wks on dose', weeksOnDose.toFixed(1), '#0053e2')}
         ${statCell('Loss on dose', lossDisplay, lossOnDose >= 0 ? '#2a8703' : '#ea1100')}
-        ${statCell('4-wk trend', paceDisplay, s.color)}
-        ${statCell('Readings (28d)', String(window28.length), '#1a2340')}
+        ${statCell('4-wk trend (raw)', paceDisplay, decisionSource === 'clean' ? '#6d7a95' : s.color)}
+        ${clean.slope != null
+          ? statCell('Clean trend', cleanPaceDisplay, s.color, `${clean.cleanCount} of ${clean.totalCount}d`)
+          : statCell('Readings (28d)', String(window28.length), '#1a2340',
+              clean.excludedCount > 0 ? `${clean.cleanCount} clean (need ${CLEAN_MIN_READINGS})` : null)}
       </div>
 
       <!-- Reasoning -->
@@ -233,12 +258,13 @@
       </p>`;
   }
 
-  function statCell(label, value, color) {
+  function statCell(label, value, color, subtext) {
     return `
       <div style="background:#f0f4ff;border-radius:10px;padding:0.6rem;text-align:center">
         <p style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
                   letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">${label}</p>
         <p style="font-size:1rem;font-weight:800;color:${color};margin:0">${value}</p>
+        ${subtext ? `<p style="font-size:0.6rem;color:#9aa5b4;margin:0.15rem 0 0">${subtext}</p>` : ''}
       </div>`;
   }
 
