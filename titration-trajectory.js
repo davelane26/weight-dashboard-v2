@@ -80,14 +80,14 @@
     return dedupeByDay(allData.filter(r => r.date >= dayAfter));
   }
 
-  // Compute lbs/week from readings spanning at least 7 days
-  function computePace(readings) {
-    if (readings.length < 2) return null;
-    const first = readings[0];
-    const last  = readings[readings.length - 1];
-    const days  = (last.date - first.date) / 86_400_000;
-    if (days < 7) return null;
-    return (first.weight - last.weight) / (days / 7);
+  // Compute lbs/week anchored on the pre-shot baseline and the
+  // shot date itself. Using the same anchor + clock as the headline
+  // stats ("Days on 7.5mg" + "Lost since titration") guarantees
+  // pace == lost / (days/7) — no algebraic surprises for the reader.
+  function computePace(latestReading, daysOn) {
+    if (!latestReading || daysOn < 7) return null;
+    const startW = getTitrationWeight();
+    return (startW - latestReading.weight) / (daysOn / 7);
   }
 
   // Which scenario bucket does a rate fall in?
@@ -237,12 +237,12 @@
     const badge = document.getElementById('tj-pace-badge');
     if (!badge) return;
 
-    const post  = postTitrationData();
-    const pace  = computePace(post);
-    const info  = paceLabel(pace);
-    const weeks = post.length
-      ? Math.round((post[post.length - 1].date - TITRATION_DATE) / (7 * 86_400_000) * 10) / 10
-      : 0;
+    const post    = postTitrationData();
+    const latest  = post.length ? post[post.length - 1] : null;
+    const daysOn  = Math.max(0, Math.floor((Date.now() - TITRATION_DATE) / 86_400_000));
+    const pace    = computePace(latest, daysOn);
+    const info    = paceLabel(pace);
+    const weeks   = Math.round((daysOn / 7) * 10) / 10;
 
     badge.innerHTML = `
       <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
@@ -276,6 +276,11 @@
     }
     if (get('tj-stat-total')) get('tj-stat-total').textContent = '-' + total.toFixed(1) + ' lbs';
     if (get('tj-stat-now'))   get('tj-stat-now').textContent   = latestW.toFixed(1) + ' lbs';
+
+    // Keep the header label in sync with the actual pre-shot baseline
+    // so we never advertise a stale ~XXX.X figure.
+    const preShotEl = get('tj-preshot-weight');
+    if (preShotEl) preShotEl.textContent = startW.toFixed(1) + ' lbs';
   }
 
   // ── Main render ────────────────────────────────────────────────────
