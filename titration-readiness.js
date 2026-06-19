@@ -75,10 +75,32 @@
   }
 
   // ── Status decision ────────────────────────────────────────────────
-  function decideStatus({ weeksOnDose, currentDose, rollingPace, paceReadings }) {
+  // Threshold for "too contaminated to trust the raw slope". If more
+  // than this fraction of the window's readings fall inside a flagged
+  // event (travel, illness, off-protocol eating, etc.) AND we don't
+  // have enough clean readings to switch to the clean trend, we
+  // refuse to issue a WATCH/READY verdict on data we know is bad.
+  // The user is on a sugar bomb — we can't pretend the plateau means
+  // the dose stopped working. Defer to HOLD with a clear explanation.
+  const CONTAMINATION_FRACTION = 0.25;
+
+  function decideStatus({ weeksOnDose, currentDose, rollingPace,
+                          paceReadings, cleanResult, decisionSource }) {
     if (currentDose >= 15)              return 'MAX';
     if (weeksOnDose < MIN_WEEKS_ON_DOSE) return 'HOLD';
     if (rollingPace == null || paceReadings < MIN_READINGS_FOR_PACE) return 'HOLD';
+
+    // Contamination guard: if we're using RAW slope (clean trend
+    // didn't have enough data) AND a meaningful chunk of the window
+    // was flagged, the slope isn't trustworthy enough to escalate.
+    if (decisionSource === 'raw' && cleanResult && cleanResult.totalCount > 0) {
+      const excluded = cleanResult.totalCount - cleanResult.cleanCount;
+      const excludedFraction = excluded / cleanResult.totalCount;
+      if (excludedFraction >= CONTAMINATION_FRACTION) {
+        return 'HOLD';
+      }
+    }
+
     if (rollingPace < -0.3)             return 'REGAIN';
     if (rollingPace < READY_PACE_MAX)   return 'READY';
     if (rollingPace < WATCH_PACE_MAX)   return 'WATCH';
@@ -99,7 +121,20 @@
       case 'HOLD':
         if (weeksOnDose < MIN_WEEKS_ON_DOSE) {
           const left = (MIN_WEEKS_ON_DOSE - weeksOnDose).toFixed(1);
-          return `Only ${weeksOnDose.toFixed(1)} wks on ${currentDose}mg — Lilly's label asks for at least ${MIN_WEEKS_ON_DOSE} wks before stepping up. ${left} wks to go.`;
+          return `Only ${weeksOnDose.toFixed(1)} wks on ${currentDose}mg \u2014 Lilly's label asks for at least ${MIN_WEEKS_ON_DOSE} wks before stepping up. ${left} wks to go.`;
+        }
+        // Contamination guard tripped: raw slope is being computed on
+        // a window where a meaningful fraction of days were flagged
+        // (travel, illness, off-protocol eating). The plateau isn't
+        // necessarily pharmacological \u2014 it's behavioral. Don't escalate
+        // on bad data.
+        if (decisionSource === 'raw' && cleanResult && cleanResult.totalCount > 0) {
+          const excluded = cleanResult.totalCount - cleanResult.cleanCount;
+          const excludedFraction = excluded / cleanResult.totalCount;
+          if (excludedFraction >= 0.25) {
+            const pct = Math.round(excludedFraction * 100);
+            return `Raw trend is ${paceStr}, but ${pct}% of the last ${PACE_WINDOW_DAYS}d (${excluded} of ${cleanResult.totalCount} readings) fell inside a flagged event \u2014 travel, illness, or off-protocol eating. The plateau is likely behavioral, not pharmacological. Need ${CLEAN_MIN_READINGS - cleanResult.cleanCount} more clean weigh-ins to compute a trustworthy on-protocol slope.`;
+          }
         }
         return `Not enough weigh-ins in the last ${PACE_WINDOW_DAYS} days to compute a reliable pace. Log a few more readings.`;
       case 'RIDE':
