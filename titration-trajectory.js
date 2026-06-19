@@ -288,21 +288,25 @@
   }
   window.renderTitrationTrajectory = renderTitrationTrajectory;
 
-  // ── Hook into projector tab switch ─────────────────────────────────
+  // ── Hook into projector tab switch (instant render) ───────────
   function installHook() {
     const orig = window.switchTab;
     if (typeof orig !== 'function' || orig.__tjHooked) return false;
     const wrapped = function (name) {
       const out = orig.apply(this, arguments);
       if (name === 'projector') {
-        setTimeout(() => {
+        // requestAnimationFrame so the panel is visible (Chart.js
+        // needs a measurable canvas) without the visible flash that
+        // a longer setTimeout produced.
+        requestAnimationFrame(() => {
           try { renderTitrationTrajectory(); } catch (e) { console.warn('[titration-trajectory]', e); }
-        }, 50);
+        });
       }
       return out;
     };
     wrapped.__tjHooked = true;
-    if (orig.__r220Hooked) wrapped.__r220Hooked = true;
+    if (orig.__r220Hooked)   wrapped.__r220Hooked   = true;
+    if (orig.__projChained)  wrapped.__projChained  = true;
     window.switchTab = wrapped;
     return true;
   }
@@ -314,6 +318,10 @@
         if (installHook() || ++tries > 40) clearInterval(t);
       }, 100);
     }
+    // Also register with the shared projector pipeline so this card
+    // re-renders whenever the main data pipeline (renderAll) fires.
+    if (window.TitrationUtils && window.TitrationUtils.registerProjectorRenderer) {
+      window.TitrationUtils.registerProjectorRenderer(renderTitrationTrajectory);
+    }
   });
 })();
-

@@ -175,5 +175,57 @@
     paceFromBaseline,
     slopePerWeek,
     slopePerWeekClean,
+    registerProjectorRenderer,
   };
+
+  // ── Projector-card render orchestration ────────────────────
+  // The projector cards used to only render on tab-switch, which
+  // meant: (1) a 50ms flash of "Loading…" every switch, and (2) if
+  // the user landed on the projector tab before app.js finished the
+  // initial data fetch, cards stayed empty until the user switched
+  // away and back. Both fixed by piggy-backing on the existing
+  // renderAll() pipeline: every card registers a renderer here, and
+  // we wrap window.renderAll once so all projector cards refresh
+  // whenever the main data pipeline does.
+  const _projectorRenderers = [];
+  let _renderAllHooked = false;
+
+  function registerProjectorRenderer(fn) {
+    if (typeof fn !== 'function') return;
+    _projectorRenderers.push(fn);
+    // Run once immediately in case data is already loaded.
+    runProjectorRenderers();
+    hookRenderAllOnce();
+  }
+
+  function runProjectorRenderers() {
+    _projectorRenderers.forEach(fn => {
+      try { fn(); } catch (e) { console.warn('[projector renderer]', e); }
+    });
+  }
+
+  function hookRenderAllOnce() {
+    if (_renderAllHooked) return;
+    const tryHook = () => {
+      const orig = window.renderAll;
+      if (typeof orig !== 'function' || orig.__projChained) return false;
+      const wrapped = function () {
+        const out = orig.apply(this, arguments);
+        // Defer one tick so renderAll's DOM writes settle first.
+        setTimeout(runProjectorRenderers, 0);
+        return out;
+      };
+      Object.assign(wrapped, orig);
+      wrapped.__projChained = true;
+      window.renderAll = wrapped;
+      _renderAllHooked  = true;
+      return true;
+    };
+    if (!tryHook()) {
+      let tries = 0;
+      const t = setInterval(() => {
+        if (tryHook() || ++tries > 40) clearInterval(t);
+      }, 100);
+    }
+  }
 })();

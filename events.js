@@ -313,14 +313,14 @@
     }
   }
 
-  // ── Hook into projector tab switch ─────────────────────────────────
+  // ── Hook into projector tab switch ─────────────────────
   function installHook() {
     const orig = window.switchTab;
     if (typeof orig !== 'function' || orig.__evtHooked) return false;
     const wrapped = function (name) {
       const out = orig.apply(this, arguments);
       if (name === 'projector') {
-        setTimeout(() => { try { render(); } catch (e) { /* swallow */ } }, 70);
+        requestAnimationFrame(() => { try { render(); } catch (e) { /* swallow */ } });
       }
       return out;
     };
@@ -337,6 +337,9 @@
       const t = setInterval(() => {
         if (installHook() || ++tries > 40) clearInterval(t);
       }, 100);
+    }
+    if (window.TitrationUtils && window.TitrationUtils.registerProjectorRenderer) {
+      window.TitrationUtils.registerProjectorRenderer(render);
     }
   });
 })();

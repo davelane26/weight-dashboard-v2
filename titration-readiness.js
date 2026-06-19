@@ -313,13 +313,16 @@
     const wrapped = function (name) {
       const out = orig.apply(this, arguments);
       if (name === 'projector') {
-        setTimeout(() => {
+        // requestAnimationFrame eliminates the flash-of-Loading that a
+        // 60ms setTimeout produced; data is already populated by
+        // renderAll() so there's nothing to wait for.
+        requestAnimationFrame(() => {
           try { render(); } catch (e) { console.warn('[titration-readiness]', e); }
-        }, 60);
+        });
       }
       return out;
     };
-    Object.assign(wrapped, orig);  // preserve any __tjHooked / __r220Hooked flags
+    Object.assign(wrapped, orig);  // preserve all prior __*Hooked flags
     wrapped.__trHooked = true;
     window.switchTab = wrapped;
     return true;
@@ -331,6 +334,9 @@
       const t = setInterval(() => {
         if (installHook() || ++tries > 40) clearInterval(t);
       }, 100);
+    }
+    if (window.TitrationUtils && window.TitrationUtils.registerProjectorRenderer) {
+      window.TitrationUtils.registerProjectorRenderer(render);
     }
   });
 })();
