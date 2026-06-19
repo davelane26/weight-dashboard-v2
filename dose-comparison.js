@@ -133,8 +133,22 @@
     const endpointPace = (lostLbs != null && weeks >= 1)
       ? lostLbs / weeks
       : null;
-    const regressionPace = between.length >= 3
-      ? TU.slopePerWeek(between)
+
+    // Regression: fit a least-squares line through the baseline + all
+    // on-dose readings. Including the baseline is critical — without
+    // it, the regression only sees post-start data and misses the
+    // "week-1 water weight whoosh" that the endpoint pace captures.
+    // That's why endpoint pace and regression used to disagree wildly
+    // (e.g. endpoint says +61% faster on 7.5mg, regression said slower).
+    // Now they answer the same question with different math: endpoint
+    // = 2-point average, regression = best-fit through every point.
+    const regressionInputs = [];
+    if (baseline != null) {
+      regressionInputs.push({ date: startDay, weight: baseline });
+    }
+    regressionInputs.push(...between);
+    const regressionPace = regressionInputs.length >= 3
+      ? TU.slopePerWeek(regressionInputs)
       : null;
 
     return {
@@ -321,10 +335,12 @@
         </table>
       </div>
       <p style="font-size:0.65rem;color:#9aa5b4;margin:0.9rem 0 0;line-height:1.5">
-        <strong>Endpoint pace</strong> = pre-dose baseline minus end weight, divided by weeks
-        \u2014 the headline number that matches the trajectory card.
-        <strong>Regression</strong> = linear-regression slope through every reading on that dose
-        \u2014 less swingy on noisy endpoints. When the two diverge, regression is usually more honest.
+        <strong>Endpoint pace</strong> = baseline minus last reading, divided by weeks
+        — the headline 2-point number that matches the trajectory card.
+        <strong>Regression</strong> = least-squares line through the baseline plus every
+        on-dose reading — resistant to noise on the endpoints. The two now answer the
+        same question with different math; when they diverge by a lot, your weight
+        was either front-loaded (big week-1 whoosh) or back-loaded (steady acceleration).
       </p>`;
   }
 
