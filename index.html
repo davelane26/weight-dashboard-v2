@@ -58,6 +58,7 @@
 <script src="events.js?v=2" defer></script>
 <script src="titration-trajectory.js?v=5" defer></script>
 <script src="titration-readiness.js?v=10" defer></script>
+<script src="goal-projector.js?v=1" defer></script>
 <script src="road-to-220.js?v=1" defer></script>
 <script src="health.js?v=11"  defer></script>
 </head>
@@ -549,6 +550,20 @@
         Flag travel, illness, off-protocol eating, etc. so the readiness widget can interpret your trend with real-life context — not mistake a behavioral plateau for a pharmacological one. Bands also appear on the main weight chart.
       </p>
       <div id="events-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
+    </section>
+
+    <!-- Personal Milestone Forecast -->
+    <section class="card fade-in" aria-label="Personal milestone forecast"
+      style="margin-top:1.25rem;border-top:3px solid #0053e2">
+      <h2 class="card-title">Personal Milestone Forecast</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Projects each weight milestone using your <strong>actual current pace</strong> —
+        not idealized scenarios. Prefers the clean 28-day trend when enough data exists,
+        falls back to raw trend or lifetime average.
+      </p>
+      <div id="gp-card-body">
         <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
       </div>
     </section>
