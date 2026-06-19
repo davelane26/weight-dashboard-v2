@@ -240,6 +240,22 @@
     const info    = paceLabel(pace);
     const weeks   = Math.round((daysOn / 7) * 10) / 10;
 
+    // Transparent math: show the actual numerator and denominator the
+    // pace was computed from. The header advertises baseline-vs-current
+    // numbers (e.g. "~268.5 lbs" · "259.3 lbs") and any inconsistency
+    // between those and the displayed pace should be VISIBLE, not
+    // buried in helper-function math. If pace was -1.38 but the user
+    // sees "-10.1 lbs lost over 28 days", they should immediately see
+    // which input the calculation actually used.
+    let mathStr = '';
+    if (pace != null && latest) {
+      const baseline = getTitrationWeight();
+      const lost     = baseline - latest.weight;
+      const days     = (latest.date.getTime() - TITRATION_DATE.getTime()) / 86_400_000;
+      const wks      = (days / 7).toFixed(1);
+      mathStr = `${lost.toFixed(1)} lbs / ${wks} wks · baseline ${baseline.toFixed(1)} on ${fmtShort(TITRATION_DATE)} → latest ${latest.weight.toFixed(1)} on ${fmtShort(latest.date)}`;
+    }
+
     badge.innerHTML = `
       <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
         <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
@@ -248,7 +264,8 @@
         ${weeks > 0
           ? `<span style="font-size:0.7rem;color:#6d7a95">(${weeks} wk${weeks !== 1 ? 's' : ''} of data)</span>`
           : ''}
-      </div>`;
+      </div>
+      ${mathStr ? `<p style="margin:0.35rem 0 0;font-size:0.68rem;color:#9aa5b4;font-family:ui-monospace,monospace">${mathStr}</p>` : ''}`;
   }
 
   // ── Stats strip ────────────────────────────────────────────────────

@@ -219,6 +219,12 @@
         </span>
       </div>
 
+      <!-- Sparkline: 28d weigh-ins + regression line. Lets the user
+           eyeball whether the displayed slope passes the smell test.
+           Built as inline SVG so no extra dep (the card lives in
+           innerHTML templates, not Chart.js territory). -->
+      ${renderSparkline(window28, ctxEvents, s.color, clean.slope != null ? clean.slope : rollingPace)}
+
       <!-- 4-stat grid — swap Readings tile for Clean trend when available -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.9rem">
         ${statCell('Wks on dose', weeksOnDose.toFixed(1), '#0053e2')}
@@ -268,6 +274,90 @@
                   letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">${label}</p>
         <p style="font-size:1rem;font-weight:800;color:${color};margin:0">${value}</p>
         ${subtext ? `<p style="font-size:0.6rem;color:#9aa5b4;margin:0.15rem 0 0">${subtext}</p>` : ''}
+      </div>`;
+  }
+
+  // Inline-SVG sparkline of the last 28 days of weigh-ins, with the
+  // regression line drawn through them. Excluded points (inside a
+  // flagged event + tail) are rendered in muted amber so the user can
+  // SEE what got dropped from the clean trend at a glance. The whole
+  // thing is a smell test — if the displayed slope and the visible
+  // dot trend disagree, something is off.
+  function renderSparkline(readings, events, lineColor, slopeLbsPerWk) {
+    if (!readings || readings.length < 2) {
+      return `<div style="height:60px;background:#f0f4ff;border-radius:8px;display:flex;
+                          align-items:center;justify-content:center;margin-bottom:0.9rem;
+                          font-size:0.7rem;color:#9aa5b4">Need 2+ weigh-ins in last ${PACE_WINDOW_DAYS}d for sparkline</div>`;
+    }
+
+    const W = 100, H = 36;        // viewBox units (scales to container width)
+    const PAD_X = 2, PAD_Y = 4;
+    const innerW = W - PAD_X * 2;
+    const innerH = H - PAD_Y * 2;
+
+    const tMin = readings[0].date.getTime();
+    const tMax = readings[readings.length - 1].date.getTime();
+    const tSpan = Math.max(1, tMax - tMin);
+    const weights = readings.map(r => r.weight);
+    const wMin = Math.min(...weights);
+    const wMax = Math.max(...weights);
+    const wSpan = Math.max(0.5, wMax - wMin);  // floor so flat lines don't div-by-zero
+
+    const xOf = t => PAD_X + ((t - tMin) / tSpan) * innerW;
+    const yOf = w => PAD_Y + (1 - (w - wMin) / wSpan) * innerH;
+
+    // Decide which readings are "excluded" so we can color them differently.
+    const flagged = (events || []).map(e => ({
+      start: new Date(e.start),
+      end:   TU.addDays(e.end ? new Date(e.end) : new Date(), CLEAN_TAIL_DAYS),
+    }));
+    const isExcluded = r => flagged.some(f => r.date >= f.start && r.date <= f.end);
+
+    // Regression line: solve y = a + b*t through ALL readings (not just clean)
+    // so the line visually matches the "raw" trend tile. The clean slope is
+    // passed in for the headline number, but here we want a visual that the
+    // raw and clean math can both be checked against.
+    const n = readings.length;
+    const ts = readings.map(r => r.date.getTime());
+    const meanT = ts.reduce((a, b) => a + b, 0) / n;
+    const meanW = weights.reduce((a, b) => a + b, 0) / n;
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (ts[i] - meanT) * (weights[i] - meanW);
+      den += (ts[i] - meanT) ** 2;
+    }
+    const b = den === 0 ? 0 : num / den;        // lbs per ms (negative if losing)
+    const a = meanW - b * meanT;
+    const lineY1 = yOf(a + b * tMin);
+    const lineY2 = yOf(a + b * tMax);
+
+    const dots = readings.map(r => {
+      const cx = xOf(r.date.getTime()).toFixed(2);
+      const cy = yOf(r.weight).toFixed(2);
+      const excluded = isExcluded(r);
+      const fill = excluded ? '#f59f00' : lineColor;
+      const op   = excluded ? '0.55' : '0.95';
+      return `<circle cx="${cx}" cy="${cy}" r="1.1" fill="${fill}" opacity="${op}"/>`;
+    }).join('');
+
+    const slopeStr = slopeLbsPerWk == null ? ''
+      : (slopeLbsPerWk >= 0 ? '−' : '+') + Math.abs(slopeLbsPerWk).toFixed(2) + ' lbs/wk';
+    const rangeStr = `${wMin.toFixed(1)} → ${wMax.toFixed(1)} lbs over ${PACE_WINDOW_DAYS}d`;
+
+    return `
+      <div style="background:#f0f4ff;border-radius:10px;padding:0.55rem 0.7rem;margin-bottom:0.9rem">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.3rem">
+          <span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;
+                       letter-spacing:0.08em;color:#6d7a95">28d Trend</span>
+          <span style="font-size:0.62rem;color:#9aa5b4">${rangeStr}${slopeStr ? ' · slope ' + slopeStr : ''}</span>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+             style="width:100%;height:48px;display:block"
+             role="img" aria-label="Sparkline of last ${PACE_WINDOW_DAYS} days of weigh-ins; ${slopeStr || 'trend'}">
+          <line x1="${PAD_X}" y1="${lineY1.toFixed(2)}" x2="${(W - PAD_X).toFixed(2)}" y2="${lineY2.toFixed(2)}"
+                stroke="${lineColor}" stroke-width="0.8" opacity="0.7"/>
+          ${dots}
+        </svg>
       </div>`;
   }
 
