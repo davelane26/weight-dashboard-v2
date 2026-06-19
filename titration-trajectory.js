@@ -34,15 +34,37 @@
     return new Date();
   }
 
+  // Pre-titration baseline: prefer the last actual weigh-in on or
+  // before the shot day (apples-to-apples). If there's no weigh-in
+  // recorded for the shot day itself, fall back to the weight that
+  // was stamped on the shot record by medication.js (when the user
+  // logged the shot they often record the day's weight). Only as a
+  // last resort do we return null — the magic literal 268.5 used to
+  // sit here and silently hid the fact that preChangeBaseline was
+  // returning null, masking real data-load issues.
   function getTitrationWeight() {
     const baseline = TU.preChangeBaseline(TITRATION_DATE, allData);
-    return baseline != null ? baseline : 268.5;
+    if (baseline != null) return baseline;
+
+    // Fallback 1: shot record weight stamp (medication.js often
+    // records the at-shot weight as a hint when no weigh-in exists).
+    try {
+      const shots = JSON.parse(localStorage.getItem('glp1_v4')) || [];
+      const titDay = TITRATION_DATE.toISOString().slice(0, 10);
+      const match  = shots.find(s =>
+        typeof s.weight === 'number' &&
+        s.date && s.date.slice(0, 10) === titDay
+      );
+      if (match) return match.weight;
+    } catch (e) { /* localStorage might fail */ }
+
+    return null;
   }
 
   function getProjWeight() {
     if (projLatestWeight != null) return projLatestWeight;
     if (allData && allData.length) return allData[allData.length - 1].weight;
-    return 268.5;
+    return null;
   }
 
   const SCENARIOS = [
@@ -295,25 +317,34 @@
     const startW = getTitrationWeight();
 
     const daysOn  = Math.max(0, Math.floor((Date.now() - TITRATION_DATE) / 86_400_000));
-    const latestW = post.length ? post[post.length - 1].weight : startW;
-    const lost    = startW - latestW;
-    const total   = JOURNEY_START_W - latestW;
+    // If we have no baseline AND no post-titration readings, we have
+    // nothing meaningful to display — bail with explicit placeholders.
+    const latestW = post.length ? post[post.length - 1].weight
+                   : (startW != null ? startW : null);
+    const lost    = (startW != null && latestW != null) ? startW - latestW : null;
+    const total   = latestW != null ? JOURNEY_START_W - latestW : null;
 
     if (get('tj-stat-days'))  get('tj-stat-days').textContent  =
       daysOn > 0 ? daysOn + ' days' : 'Starting May 21';
     if (get('tj-stat-lost'))  {
-      get('tj-stat-lost').textContent = daysOn > 0
+      get('tj-stat-lost').textContent = (daysOn > 0 && lost != null)
         ? (lost >= 0 ? '-' : '+') + Math.abs(lost).toFixed(1) + ' lbs'
         : '--';
-      get('tj-stat-lost').style.color = lost >= 0 ? '#2a8703' : '#ea1100';
+      get('tj-stat-lost').style.color = (lost != null && lost >= 0) ? '#2a8703' : '#ea1100';
     }
-    if (get('tj-stat-total')) get('tj-stat-total').textContent = '-' + total.toFixed(1) + ' lbs';
-    if (get('tj-stat-now'))   get('tj-stat-now').textContent   = latestW.toFixed(1) + ' lbs';
+    if (get('tj-stat-total')) get('tj-stat-total').textContent =
+      total != null ? '-' + total.toFixed(1) + ' lbs' : '--';
+    if (get('tj-stat-now'))   get('tj-stat-now').textContent   =
+      latestW != null ? latestW.toFixed(1) + ' lbs' : '--';
 
-    // Keep the header label in sync with the actual pre-shot baseline
-    // so we never advertise a stale ~XXX.X figure.
+    // Keep the header label honest. If we have no real baseline,
+    // say so explicitly rather than advertising a magic number.
     const preShotEl = get('tj-preshot-weight');
-    if (preShotEl) preShotEl.textContent = startW.toFixed(1) + ' lbs';
+    if (preShotEl) {
+      preShotEl.textContent = startW != null
+        ? startW.toFixed(1) + ' lbs'
+        : 'no weigh-in on shot day';
+    }
   }
 
   // ── Main render ────────────────────────────────────────────────────
