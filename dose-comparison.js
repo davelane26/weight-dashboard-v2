@@ -226,6 +226,17 @@
            </div>`
         : '';
 
+      // Transparent math under the pace cell so the user can see
+      // exactly which baseline and end weight are being divided by
+      // weeks. When a row looks pitifully slow, this is how we figure
+      // out whether it's the baseline that's too low or the endpoint
+      // that's too high.
+      const mathHTML = (ep.baseline != null && ep.endReading)
+        ? `<p style="font-size:0.62rem;color:#9aa5b4;margin:0.25rem 0 0;font-family:ui-monospace,monospace;line-height:1.3">
+             ${ep.baseline.toFixed(1)} \u2192 ${ep.endReading.weight.toFixed(1)} (${(ep.baseline - ep.endReading.weight).toFixed(1)} lbs / ${ep.weeks.toFixed(1)} wks)
+           </p>`
+        : '';
+
       return `
         <tr style="background:${rowBg};border-bottom:1px solid #e5e9f5">
           <td style="padding:0.55rem 0.7rem;vertical-align:top">
@@ -251,6 +262,7 @@
               ${endPace}
             </p>
             ${barHTML}
+            ${mathHTML}
           </td>
           <td style="padding:0.55rem 0.7rem;font-size:0.78rem;color:#6d7a95;white-space:nowrap;vertical-align:top">
             ${regPace}
