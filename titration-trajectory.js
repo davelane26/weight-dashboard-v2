@@ -248,12 +248,31 @@
     // sees "-10.1 lbs lost over 28 days", they should immediately see
     // which input the calculation actually used.
     let mathStr = '';
+    let cleanStr = '';
     if (pace != null && latest) {
       const baseline = getTitrationWeight();
       const lost     = baseline - latest.weight;
       const days     = (latest.date.getTime() - TITRATION_DATE.getTime()) / 86_400_000;
       const wks      = (days / 7).toFixed(1);
       mathStr = `${lost.toFixed(1)} lbs / ${wks} wks · baseline ${baseline.toFixed(1)} on ${fmtShort(TITRATION_DATE)} → latest ${latest.weight.toFixed(1)} on ${fmtShort(latest.date)}`;
+
+      // Clean-trend slope: same exclusion logic as the readiness card.
+      // We compute it across ALL post-titration readings (not just the
+      // last 28d) since the trajectory card's whole point is to show
+      // performance on this dose. Excludes flagged event days + tail.
+      try {
+        const events = (typeof window.getEventsInRange === 'function')
+          ? window.getEventsInRange(TITRATION_DATE, new Date())
+          : [];
+        const clean = TU.slopePerWeekClean(post, events, {
+          tailDays: 3,
+          minClean: 5,    // looser than readiness because dose-window is shorter
+        });
+        if (clean.slope != null && clean.excludedCount > 0) {
+          const sign = clean.slope >= 0 ? '−' : '+';
+          cleanStr = `<span style="color:#2a8703">clean pace ${sign}${Math.abs(clean.slope).toFixed(2)} lbs/wk</span> · ${clean.excludedCount} flagged day${clean.excludedCount !== 1 ? 's' : ''} excluded (${clean.cleanCount} of ${clean.totalCount} readings)`;
+        }
+      } catch (e) { console.warn('[titration-trajectory] clean slope failed:', e); }
     }
 
     badge.innerHTML = `
@@ -265,7 +284,8 @@
           ? `<span style="font-size:0.7rem;color:#6d7a95">(${weeks} wk${weeks !== 1 ? 's' : ''} of data)</span>`
           : ''}
       </div>
-      ${mathStr ? `<p style="margin:0.35rem 0 0;font-size:0.68rem;color:#9aa5b4;font-family:ui-monospace,monospace">${mathStr}</p>` : ''}`;
+      ${mathStr ? `<p style="margin:0.35rem 0 0;font-size:0.68rem;color:#9aa5b4;font-family:ui-monospace,monospace">${mathStr}</p>` : ''}
+      ${cleanStr ? `<p style="margin:0.25rem 0 0;font-size:0.7rem;color:#6d7a95">${cleanStr}</p>` : ''}`;
   }
 
   // ── Stats strip ────────────────────────────────────────────────────
