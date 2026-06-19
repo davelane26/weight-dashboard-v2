@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="enhancements.css?v=4" />
   <link rel="stylesheet" href="tokens.css?v=2" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
     window.AI_HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/ai-health';
@@ -54,8 +55,9 @@
 <script src="charts-tab.js?v=1" defer></script>
 <script src="rate-analysis.js?v=2" defer></script>
 <script src="titration-utils.js?v=1" defer></script>
+<script src="events.js?v=1" defer></script>
 <script src="titration-trajectory.js?v=3" defer></script>
-<script src="titration-readiness.js?v=2" defer></script>
+<script src="titration-readiness.js?v=3" defer></script>
 <script src="road-to-220.js?v=1" defer></script>
 <script src="health.js?v=11"  defer></script>
 </head>
@@ -535,6 +537,18 @@
         Heuristic check: is the current dose still working, or is it time to ask your prescriber about the next step?
       </p>
       <div id="tr-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
+    </section>
+
+    <!-- Context Events Card -->
+    <section class="card fade-in" aria-label="Context events"
+      style="margin-top:1.25rem;border-top:3px solid #f59f00">
+      <h2 class="card-title">&#128221; Context Events</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Flag travel, illness, off-protocol eating, etc. so the readiness widget can interpret your trend with real-life context — not mistake a behavioral plateau for a pharmacological one. Bands also appear on the main weight chart.
+      </p>
+      <div id="events-card-body">
         <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
       </div>
     </section>

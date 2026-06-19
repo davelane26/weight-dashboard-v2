@@ -175,6 +175,13 @@
     const lossSign = lossOnDose >= 0 ? '−' : '+';
     const lossDisplay = lossSign + Math.abs(lossOnDose).toFixed(1) + ' lbs';
 
+    // Pull any events overlapping the 28-day pace window so we can
+    // tell the user "hey, this trend might be lifestyle, not pharmacology"
+    const winStart = new Date(Date.now() - PACE_WINDOW_DAYS * TU.MS_PER_DAY);
+    const ctxEvents = (typeof window.getEventsInRange === 'function')
+      ? window.getEventsInRange(winStart, new Date())
+      : [];
+
     root.innerHTML = `
       <!-- Badge + next-dose line -->
       <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.9rem">
@@ -214,6 +221,8 @@
         </p>
       </div>
 
+      ${ctxEvents.length ? renderContextBlock(ctxEvents) : ''}
+
       <p style="font-size:0.65rem;color:#9aa5b4;margin:0">
         “4-wk trend” is a linear-regression slope through your last
         ${PACE_WINDOW_DAYS} days of weigh-ins — it reads the
@@ -230,6 +239,42 @@
         <p style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
                   letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">${label}</p>
         <p style="font-size:1rem;font-weight:800;color:${color};margin:0">${value}</p>
+      </div>`;
+  }
+
+  // Render the "flagged context" block when events overlap the
+  // 28-day pace window. Reading the trend slope alongside this list
+  // is what makes the readiness verdict trustworthy in practice.
+  function renderContextBlock(events) {
+    const items = events.map(e => {
+      const t = (typeof window.getEventTypeByKey === 'function')
+        ? window.getEventTypeByKey(e.type)
+        : { label: e.type, color: '#6d7a95' };
+      const s = new Date(e.start);
+      const en = e.end ? new Date(e.end) : null;
+      const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const range = en && en.toDateString() !== s.toDateString()
+        ? fmt(s) + ' \u2192 ' + fmt(en)
+        : (!en ? fmt(s) + ' \u2192 ongoing' : fmt(s));
+      return `
+        <li style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem 0;font-size:0.78rem;color:#1a2340">
+          <span style="display:inline-block;width:0.55rem;height:0.55rem;border-radius:50%;background:${t.color};flex-shrink:0"></span>
+          <span style="font-weight:700">${t.label}</span>
+          <span style="color:#6d7a95;font-size:0.72rem">${range}</span>
+        </li>`;
+    }).join('');
+
+    return `
+      <div style="background:#fff7e6;border-left:3px solid #f59f00;
+                  padding:0.7rem 0.9rem;border-radius:0 8px 8px 0;margin-bottom:0.7rem">
+        <p style="font-size:0.72rem;font-weight:800;text-transform:uppercase;
+                  letter-spacing:0.08em;color:#995213;margin-bottom:0.35rem">
+          Context flags in this window
+        </p>
+        <ul style="list-style:none;padding:0;margin:0">${items}</ul>
+        <p style="font-size:0.7rem;color:#6d7a95;margin:0.4rem 0 0;line-height:1.4">
+          The trend above includes these days. If you suspect the slowdown is lifestyle (water, glycogen, sodium) rather than the dose plateauing, give it 10–14 clean days before reading this card as a titration signal.
+        </p>
       </div>`;
   }
 
