@@ -82,16 +82,48 @@
     return episodes;
   }
 
+  // Find a baseline weight for an episode using a fallback chain so we
+  // never silently render empty rows. Strategy in order of fidelity:
+  //   1. Last actual weigh-in on/before episode start (preChangeBaseline)
+  //   2. Shot record's stamped `weight` field on/just before the start
+  //      (medication.js stamps the at-shot weight as user-entered data)
+  //   3. FIRST weigh-in DURING the episode (least ideal — absorbs the
+  //      early water-weight whoosh — but better than rendering nothing)
+  // Returns { weight, source } where source explains the provenance.
+  function findBaseline(startDay, between, allShots, allReadings) {
+    const w = TU.preChangeBaseline(startDay, allReadings);
+    if (w != null) return { weight: w, source: 'pre-shot weigh-in' };
+
+    // Walk shots backwards for the most recent stamped weight at or
+    // before startDay
+    const earlierShots = allShots
+      .map(s => ({ ...s, _dt: new Date(s.date) }))
+      .filter(s => !isNaN(s._dt) && typeof s.weight === 'number' && s._dt <= startDay)
+      .sort((a, b) => a._dt - b._dt);
+    if (earlierShots.length) {
+      const m = earlierShots[earlierShots.length - 1];
+      return { weight: m.weight, source: 'shot-stamped weight' };
+    }
+
+    // Last resort: first weigh-in during the episode
+    if (between.length) {
+      return { weight: between[0].weight, source: 'first reading on dose (est.)' };
+    }
+
+    return { weight: null, source: 'no data' };
+  }
+
   // Per-episode stats. Pulls readings between the pre-change baseline
   // (last reading on or before startDate) and the end date (or now).
   // Returns enriched episode with weight + pace numbers.
-  function enrichEpisode(ep, allReadings) {
+  function enrichEpisode(ep, allReadings, allShots) {
     const startDay   = ep.startDate;
     const endDay     = ep.endDate || new Date();
-    const baseline   = TU.preChangeBaseline(startDay, allReadings);
     const dayAfter   = TU.addDays(startDay, 1);
     const between    = TU.readingsBetween(dayAfter, endDay, allReadings);
     const endReading = between.length ? between[between.length - 1] : null;
+    const baseInfo   = findBaseline(startDay, between, allShots, allReadings);
+    const baseline   = baseInfo.weight;
 
     const days       = (endDay.getTime() - startDay.getTime()) / 86_400_000;
     const weeks      = days / 7;
@@ -108,6 +140,7 @@
     return {
       ...ep,
       baseline,
+      baselineSource: baseInfo.source,
       endReading,
       days, weeks,
       lostLbs,
@@ -136,7 +169,7 @@
       return;
     }
 
-    const episodes = buildEpisodes(shots).map(ep => enrichEpisode(ep, window.allWeightData));
+    const episodes = buildEpisodes(shots).map(ep => enrichEpisode(ep, window.allWeightData, shots));
 
     if (episodes.length < 2) {
       const only = episodes[0];
@@ -202,6 +235,9 @@
             <p style="font-size:0.6rem;color:#6d7a95;margin:0.15rem 0 0">
               ${dateRange}<br>
               ${ep.shotCount} shot${ep.shotCount !== 1 ? 's' : ''} \u00b7 ${ep.readingCount} reading${ep.readingCount !== 1 ? 's' : ''}
+              ${ep.baselineSource && ep.baselineSource !== 'pre-shot weigh-in'
+                ? `<br><span style="color:#995213;font-style:italic">baseline: ${ep.baselineSource}</span>`
+                : ''}
             </p>
           </td>
           <td style="padding:0.55rem 0.7rem;font-size:0.85rem;font-weight:700;color:#1a2340;white-space:nowrap;vertical-align:top">
