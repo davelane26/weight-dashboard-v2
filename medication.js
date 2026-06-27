@@ -294,7 +294,6 @@
     drawPkChart(elapsed);
     renderProgressCharts();
     renderBodyCompChart();
-    renderPhaseWeightChart();
   }
 
   function drawPkChart(elapsed) {
@@ -888,128 +887,6 @@
   function setText(id, val) {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
-  }
-
-  // ── Weight by PK Phase ────────────────────────────────────────────────────
-  let g1PhaseWeightChart = null;
-
-  function renderPhaseWeightChart() {
-    const canvas = document.getElementById('g1PhaseWeightChart');
-    if (!canvas || typeof Chart === 'undefined') return;
-    const weights = window.allWeightData;
-    const shots = loadShots();
-    if (!weights || !weights.length || !shots.length) return;
-
-    const shotDates = shots.map(s => new Date(s.date).getTime()).sort((a, b) => a - b);
-
-    const buckets = PHASES.map(() => ({ deltas: [], weights: [] }));
-
-    for (const r of weights) {
-      const t = r.date instanceof Date ? r.date.getTime() : new Date(r.date).getTime();
-      let shotTime = null;
-      for (let i = shotDates.length - 1; i >= 0; i--) {
-        if (shotDates[i] <= t) { shotTime = shotDates[i]; break; }
-      }
-      if (shotTime === null) continue;
-      const elapsed = (t - shotTime) / 3600000;
-      if (elapsed < 0 || elapsed >= 168) continue;
-      const phase = PHASES.findIndex(p => elapsed >= p.start && elapsed < p.end);
-      if (phase < 0) continue;
-      buckets[phase].weights.push(r.weight);
-
-      const shotDayWeight = weights.find(w => {
-        const wt = w.date instanceof Date ? w.date.getTime() : new Date(w.date).getTime();
-        return Math.abs(wt - shotTime) < 24 * 3600000 && wt >= shotTime;
-      });
-      if (shotDayWeight) buckets[phase].deltas.push(r.weight - shotDayWeight.weight);
-    }
-
-    const avgDeltas = buckets.map(b => b.deltas.length ? +(b.deltas.reduce((a, c) => a + c, 0) / b.deltas.length).toFixed(2) : null);
-    const avgWeights = buckets.map(b => b.weights.length ? +(b.weights.reduce((a, c) => a + c, 0) / b.weights.length).toFixed(1) : null);
-    const counts = buckets.map(b => b.weights.length);
-
-    if (g1PhaseWeightChart) { g1PhaseWeightChart.destroy(); g1PhaseWeightChart = null; }
-
-    g1PhaseWeightChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: PHASES.map(p => p.emoji + ' ' + p.name),
-        datasets: [{
-          label: 'Avg change from shot-day (lbs)',
-          data: avgDeltas,
-          backgroundColor: PHASES.map((p, i) => avgDeltas[i] !== null && avgDeltas[i] <= 0 ? '#2f9e44' : '#e03131'),
-          borderRadius: 6,
-          barPercentage: 0.7,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1e293b', padding: 10, cornerRadius: 8,
-            titleColor: '#f1f5f9', bodyColor: '#94a3b8',
-            callbacks: {
-              label: c => {
-                const i = c.dataIndex;
-                const delta = avgDeltas[i];
-                const avg = avgWeights[i];
-                const n = counts[i];
-                return [
-                  ` Change: ${delta !== null ? (delta > 0 ? '+' : '') + delta : '—'} lbs`,
-                  ` Avg weight: ${avg !== null ? avg : '—'} lbs`,
-                  ` Readings: ${n}`,
-                ];
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0 },
-            grid: { display: false },
-            border: { display: false },
-          },
-          y: {
-            ticks: { color: '#64748b', font: { size: 10 }, callback: v => (v > 0 ? '+' : '') + v },
-            grid: { color: 'rgba(0,0,0,0.06)', borderDash: [3, 3] },
-            border: { display: false },
-          },
-        },
-      },
-    });
-
-    const legend = document.getElementById('g1-phase-weight-legend');
-    if (legend) {
-      legend.innerHTML = PHASES.map(p =>
-        `<span style="font-size:0.65rem;color:${p.color};font-weight:700">${p.emoji} ${p.name}</span>`
-      ).join('');
-    }
-
-    const table = document.getElementById('g1-phase-weight-table');
-    if (table) {
-      const rows = PHASES.map((p, i) => {
-        const d = avgDeltas[i];
-        const dStr = d !== null ? (d > 0 ? '+' : '') + d + ' lbs' : '—';
-        const color = d !== null && d <= 0 ? '#2f9e44' : '#e03131';
-        return `<tr>
-          <td style="padding:0.2rem 0.4rem;font-size:0.72rem;color:${p.color};font-weight:600">${p.emoji} ${p.name}</td>
-          <td style="padding:0.2rem 0.4rem;font-size:0.72rem;color:#64748b;text-align:center">${avgWeights[i] !== null ? avgWeights[i] : '—'}</td>
-          <td style="padding:0.2rem 0.4rem;font-size:0.72rem;color:${color};font-weight:700;text-align:right">${dStr}</td>
-          <td style="padding:0.2rem 0.4rem;font-size:0.65rem;color:#94a3b8;text-align:right">(${counts[i]})</td>
-        </tr>`;
-      }).join('');
-      table.innerHTML = `<table style="width:100%;border-collapse:collapse">
-        <thead><tr>
-          <th style="padding:0.2rem 0.4rem;font-size:0.65rem;color:#94a3b8;text-align:left;font-weight:600">Phase</th>
-          <th style="padding:0.2rem 0.4rem;font-size:0.65rem;color:#94a3b8;text-align:center;font-weight:600">Avg wt</th>
-          <th style="padding:0.2rem 0.4rem;font-size:0.65rem;color:#94a3b8;text-align:right;font-weight:600">vs shot day</th>
-          <th style="padding:0.2rem 0.4rem;font-size:0.65rem;color:#94a3b8;text-align:right;font-weight:600">n</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-    }
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
