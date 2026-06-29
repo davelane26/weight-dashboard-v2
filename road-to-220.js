@@ -51,8 +51,8 @@
     return new Date(latestDate.getTime() + weeksLeft * 7 * 86_400_000);
   }
 
-  function fmtMonth(d) {
-    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  function fmtRange(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -107,7 +107,7 @@
     // ── ETA range box ──
     const hasRange = etaOptimistic && etaConservative;
     const rangeStr = hasRange
-      ? `${fmtMonth(etaOptimistic)} - ${fmtMonth(etaConservative)}`
+      ? `${fmtRange(etaOptimistic)} - ${fmtRange(etaConservative)}`
       : 'Keep logging - need more data';
     const daysRangeStr = (daysAwayOpt != null && daysAwayCons != null)
       ? `${daysAwayOpt} - ${daysAwayCons} days`

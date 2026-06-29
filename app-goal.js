@@ -39,7 +39,7 @@ function renderGoal(latest, data = []) {
     return new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
   };
   
-  const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   
   const etaOpt  = calcEta(RATES.optimistic);
   const etaCons = calcEta(RATES.conservative);
