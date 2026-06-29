@@ -108,7 +108,7 @@ async function loadActivityData() {
 
   // 1. Try Cloudflare Worker (fed by Exist.io via GitHub Actions)
   try {
-    const workerBase = (window.GLUCOSE_WORKER_URL || '').replace('/glucose.json', '');
+    const workerBase = window.HEALTH_WORKER_URL || '';
     if (workerBase) {
       const res  = await fetch(`${workerBase}/health.json`);
       const json = await res.json();
