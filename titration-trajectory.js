@@ -25,23 +25,23 @@
   }
 
   function getTitrationWeight() {
-    if (!allData || !allData.length) return 268.5;
+    if (!allData || !allData.length) return 269.4;
     // Returns pre-shot baseline weight (on or before shot day) for stats
     const endOfShotDay = new Date(TITRATION_DATE.getFullYear(), TITRATION_DATE.getMonth(), TITRATION_DATE.getDate(), 23, 59, 59, 999);
     const candidates = allData.filter(r => r.date <= endOfShotDay);
-    return candidates.length ? candidates[candidates.length - 1].weight : 268.5;
+    return candidates.length ? candidates[candidates.length - 1].weight : 269.4;
   }
 
   function getProjWeight() {
     if (projLatestWeight != null) return projLatestWeight;
     if (allData && allData.length) return allData[allData.length - 1].weight;
-    return 268.5;
+    return 269.4;
   }
 
   const SCENARIOS = [
-    { key: 'cons', label: 'Conservative', rate: 0.75, color: '#995213', dash: [6, 4] },
-    { key: 'mod',  label: 'Moderate',     rate: 1.75, color: '#0053e2', dash: []     },
-    { key: 'opt',  label: 'Optimistic',   rate: 2.50, color: '#2a8703', dash: [3, 2] },
+    { key: 'cons', label: 'Conservative', rate: 2.00, color: '#995213', dash: [6, 4] },
+    { key: 'mod',  label: 'Base Case',    rate: 2.40, color: '#0053e2', dash: []     },
+    { key: 'opt',  label: 'Optimistic',   rate: 2.80, color: '#2a8703', dash: [3, 2] },
   ];
 
   const MILESTONES = [265, 260, 255, 250, 245, 240, 235, 230, 225, 220];

@@ -27,27 +27,33 @@ function renderGoal(latest, data = []) {
   el('goal-bar').textContent = pct >= 10 ? Math.round(pct) + '%' : '';
 
   if (remaining <= 0) {
-    setText('goal-eta', '🎉 Goal reached!');
+    setText('goal-eta', 'Goal reached!');
     return;
   }
 
-  // Use overall journey average for a stable, realistic ETA
+  // Rate scenarios for range-based projections
+  const RATES = { conservative: 2.0, baseCase: 2.4, optimistic: 2.8 };
+  
+  const calcEta = (rate) => {
+    const weeksLeft = remaining / rate;
+    return new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
+  };
+  
+  const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  
+  const etaOpt  = calcEta(RATES.optimistic);
+  const etaCons = calcEta(RATES.conservative);
+  
+  // Show range: "Oct 2026 - Jan 2027"
+  const rangeStr = `${fmtShort(etaOpt)} - ${fmtShort(etaCons)}`;
+  
+  // Also calculate journey average for context
   const startDate        = new Date(START_DATE);
   const totalDaysElapsed = (latest.date - startDate) / 86400000;
   const totalLostJourney = START_WEIGHT - latest.weight;
-
-  if (totalDaysElapsed > 0 && totalLostJourney > 0) {
-    const lbsPerDay   = totalLostJourney / totalDaysElapsed;
-    const daysLeft    = remaining / lbsPerDay;
-    const projDate    = new Date(latest.date.getTime() + daysLeft * 86400000);
-    const weeklyRate  = lbsPerDay * 7;
-    setText('goal-eta',
-      `losing ~${weeklyRate.toFixed(1)} lbs/wk avg · projected ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
-  } else {
-    const weeksLeft = Math.ceil(remaining / 1.5);
-    const estDate   = new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
-    setText('goal-eta', `~${weeksLeft} wk${weeksLeft !== 1 ? 's' : ''} at 1.5 lbs/wk · est. ${fmtDate(estDate)}`);
-  }
+  const weeklyRate       = totalDaysElapsed > 0 ? (totalLostJourney / totalDaysElapsed) * 7 : 0;
+  
+  setText('goal-eta', `${rangeStr} (currently ${weeklyRate.toFixed(1)} lbs/wk)`);
 }
 
 // ── Goal persistence ─────────────────────────────────────────────────
