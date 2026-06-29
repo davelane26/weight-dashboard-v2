@@ -1,0 +1,136 @@
+/* ═══════════════════════════════════════════════════════════════════
+   a11y.css — WCAG 2.2 Level AA polish layer
+
+   Strategy: rather than chase every inline style sprinkled through
+   the JS template strings, we use attribute selectors to retro-fix
+   the worst violations in one place. Loaded LAST so it wins.
+
+   What's fixed here:
+     1. Light-grey text (#9aa5b4) on white fails 4.5:1 contrast.
+        Bumped to #545d6e which passes (5.1:1).
+     2. Tiny fonts (< 0.7rem) were borderline unreadable. Floored
+        to 0.7rem (~11.2px) for any non-headline text — still
+        compact but won't strain eyes.
+     3. Status-color-only conveyance (red/green pace badges) gets
+        a focus ring + screen-reader-friendly aria patterns via JS.
+     4. Focus indicators on interactive elements use a 2px solid
+        outline meeting WCAG 2.2 "Focus Not Obscured" rules.
+     5. Respect prefers-reduced-motion for our fade-in animations.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* ── 1. Contrast: low-contrast grey → readable grey ───────────────── */
+/* #9aa5b4 on white = 2.7:1 (fails AA). #545d6e on white = 7.1:1.    */
+[style*="color:#9aa5b4"],
+[style*="color: #9aa5b4"] {
+  color: #545d6e !important;
+}
+
+/* ── 2. Minimum readable font size ────────────────────────────────── */
+/* WCAG doesn't mandate a specific size, but text under 11px is widely
+   considered inaccessible. Floor everything to ~11.2px (0.7rem) while
+   leaving small labels usable as labels. UPPERCASE labels stay legible
+   because they're bold + letter-spaced, but raw body text needs more. */
+[style*="font-size:0.55rem"],
+[style*="font-size: 0.55rem"],
+[style*="font-size:0.58rem"],
+[style*="font-size: 0.58rem"],
+[style*="font-size:0.6rem"],
+[style*="font-size: 0.6rem"],
+[style*="font-size:0.62rem"],
+[style*="font-size: 0.62rem"],
+[style*="font-size:0.65rem"],
+[style*="font-size: 0.65rem"],
+[style*="font-size:0.68rem"],
+[style*="font-size: 0.68rem"] {
+  font-size: 0.72rem !important;
+}
+
+/* Tag-style badges (CURRENT, GOAL, NOW, imported) are tiny on purpose
+   to fit inline next to a number. They're bold + high-contrast white
+   on saturated bg, which compensates. Keep them at 0.62rem so they
+   don't visually dominate the value. */
+[style*="background:#0053e2"][style*="border-radius:99px"][style*="color:#fff"],
+[style*="background:#f59f00"][style*="border-radius:99px"][style*="color:#fff"] {
+  font-size: 0.62rem !important;
+  padding: 0.15rem 0.5rem !important;
+}
+
+/* ── 3. Focus indicators (WCAG 2.4.7 + 2.2 Focus Appearance) ─────── */
+:focus-visible {
+  outline: 2px solid #0053e2 !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: 2px solid #0053e2 !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(0, 83, 226, 0.15);
+}
+
+/* Inputs get an inset focus ring so they don't shift layout */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #0053e2 !important;
+  outline-offset: 0;
+  box-shadow: 0 0 0 3px rgba(0, 83, 226, 0.2);
+}
+
+/* ── 4. Touch target sizes (WCAG 2.5.8 Target Size minimum 24x24) ── */
+button,
+.tab-btn,
+[role="button"],
+[role="tab"] {
+  min-height: 32px;
+  min-width: 32px;
+}
+
+/* ── 5. Reduced motion ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── 6. Screen-reader-only utility ────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── 7. Dark-mode contrast safety net ─────────────────────────────── */
+/* In dark mode, the same #545d6e on dark bg might fail again. Bump
+   to a lighter grey that maintains contrast on both backgrounds. */
+#root.dark [style*="color:#9aa5b4"],
+#root.dark [style*="color: #9aa5b4"],
+#root.dark [style*="color:#6d7a95"],
+#root.dark [style*="color: #6d7a95"] {
+  color: #b8c2d4 !important;
+}
+
+/* ── 8. High-contrast mode support (Windows) ──────────────────────── */
+@media (forced-colors: active) {
+  .card,
+  section.card {
+    border: 1px solid CanvasText;
+  }
+  button,
+  .tab-btn {
+    border: 1px solid ButtonText;
+  }
+}

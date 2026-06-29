@@ -23,7 +23,9 @@
   <link rel="stylesheet" href="polish.css?v=2" />
   <link rel="stylesheet" href="enhancements.css?v=4" />
   <link rel="stylesheet" href="tokens.css?v=2" />
+  <link rel="stylesheet" href="a11y.css?v=1" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
     window.GLUCOSE_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/glucose.json';
     window.AI_HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev/ai-health';
@@ -53,7 +55,12 @@
 <script src="photos.js?v=2" defer></script>
 <script src="charts-tab.js?v=1" defer></script>
 <script src="rate-analysis.js?v=2" defer></script>
-<script src="titration-trajectory.js?v=2" defer></script>
+<script src="titration-utils.js?v=3" defer></script>
+<script src="events.js?v=2" defer></script>
+<script src="titration-trajectory.js?v=7" defer></script>
+<script src="titration-readiness.js?v=12" defer></script>
+<script src="goal-projector.js?v=1" defer></script>
+<script src="dose-comparison.js?v=5" defer></script>
 <script src="road-to-220.js?v=1" defer></script>
 <script src="health.js?v=11"  defer></script>
 </head>
@@ -388,19 +395,6 @@
     </section>
 
 
-    <section class="card fade-in" aria-label="Weight calendar heatmap" id="heatmap-section">
-      <h2 class="card-title">📅 Weight Calendar</h2>
-      <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.85rem">Last 26 weeks · green = lighter, red = heavier · gray = no reading</p>
-      <div id="heatmap-grid"></div>
-    </section>
-
-    <section class="card fade-in card--accent-gold" aria-label="Monthly report card">
-      <h2 class="card-title">📝 Monthly Report Card</h2>
-      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Graded by weight loss rate, steps &amp; sleep &middot; needs 1 week of data per month</p>
-      <div id="report-card-body"></div>
-      <p id="report-card-empty" style="font-size:0.8rem;color:#6d7a95">Not enough data yet — needs at least a week of readings.</p>
-    </section>
-
     <section class="card fade-in card--accent-purple" aria-label="AI weekly summary" id="ai-summary-section">
       <div class="ai-summary-header">
         <h2 class="card-title" style="margin:0">🤖 Weekly AI Summary</h2>
@@ -467,7 +461,7 @@
 
       <h2 class="card-title">&#128137; 7.5mg Titration Trajectory</h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
-        First shot <strong>May 21, 2026</strong> &middot; Pre-shot weight <strong>~268.5 lbs</strong>
+        First shot <strong>May 21, 2026</strong> &middot; Pre-shot weight <strong id="tj-preshot-weight">—</strong>
         &middot; Journey start <strong>315.0 lbs (Jan 29)</strong>
       </p>
 
@@ -536,6 +530,57 @@
         Actual pace updates automatically as new scale readings sync.
         Titration decisions are always your provider&rsquo;s call. &#128138;
       </p>
+    </section>
+
+    <!-- Titration Readiness Card -->
+    <section class="card fade-in" aria-label="Titration readiness"
+      style="margin-top:1.25rem;border-top:3px solid #0053e2">
+      <h2 class="card-title">&#128202; Titration Readiness</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Heuristic check: is the current dose still working, or is it time to ask your prescriber about the next step?
+      </p>
+      <div id="tr-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
+    </section>
+
+    <!-- Context Events Card -->
+    <section class="card fade-in" aria-label="Context events"
+      style="margin-top:1.25rem;border-top:3px solid #f59f00">
+      <h2 class="card-title">&#128221; Context Events</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Flag travel, illness, off-protocol eating, etc. so the readiness widget can interpret your trend with real-life context — not mistake a behavioral plateau for a pharmacological one. Bands also appear on the main weight chart.
+      </p>
+      <div id="events-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
+    </section>
+
+    <!-- Dose-vs-Dose Comparison -->
+    <section class="card fade-in" aria-label="Dose-vs-dose comparison"
+      style="margin-top:1.25rem;border-top:3px solid #7c3aed">
+      <h2 class="card-title">Dose-vs-Dose Comparison</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        How each titration step has actually performed. Every dose gets the same
+        pre-change-baseline math so the comparison is apples-to-apples.
+      </p>
+      <div id="dc-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
+    </section>
+
+    <!-- Personal Milestone Forecast -->
+    <section class="card fade-in" aria-label="Personal milestone forecast"
+      style="margin-top:1.25rem;border-top:3px solid #0053e2">
+      <h2 class="card-title">Personal Milestone Forecast</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Projects each weight milestone using your <strong>actual current pace</strong> —
+        not idealized scenarios. Prefers the clean 28-day trend when enough data exists,
+        falls back to raw trend or lifetime average.
+      </p>
+      <div id="gp-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
     </section>
 
     <!-- Road to 220 card -->

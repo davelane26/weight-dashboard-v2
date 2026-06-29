@@ -72,6 +72,7 @@ function renderWeightChart(data) {
           titleColor: '#fff', bodyColor: '#ccc',
           callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)} lbs` },
         },
+        annotation: { annotations: buildEventAnnotations(daily) },
       },
       scales: {
         x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: '#eee' } },
@@ -79,6 +80,54 @@ function renderWeightChart(data) {
       },
     },
   });
+}
+
+// ── Event-band annotations for the weight chart ───────────────────────
+// Maps each context event's date range to translucent vertical bands
+// via chartjs-plugin-annotation. Silently returns {} if either the
+// events module or the annotation plugin isn't loaded so the chart
+// always renders cleanly.
+function buildEventAnnotations(daily) {
+  if (typeof window.getEventsInRange !== 'function' || !daily.length) return {};
+  const firstDate = daily[0].date;
+  const lastDate  = daily[daily.length - 1].date;
+  const events    = window.getEventsInRange(firstDate, lastDate);
+  if (!events.length) return {};
+
+  // Find the chart label (formatted date string) closest to a given date.
+  function nearestLabel(target) {
+    let best = daily[0];
+    let bestDelta = Math.abs(daily[0].date - target);
+    for (let i = 1; i < daily.length; i++) {
+      const delta = Math.abs(daily[i].date - target);
+      if (delta < bestDelta) { best = daily[i]; bestDelta = delta; }
+    }
+    return fmtDate(best.date);
+  }
+
+  const annotations = {};
+  events.forEach((e, idx) => {
+    const t = (typeof window.getEventTypeByKey === 'function')
+      ? window.getEventTypeByKey(e.type)
+      : { color: '#6d7a95', label: e.type };
+    const start = new Date(e.start);
+    const end   = e.end ? new Date(e.end) : new Date();
+    const xMin  = nearestLabel(start < firstDate ? firstDate : start);
+    const xMax  = nearestLabel(end > lastDate ? lastDate : end);
+    annotations['evt' + idx] = {
+      type: 'box',
+      xMin, xMax,
+      backgroundColor: t.color + '22',
+      borderColor:     t.color + '55',
+      borderWidth:     1,
+      label: {
+        content:  t.label,
+        display:  false,  // tooltip on hover is too noisy here
+      },
+      drawTime: 'beforeDatasetsDraw',
+    };
+  });
+  return annotations;
 }
 
 // ── Weekly stats cards (7-day avg + rolling 7-day) ───────────────────

@@ -441,7 +441,7 @@ function loadActivityCharts(history = []) {
           labels,
           datasets: [
             { label: 'Mins',     data: workoutMins, backgroundColor: 'rgba(124,58,237,0.7)', borderRadius: 4, yAxisID: 'y' },
-            { label: 'Km',       data: workoutKm,   backgroundColor: 'rgba(8,145,178,0.7)',  borderRadius: 4, yAxisID: 'y2' },
+            { label: 'Mi',       data: workoutMiles, backgroundColor: 'rgba(8,145,178,0.7)',  borderRadius: 4, yAxisID: 'y2' },
           ],
         },
         options: {
@@ -450,7 +450,7 @@ function loadActivityCharts(history = []) {
           scales: {
             x:  { ...chartDefaults.scales.x },
             y:  { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'm' } },
-            y2: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + 'km' } },
+            y2: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + 'mi' } },
           },
         },
       });
