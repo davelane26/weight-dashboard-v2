@@ -165,20 +165,21 @@ function renderJourney(latest, data) {
   countUp('journey-best', best.weight, 1);
   setText('journey-best-date', fmtDate(best.date));
 
-  // Next milestone ETA
+  // Next milestone ETA (uses journey average for consistency with AVG RATE card)
   const allTimeLow = Math.min(...data.map(r => r.weight));
   const floor  = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
   const steps  = [];
   for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
   const nextMilestone = steps.find(w => allTimeLow > w);
-  if (nextMilestone && slopePerDay && slopePerDay < 0) {
+  const journeyLbsPerDay = totalDaysElapsed > 0 ? totalLostJourney / totalDaysElapsed : 0;
+  if (nextMilestone && journeyLbsPerDay > 0) {
     const remaining = latest.weight - nextMilestone;
-    const daysLeft  = remaining / Math.abs(slopePerDay);
+    const daysLeft  = remaining / journeyLbsPerDay;
     const projDate  = new Date(latest.date.getTime() + daysLeft * 86400000);
     setText('journey-next-eta',
       `${nextMilestone} lbs · ${projDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
   } else {
-    setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : '🎉 All done!');
+    setText('journey-next-eta', nextMilestone ? `${nextMilestone} lbs` : 'All done!');
   }
   computeBestWeek(data);
   computeProjection();
