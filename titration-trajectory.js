@@ -68,9 +68,9 @@
   }
 
   const SCENARIOS = [
-    { key: 'cons', label: 'Conservative', rate: 0.75, color: '#995213', dash: [6, 4] },
-    { key: 'mod',  label: 'Moderate',     rate: 1.75, color: '#0053e2', dash: []     },
-    { key: 'opt',  label: 'Optimistic',   rate: 2.50, color: '#2a8703', dash: [3, 2] },
+    { key: 'cons', label: 'Conservative', rate: 2.00, color: '#995213', dash: [6, 4] },
+    { key: 'mod',  label: 'Base Case',    rate: 2.40, color: '#0053e2', dash: []     },
+    { key: 'opt',  label: 'Optimistic',   rate: 2.80, color: '#2a8703', dash: [3, 2] },
   ];
 
   const MILESTONES = [265, 260, 255, 250, 245, 240, 235, 230, 225, 220];
