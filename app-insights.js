@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════════
    app-insights.js — Snapshot strip + cross-modality Insights generator
-   Reads from window.snap* globals exposed by glucose/activity/medication.
+   Reads from window.snap* globals exposed by activity/medication.
    ──────────────────────────────────────────────────────────────────── */
 
 // ── Top-of-page snapshot strip ───────────────────────────────────────
@@ -30,13 +30,7 @@ function updateSnapshot() {
     }
   }
 
-  // Glucose
-  const g = window.snapGlucoseNow;
-  if (g != null) {
-    setSnap('snap-glucose', g + ' mg/dL');
-    const inRange = g >= 70 && g <= 180;
-    setSnap('snap-glucose-delta', inRange ? 'in range' : 'out of range', inRange ? 'good' : 'bad');
-  }
+
 
   // Steps & Sleep
   const act = window.snapActivityNow;
@@ -62,7 +56,7 @@ function updateSnapshot() {
 
 // ── Cross-modality insights ──────────────────────────────────────────
 // Each "check" looks for a statistically meaningful pattern between
-// two streams (sleep↔weight, stress↔glucose, steps↔weight, etc).
+// two streams (sleep↔weight, steps↔weight, etc).
 // All checks gracefully no-op when there isn't enough data yet.
 function generateInsights() {
   const list  = document.getElementById('insights-list');
@@ -135,25 +129,7 @@ function generateInsights() {
     }
   }
 
-  // ── Check 2: Stress vs glucose ───────────────────────────────────
-  if (days.length >= 10 && window.snapGlucoseNow != null) {
-    const stressDays = days.filter(d => d.stressLevel != null && d.sleepScore != null);
-    const high = stressDays.filter(d => d.stressLevel > 60);
-    const low  = stressDays.filter(d => d.stressLevel <= 60);
-    if (high.length >= 5 && low.length >= 5) {
-      const avgHigh = high.reduce((a, b) => a + (b.avgGlucose || b.glucose || 0), 0) / high.length;
-      const avgLow  = low.reduce((a, b) => a + (b.avgGlucose || b.glucose || 0), 0) / low.length;
-      const diff = avgHigh - avgLow;
-      if (diff > 10) {
-        addInsight(
-          `High-stress days show glucose averaging ${Math.round(diff)} mg/dL higher.`,
-          '#995213'
-        );
-      }
-    }
-  }
-
-  // ── Check 3: Steps vs weight loss ───────────────────────────────
+  // ── Check 2: Steps vs weight loss ───────────────────────────────
   if (allData.length >= 14 && days.length >= 4) {
     const stepsByWeek = {};
     days.forEach(d => {
@@ -191,7 +167,7 @@ function generateInsights() {
     }
   }
 
-  // ── Check 4: Sleep hours → next-morning weight change ───────────────────
+  // ── Check 3: Sleep hours → next-morning weight change ───────────────────
   if (days.length >= 14 && allData.length >= 14) {
     const byDay = {};
     allData.forEach(r => {
@@ -228,7 +204,7 @@ function generateInsights() {
     }
   }
 
-  // ── Check 5: Day-over-day steps → next-morning weight ───────────────────
+  // ── Check 4: Day-over-day steps → next-morning weight ───────────────────
   if (days.length >= 14 && allData.length >= 14) {
     const byDay2 = {};
     allData.forEach(r => {

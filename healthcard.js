@@ -120,7 +120,7 @@ async function exportHealthCard() {
     _hcStat(ctx, 152 + COL * 3, ROW1, 'On Journey', stats.days, '#995213');
 
     _hcStat(ctx, 152, ROW2, 'Steps Today',      stats.steps,   '#0053e2');
-    _hcStat(ctx, 152 + COL, ROW2, 'Glucose',    stats.glucose, '#2a8703');
+    _hcStat(ctx, 152 + COL, ROW2, 'Resting HR', stats.restingHR, '#2a8703');
     _hcStat(ctx, 152 + COL * 2, ROW2, 'Sleep',  stats.sleep,   '#7c3aed');
     _hcStat(ctx, 152 + COL * 3, ROW2, 'Streak', stats.streak,  '#995213');
 
@@ -186,8 +186,7 @@ function _gatherStats() {
   const days   = `Day ${dayN}`;
 
   const steps  = act.steps ? act.steps.toLocaleString() : '—';
-  const g      = window.snapGlucoseNow;
-  const glucose = g != null ? g + ' mg/dL' : '—';
+  const restingHR = act.restingHR ? act.restingHR + ' bpm' : '—';
   const sleep  = act.sleepScore != null ? act.sleepScore + ' pts'
                : act.sleepHours ? act.sleepHours.toFixed(1) + 'h' : '—';
 
@@ -199,7 +198,7 @@ function _gatherStats() {
     const diff = (new Date(dates[i - 1]) - new Date(dates[i])) / 86400000;
     if (diff === 1) streak++; else break;
   }
-  return { weight, lost, bmi, days, steps, glucose, sleep, streak: streak + ' days' };
+  return { weight, lost, bmi, days, steps, restingHR, sleep, streak: streak + ' days' };
 }
 
 window.exportHealthCard = exportHealthCard;
