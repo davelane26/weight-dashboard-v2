@@ -72,7 +72,12 @@
     const lostTotal   = START_W - latestW;
     const remaining   = Math.max(0, latestW - GOAL);
     const pct         = Math.min(100, (lostTotal / TOTAL_TRIP) * 100);
-    const rateWeekly  = slope ? fmt(Math.abs(slope) * 7) : '—';
+    
+    // Use journey average for "Current pace" stat (matches AVG RATE card)
+    const startDate      = new Date('2026-01-29');
+    const daysElapsed    = latestDate ? (latestDate - startDate) / 86_400_000 : 0;
+    const journeyAvgRate = daysElapsed > 0 ? (lostTotal / daysElapsed) * 7 : 0;
+    const rateWeekly     = journeyAvgRate > 0 ? fmt(journeyAvgRate) : '—';
 
     // Calculate ETA range using scenarios
     const etaConservative = etaFromRate(latestW, latestDate, RATE_SCENARIOS.conservative);
