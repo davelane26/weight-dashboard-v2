@@ -28,6 +28,16 @@
     return;
   }
 
+  // ── Known baselines ───────────────────────────────────────────────
+  // When scale data doesn't reach back to the start of a dose phase,
+  // we fall back to a manually-verified baseline rather than silently
+  // using the first on-dose reading (which misses the pre-scale loss).
+  // Key: ISO date string of the dose's first shot. Value: { weight, note }.
+  // Update this if the actual start date or weight is ever corrected.
+  const KNOWN_BASELINES = {
+    '2026-02-26': { weight: 296.0, note: 'Verified: last weight before 5mg (scale not yet set up)' },
+  };
+
   // ── Helpers ────────────────────────────────────────────────
   function loadShots() {
     try { return JSON.parse(localStorage.getItem('glp1_v4')) || []; }
@@ -103,6 +113,16 @@
     if (earlierShots.length) {
       const m = earlierShots[earlierShots.length - 1];
       return { weight: m.weight, source: 'shot-stamped weight' };
+    }
+
+    // Known-baseline override: catches the case where scale tracking
+    // didn't exist at the start of the dose (e.g. 5mg started before
+    // the Garmin scale was set up). Fires before the last-resort
+    // first-on-dose fallback so the manual figure wins cleanly.
+    const startKey = startDay.toISOString().slice(0, 10);
+    if (KNOWN_BASELINES[startKey]) {
+      const kb = KNOWN_BASELINES[startKey];
+      return { weight: kb.weight, source: `known baseline (${kb.note})` };
     }
 
     // Last resort: first weigh-in during the episode
