@@ -659,7 +659,12 @@
 
     // Auto-rotate injection site
     const shots = loadShots();
-    const sites = ['Abdomen Lower Left', 'Lower Mid'];
+    const sites = [
+      'Abdomen Upper Left', 'Abdomen Upper Right',
+      'Abdomen Lower Left', 'Lower Mid', 'Abdomen Lower Right',
+      'Left Thigh', 'Right Thigh',
+      'Left Upper Arm', 'Right Upper Arm'
+    ];
     if (shots.length) {
       const last    = shots[shots.length - 1];
       const lastIdx = sites.indexOf(last.site);
