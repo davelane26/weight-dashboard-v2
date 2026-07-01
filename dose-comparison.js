@@ -32,10 +32,10 @@
   // When scale data doesn't reach back to the start of a dose phase,
   // we fall back to a manually-verified baseline rather than silently
   // using the first on-dose reading (which misses the pre-scale loss).
-  // Key: ISO date string of the dose's first shot. Value: { weight, note }.
-  // Update this if the actual start date or weight is ever corrected.
+  // Key: dose mg value (number). Value: { weight, note }.
+  // Assumes only one episode per dose level. Update if corrected.
   const KNOWN_BASELINES = {
-    '2026-02-26': { weight: 296.0, note: 'Verified: last weight before 5mg (scale not yet set up)' },
+    5: { weight: 296.0, note: 'Verified: actual start weight on 5mg (scale not set up until Mar 21)' },
   };
 
   // ── Helpers ────────────────────────────────────────────────
@@ -100,7 +100,7 @@
   //   3. FIRST weigh-in DURING the episode (least ideal — absorbs the
   //      early water-weight whoosh — but better than rendering nothing)
   // Returns { weight, source } where source explains the provenance.
-  function findBaseline(startDay, between, allShots, allReadings) {
+  function findBaseline(startDay, between, allShots, allReadings, dose) {
     const w = TU.preChangeBaseline(startDay, allReadings);
     if (w != null) return { weight: w, source: 'pre-shot weigh-in' };
 
@@ -119,9 +119,10 @@
     // didn't exist at the start of the dose (e.g. 5mg started before
     // the Garmin scale was set up). Fires before the last-resort
     // first-on-dose fallback so the manual figure wins cleanly.
-    const startKey = startDay.toISOString().slice(0, 10);
-    if (KNOWN_BASELINES[startKey]) {
-      const kb = KNOWN_BASELINES[startKey];
+    // Known-baseline override: keyed by dose (mg). Catches the case
+    // where scale tracking didn't exist at the start of this dose.
+    if (dose != null && KNOWN_BASELINES[dose]) {
+      const kb = KNOWN_BASELINES[dose];
       return { weight: kb.weight, source: `known baseline (${kb.note})` };
     }
 
@@ -142,7 +143,7 @@
     const dayAfter   = TU.addDays(startDay, 1);
     const between    = TU.readingsBetween(dayAfter, endDay, allReadings);
     const endReading = between.length ? between[between.length - 1] : null;
-    const baseInfo   = findBaseline(startDay, between, allShots, allReadings);
+    const baseInfo   = findBaseline(startDay, between, allShots, allReadings, ep.dose);
     const baseline   = baseInfo.weight;
 
     const days       = (endDay.getTime() - startDay.getTime()) / 86_400_000;
