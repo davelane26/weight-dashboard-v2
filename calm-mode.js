@@ -449,10 +449,11 @@
     document.head.appendChild(s);
   }
 
-  // ── Boot ─────────────────────────────────────────────────────────
+  // -- Boot ---------------------------------------------------------
   function boot() {
     injectCSS();
     let tries = 0;
+    let forcedInitialRerender = false;
     const maxTries = 120;
     const iv = setInterval(() => {
       tries++;
@@ -467,8 +468,22 @@
       const mHooked = hookLatestConsumer('renderMilestones');
       const calHooked = hookLatestConsumer('renderCalories');
       const gHooked = hookLatestConsumer('renderGoal');
+      const allHooked = rHooked && cHooked && kHooked && uHooked && jHooked && mHooked && calHooked && gHooked;
       const ready = haveData();
+
       if (ready) {
+        // FIX FOR HARD-REFRESH RACE: once all hooks are installed AND
+        // we have data, force ONE full renderAll() so every card gets
+        // painted THROUGH the wrapped functions. Without this, the
+        // initial pre-hook renderAll paints raw values that our per-KPI
+        // patches only partially override (KPI weight yes, but Journey/
+        // Milestones/etc keep their raw values from the pre-hook paint).
+        if (allHooked && !forcedInitialRerender && typeof window.renderAll === 'function') {
+          forcedInitialRerender = true;
+          LOG('forcing initial renderAll through hooks (calm:', isCalmOn(), 'sunday:', isSundayOn(), ')');
+          try { window.renderAll(); } catch (e) { LOG('forced renderAll failed:', e); }
+        }
+
         if (isCalmOn()) applyCalm();
         else if (isSundayOn()) {
           applySundayKPI();
@@ -478,7 +493,7 @@
         }
         else updateBadges();
       }
-      if (rHooked && cHooked && kHooked && uHooked && jHooked && mHooked && calHooked && gHooked && ready) {
+      if (allHooked && ready) {
         clearInterval(iv);
         LOG('ready. calm:', isCalmOn(), 'sunday:', isSundayOn(),
             '| readings:', window.allWeightData.length,
