@@ -225,7 +225,30 @@
     return true;
   }
 
-  // ── Master render hook: fires on every renderAll ─────────────────
+  // -- Generic hook for any render(latest, ...) function -----------
+  // Swaps arg[0] (latest) to last Sunday reading when Sunday View is on.
+  // Applies to renderJourney, renderMilestones, renderCalories, renderGoal --
+  // all of which use latest.weight to compute their displays.
+  function hookLatestConsumer(fnName) {
+    if (typeof window[fnName] !== 'function') return false;
+    if (window[fnName].__sundayLatestHooked) return true;
+    const orig = window[fnName];
+    const wrapped = function (latest) {
+      const rest = Array.prototype.slice.call(arguments, 1);
+      if (isSundayOn() && haveData()) {
+        const sundays = sundaysOnly(sortedData());
+        if (sundays.length >= 1) {
+          return orig.apply(this, [sundays[sundays.length - 1]].concat(rest));
+        }
+      }
+      return orig.apply(this, arguments);
+    };
+    wrapped.__sundayLatestHooked = true;
+    window[fnName] = wrapped;
+    return true;
+  }
+
+  // -- Master render hook: fires on every renderAll -----------------
   function hookRenderAll() {
     if (typeof window.renderAll !== 'function') return false;
     if (window.renderAll.__calmHooked) return true;
@@ -416,6 +439,12 @@
       const rHooked = hookRenderAll();
       const cHooked = hookChart();
       const kHooked = hookRenderKPIs();
+      // Hook the other latest-consuming renderers so Sunday View
+      // gives a truly consistent snapshot across the whole home tab.
+      const jHooked = hookLatestConsumer('renderJourney');
+      const mHooked = hookLatestConsumer('renderMilestones');
+      const calHooked = hookLatestConsumer('renderCalories');
+      const gHooked = hookLatestConsumer('renderGoal');
       const ready = haveData();
       if (ready) {
         if (isCalmOn()) applyCalm();
@@ -427,7 +456,7 @@
         }
         else updateBadges();
       }
-      if (rHooked && cHooked && kHooked && ready) {
+      if (rHooked && cHooked && kHooked && jHooked && mHooked && calHooked && gHooked && ready) {
         clearInterval(iv);
         LOG('ready. calm:', isCalmOn(), 'sunday:', isSundayOn(),
             '| readings:', window.allWeightData.length,
