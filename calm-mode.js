@@ -1,21 +1,21 @@
 /* ════════════════════════════════════════════════════════════════════
-   calm-mode.js — Toggle to hide daily raw weight noise
+   calm-mode.js — Toggle to hide daily raw weight noise (v2)
    ────────────────────────────────────────────────────────────────────
    When ACTIVE:
-     • The "Weight" KPI shows the 7-day rolling AVERAGE (not today's raw)
-     • Day-over-day deltas on weight cards are hidden (removes the emotional whiplash)
-     • Snapshot strip shows 7-day avg instead of last reading
-     • Body gets `.calm-mode` class so CSS can dim/hide other noisy chips
-     • "Latest Reading" heading becomes "Smoothed Trend"
+     - The "Weight" KPI shows the 7-day rolling AVERAGE (not today's raw)
+     - Day-over-day deltas on weight cards are replaced with week-over-week
+     - Snapshot strip shows 7-day avg instead of last reading
+     - Body gets `.calm-mode` class so CSS can dim/hide other noise
+     - "Latest Reading" heading becomes "Smoothed Trend (Calm Mode)"
    When INACTIVE: dashboard renders exactly as before.
 
-   State persisted in localStorage['calm_mode']. Cross-device sync is
-   intentionally NOT wired — Calm Mode is a personal comfort setting.
+   State persisted in localStorage['calm_mode'].
    ════════════════════════════════════════════════════════════════════ */
 
 (function () {
   const STORAGE_KEY = 'calm_mode';
   const WINDOW_DAYS = 7;
+  const LOG = (...a) => console.log('[CalmMode]', ...a);
 
   // ── State ────────────────────────────────────────────────────────
   function isOn() {
@@ -26,43 +26,54 @@
   }
 
   // ── Compute rolling averages from window.allWeightData ───────────
-  function rollingAvg(days) {
-    const data = window.allWeightData;
-    if (!Array.isArray(data) || !data.length) return null;
-    // Data is already sorted ascending by app.js; be defensive anyway
-    const sorted = data.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-    const latestDate = new Date(sorted[sorted.length - 1].date);
-    const cutoff = new Date(latestDate.getTime() - days * 86400000);
-    const window = sorted.filter(r => new Date(r.date) > cutoff && typeof r.weight === 'number');
-    if (!window.length) return null;
-    const sum = window.reduce((s, r) => s + r.weight, 0);
-    return { avg: sum / window.length, n: window.length };
+  function toMs(d) {
+    if (d instanceof Date) return d.getTime();
+    if (typeof d === 'number') return d;
+    return new Date(d).getTime();
   }
-
+  function haveData() {
+    return Array.isArray(window.allWeightData) && window.allWeightData.length > 0;
+  }
+  function sortedData() {
+    return window.allWeightData.slice().sort((a, b) => toMs(a.date) - toMs(b.date));
+  }
+  function rollingAvg(days) {
+    if (!haveData()) return null;
+    const s = sortedData();
+    const latestMs = toMs(s[s.length - 1].date);
+    const cutoff = latestMs - days * 86400000;
+    const w = s.filter(r => toMs(r.date) > cutoff && typeof r.weight === 'number');
+    if (!w.length) return null;
+    return { avg: w.reduce((sum, r) => sum + r.weight, 0) / w.length, n: w.length };
+  }
   function weekOverWeek() {
-    const data = window.allWeightData;
-    if (!Array.isArray(data) || data.length < 2) return null;
-    const sorted = data.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-    const latestDate = new Date(sorted[sorted.length - 1].date);
-    const t0 = new Date(latestDate.getTime() - 7 * 86400000);
-    const t1 = new Date(latestDate.getTime() - 14 * 86400000);
-    const wk1 = sorted.filter(r => new Date(r.date) > t0);
-    const wk2 = sorted.filter(r => new Date(r.date) > t1 && new Date(r.date) <= t0);
+    if (!haveData() || window.allWeightData.length < 2) return null;
+    const s = sortedData();
+    const latestMs = toMs(s[s.length - 1].date);
+    const t0 = latestMs - 7 * 86400000;
+    const t1 = latestMs - 14 * 86400000;
+    const wk1 = s.filter(r => toMs(r.date) > t0);
+    const wk2 = s.filter(r => toMs(r.date) > t1 && toMs(r.date) <= t0);
     if (!wk1.length || !wk2.length) return null;
-    const a1 = wk1.reduce((s, r) => s + r.weight, 0) / wk1.length;
-    const a2 = wk2.reduce((s, r) => s + r.weight, 0) / wk2.length;
+    const a1 = wk1.reduce((sum, r) => sum + r.weight, 0) / wk1.length;
+    const a2 = wk2.reduce((sum, r) => sum + r.weight, 0) / wk2.length;
     return { delta: a1 - a2, current: a1 };
   }
 
-  // ── Apply / Unapply the visual override ──────────────────────────
+  // ── Apply / Unapply ──────────────────────────────────────────────
+  let _applying = false;
   function apply() {
+    if (_applying) return;
     if (!isOn()) { unapply(); return; }
+    if (!haveData()) { LOG('no data yet, will retry when app renders'); return; }
+
+    _applying = true;
     document.body.classList.add('calm-mode');
 
     const roll = rollingAvg(WINDOW_DAYS);
     const wow  = weekOverWeek();
 
-    // KPI weight card → show 7-day avg
+    // KPI weight card
     const kpiWeight = document.getElementById('kpi-weight');
     const kpiSub    = document.getElementById('kpi-weight-sub');
     if (kpiWeight && roll) {
@@ -71,7 +82,7 @@
     }
     if (kpiSub) {
       if (wow) {
-        const arrow = wow.delta < 0 ? '▼' : (wow.delta > 0 ? '▲' : '·');
+        const arrow = wow.delta < 0 ? 'down' : (wow.delta > 0 ? 'up' : '');
         const cls   = wow.delta < 0 ? 'calm-good' : (wow.delta > 0 ? 'calm-warn' : '');
         kpiSub.innerHTML = `<span class="${cls}">${arrow} ${Math.abs(wow.delta).toFixed(2)} lbs vs last wk</span>`;
       } else {
@@ -79,22 +90,22 @@
       }
     }
 
-    // Change the Weight card label + unit
+    // Card label + unit rewrite
     const kpiCard = kpiWeight ? kpiWeight.closest('.kpi') : null;
     if (kpiCard) {
       const label = kpiCard.querySelector('.kpi-label');
       const unit  = kpiCard.querySelector('.kpi-unit');
       if (label && !label.dataset.calmOriginal) {
         label.dataset.calmOriginal = label.textContent;
-        label.textContent = ' Weight (7-day avg)';
+        label.textContent = 'Weight (7-day avg)';
       }
       if (unit && !unit.dataset.calmOriginal) {
         unit.dataset.calmOriginal = unit.textContent;
-        unit.textContent = 'lbs — smoothed';
+        unit.textContent = 'lbs - smoothed';
       }
     }
 
-    // Snapshot strip → same treatment
+    // Snapshot strip
     const snapWeight = document.getElementById('snap-weight');
     const snapDelta  = document.getElementById('snap-weight-delta');
     if (snapWeight && roll) {
@@ -103,7 +114,7 @@
     }
     if (snapDelta) snapDelta.textContent = 'avg of last ' + (roll ? roll.n : WINDOW_DAYS) + ' readings';
 
-    // Change section heading
+    // Section heading rewrite
     document.querySelectorAll('.card-title').forEach(h => {
       if (h.textContent.trim() === 'Latest Reading' && !h.dataset.calmOriginal) {
         h.dataset.calmOriginal = h.textContent;
@@ -112,52 +123,54 @@
     });
 
     updateBadge();
+    _applying = false;
+    LOG('applied. 7d avg =', roll && roll.avg.toFixed(2), 'wow delta =', wow && wow.delta.toFixed(2));
   }
 
   function unapply() {
     document.body.classList.remove('calm-mode');
 
-    // Restore original labels
     document.querySelectorAll('[data-calm-original]').forEach(el => {
       el.textContent = el.dataset.calmOriginal;
       delete el.dataset.calmOriginal;
     });
-    // Note: we deliberately DON'T restore #kpi-weight / #snap-weight text —
-    // the next renderKPIs() call will overwrite it with the real latest value.
-    // If Calm was flipped OFF between renders, force a refresh:
-    if (typeof window.renderKPIs === 'function' &&
-        Array.isArray(window.allWeightData) &&
-        window.allWeightData.length) {
-      const sorted = window.allWeightData.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-      const latest = sorted[sorted.length - 1];
-      const prev   = sorted[sorted.length - 2];
-      try { window.renderKPIs(latest, prev); } catch (e) { /* non-fatal */ }
+
+    // Force a re-render so raw values return
+    if (typeof window.renderAll === 'function') {
+      try { window.renderAll(); } catch (e) { LOG('renderAll failed on unapply', e); }
+    } else if (typeof window.renderKPIs === 'function' && haveData()) {
+      const s = sortedData();
+      try { window.renderKPIs(s[s.length - 1], s[s.length - 2] || null); } catch {}
     }
+    document.querySelectorAll('[data-calm-override]').forEach(el => delete el.dataset.calmOverride);
+
     updateBadge();
+    LOG('unapplied');
   }
 
-  // ── Toggle button in the header ──────────────────────────────────
+  // ── Header toggle button ─────────────────────────────────────────
   function ensureButton() {
-    if (document.getElementById('calm-mode-btn')) return;
+    if (document.getElementById('calm-mode-btn')) return true;
     const header = document.querySelector('.header .header-inner');
-    if (!header) return;
+    if (!header) return false;
 
     const btn = document.createElement('button');
     btn.id = 'calm-mode-btn';
     btn.type = 'button';
     btn.setAttribute('aria-pressed', isOn() ? 'true' : 'false');
     btn.setAttribute('aria-label', 'Toggle Calm Mode');
-    btn.title = 'Calm Mode — hide the noisy daily number, show the 7-day average instead';
+    btn.title = 'Calm Mode - hide the noisy daily number, show the 7-day average instead';
     btn.style.cssText =
       'background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);' +
       'border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;' +
-      'cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)';
+      'cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);margin-right:4px';
     btn.addEventListener('click', () => {
       setOn(!isOn());
+      LOG('click toggle -> now', isOn() ? 'ON' : 'OFF');
       isOn() ? apply() : unapply();
+      updateBadge();
     });
 
-    // Insert BEFORE the dark-toggle if present, otherwise append
     const dark = document.getElementById('dark-btn');
     if (dark && dark.parentNode) {
       dark.parentNode.insertBefore(btn, dark);
@@ -165,6 +178,8 @@
       header.appendChild(btn);
     }
     updateBadge();
+    LOG('button injected');
+    return true;
   }
 
   function updateBadge() {
@@ -172,73 +187,77 @@
     if (!btn) return;
     const on = isOn();
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.innerHTML = on ? ' <span>Calm: ON</span>' : ' <span>Calm Mode</span>';
-    btn.style.background = on ? 'rgba(147,197,253,0.35)' : 'rgba(255,255,255,0.15)';
+    btn.textContent = on ? 'Calm: ON' : 'Calm Mode';
+    btn.style.background = on ? 'rgba(147,197,253,0.45)' : 'rgba(255,255,255,0.15)';
+    btn.style.boxShadow  = on ? '0 0 0 2px rgba(147,197,253,0.6)' : 'none';
   }
 
-  // ── Inject a small stylesheet ────────────────────────────────────
+  // ── CSS ──────────────────────────────────────────────────────────
   function injectCSS() {
     if (document.getElementById('calm-mode-styles')) return;
     const s = document.createElement('style');
     s.id = 'calm-mode-styles';
-    s.textContent = `
-      /* Calm Mode: dim daily-noise elements without hiding them entirely */
-      body.calm-mode #kpi-fat-sub,
-      body.calm-mode #kpi-fat-lbs-sub,
-      body.calm-mode #kpi-muscle-sub,
-      body.calm-mode #kpi-muscle-lbs-sub,
-      body.calm-mode #kpi-water-sub,
-      body.calm-mode #kpi-bmi-sub .badge + text { opacity: 0.35; }
-      body.calm-mode .kpi--blue { position: relative; }
-      body.calm-mode .kpi--blue::after {
-        content: ""; position: absolute; top: 6px; right: 8px;
-        font-size: 0.85rem; opacity: 0.55;
-      }
-      .calm-good { color: #10b981; font-weight: 700; }
-      .calm-warn { color: #f59e0b; font-weight: 700; }
-      #calm-mode-btn:hover { filter: brightness(1.15); }
-      #calm-mode-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px rgba(147,197,253,0.55); }
-    `;
+    s.textContent = [
+      'body.calm-mode #kpi-fat-sub,',
+      'body.calm-mode #kpi-fat-lbs-sub,',
+      'body.calm-mode #kpi-muscle-sub,',
+      'body.calm-mode #kpi-muscle-lbs-sub,',
+      'body.calm-mode #kpi-water-sub { opacity: 0.35; }',
+      '.calm-good { color: #10b981; font-weight: 700; }',
+      '.calm-warn { color: #f59e0b; font-weight: 700; }',
+      '#calm-mode-btn:hover { filter: brightness(1.2); }',
+    ].join('\n');
     document.head.appendChild(s);
+    LOG('css injected');
   }
 
-  // ── Keep applied through re-renders (renderKPIs fires often) ─────
-  function watchForReRenders() {
-    const target = document.getElementById('kpi-weight');
-    if (!target) return;
-    const observer = new MutationObserver(() => {
-      if (!isOn()) return;
-      // If the app overwrote our value, re-apply
-      if (target.dataset.calmOverride !== '1' ||
-          target.textContent !== rollingAvgText()) {
-        // debounce a tick so we don't fight the countUp animation
-        clearTimeout(watchForReRenders._t);
-        watchForReRenders._t = setTimeout(apply, 60);
-      }
-    });
-    observer.observe(target, { childList: true, characterData: true, subtree: true });
-  }
-  function rollingAvgText() {
-    const r = rollingAvg(WINDOW_DAYS);
-    return r ? r.avg.toFixed(1) : '';
+  // ── Hook the app's real render cycle ─────────────────────────────
+  function hookRenderAll() {
+    if (typeof window.renderAll !== 'function') return false;
+    if (window.renderAll.__calmHooked) return true;
+    const orig = window.renderAll;
+    const wrapped = function () {
+      const r = orig.apply(this, arguments);
+      if (isOn()) setTimeout(apply, 30);
+      return r;
+    };
+    wrapped.__calmHooked = true;
+    window.renderAll = wrapped;
+    LOG('hooked renderAll');
+    return true;
   }
 
-  // ── Boot ─────────────────────────────────────────────────────────
-  function init() {
+  // ── Poll until app has data + renderAll exists, then hook + apply
+  function boot() {
     injectCSS();
-    ensureButton();
-    // Wait a beat for the app to render KPIs the first time
-    setTimeout(() => { apply(); watchForReRenders(); }, 400);
-    // And re-apply whenever data reloads
-    document.addEventListener('weight-data-loaded', apply);
+    let tries = 0;
+    const maxTries = 120; // 60s at 500ms
+    const iv = setInterval(() => {
+      tries++;
+      ensureButton();
+      const hooked = hookRenderAll();
+      const dataReady = haveData();
+      if (dataReady) {
+        if (isOn()) apply();
+        else updateBadge();
+      }
+      if (hooked && dataReady) {
+        clearInterval(iv);
+        LOG('ready. state:', isOn() ? 'ON' : 'OFF', '| readings:', window.allWeightData.length);
+      }
+      if (tries >= maxTries) {
+        clearInterval(iv);
+        LOG('boot timeout; data=', dataReady, 'renderAll=', typeof window.renderAll);
+      }
+    }, 500);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    init();
+    boot();
   }
 
-  // Expose for debugging
-  window.CalmMode = { apply, unapply, isOn, setOn };
+  // Debug handle
+  window.CalmMode = { apply, unapply, isOn, setOn, rollingAvg, weekOverWeek };
 })();
