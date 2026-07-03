@@ -198,6 +198,33 @@
     return true;
   }
 
+  // ── renderKPIs hook: swap latest/prev to Sunday values ──────────
+  // When Sunday View is on, every body-comp KPI (BMI, fat, muscle,
+  // water, bone, BMR, TDEE) should reflect Sunday's reading, not the
+  // latest weekday reading. Otherwise you get a Frankenstein view:
+  // Sunday weight + Thursday body-fat = confusing and anxiety-inducing.
+  function hookRenderKPIs() {
+    if (typeof window.renderKPIs !== 'function') return false;
+    if (window.renderKPIs.__sundayKpiHooked) return true;
+    const orig = window.renderKPIs;
+    const wrapped = function (latest, prev) {
+      if (isSundayOn() && haveData()) {
+        const sundays = sundaysOnly(sortedData());
+        if (sundays.length >= 1) {
+          const sunLatest = sundays[sundays.length - 1];
+          const sunPrev   = sundays.length > 1 ? sundays[sundays.length - 2] : null;
+          LOG('renderKPIs swapped to Sunday snapshot:', sunLatest.weight,
+              '(prev:', sunPrev ? sunPrev.weight : 'none', ')');
+          return orig.call(this, sunLatest, sunPrev);
+        }
+      }
+      return orig.call(this, latest, prev);
+    };
+    wrapped.__sundayKpiHooked = true;
+    window.renderKPIs = wrapped;
+    return true;
+  }
+
   // ── Master render hook: fires on every renderAll ─────────────────
   function hookRenderAll() {
     if (typeof window.renderAll !== 'function') return false;
@@ -293,17 +320,23 @@
         'Sunday View - chart + KPI show only Sunday readings', () => {
           setFlag(SUNDAY_KEY, !isSundayOn());
           LOG('sunday toggle ->', isSundayOn() ? 'ON' : 'OFF');
-          if (isSundayOn()) {
-            if (isCalmOn()) applyCalm(); else applySundayKPI();
-          } else {
+          if (!isSundayOn()) {
             unapplySundayKPI();
-            if (isCalmOn()) applyCalm();
           }
-          // Force chart to re-render with new filter
-          if (haveData() && typeof window.renderWeightChart === 'function') {
-            try { window.renderWeightChart(sortedData()); } catch (e) { LOG('chart re-render', e); }
+          // Trigger full re-render so renderKPIs picks up Sunday-swap
+          // and chart re-renders through the hooked path
+          if (typeof window.renderAll === 'function') {
+            try { window.renderAll(); } catch (e) { LOG('renderAll on sunday-toggle', e); }
           }
-          updateBadges();
+          // Post-render label tweaks
+          setTimeout(() => {
+            if (isSundayOn()) {
+              if (isCalmOn()) applyCalm(); else applySundayKPI();
+            } else if (isCalmOn()) {
+              applyCalm();
+            }
+            updateBadges();
+          }, 60);
         });
       insertHeader(header, btn);
       injected = true;
@@ -382,6 +415,7 @@
       ensureButtons();
       const rHooked = hookRenderAll();
       const cHooked = hookChart();
+      const kHooked = hookRenderKPIs();
       const ready = haveData();
       if (ready) {
         if (isCalmOn()) applyCalm();
@@ -393,7 +427,7 @@
         }
         else updateBadges();
       }
-      if (rHooked && cHooked && ready) {
+      if (rHooked && cHooked && kHooked && ready) {
         clearInterval(iv);
         LOG('ready. calm:', isCalmOn(), 'sunday:', isSundayOn(),
             '| readings:', window.allWeightData.length,
