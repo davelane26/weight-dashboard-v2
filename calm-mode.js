@@ -248,6 +248,27 @@
     return true;
   }
 
+  // -- updateSnapshot hook: it reads allData directly (no args) and
+  // rewrites snap-weight text on every activity refresh (~30s), which
+  // was clobbering our Sunday override. Re-apply after each call.
+  function hookUpdateSnapshot() {
+    if (typeof window.updateSnapshot !== 'function') return false;
+    if (window.updateSnapshot.__sundayHooked) return true;
+    const orig = window.updateSnapshot;
+    const wrapped = function () {
+      const r = orig.apply(this, arguments);
+      // After the app resets snap-weight to raw latest, re-apply overrides
+      setTimeout(() => {
+        if (isCalmOn()) applyCalm();
+        else if (isSundayOn()) applySundayKPI();
+      }, 10);
+      return r;
+    };
+    wrapped.__sundayHooked = true;
+    window.updateSnapshot = wrapped;
+    return true;
+  }
+
   // -- Master render hook: fires on every renderAll -----------------
   function hookRenderAll() {
     if (typeof window.renderAll !== 'function') return false;
@@ -439,6 +460,7 @@
       const rHooked = hookRenderAll();
       const cHooked = hookChart();
       const kHooked = hookRenderKPIs();
+      const uHooked = hookUpdateSnapshot();
       // Hook the other latest-consuming renderers so Sunday View
       // gives a truly consistent snapshot across the whole home tab.
       const jHooked = hookLatestConsumer('renderJourney');
@@ -456,7 +478,7 @@
         }
         else updateBadges();
       }
-      if (rHooked && cHooked && kHooked && jHooked && mHooked && calHooked && gHooked && ready) {
+      if (rHooked && cHooked && kHooked && uHooked && jHooked && mHooked && calHooked && gHooked && ready) {
         clearInterval(iv);
         LOG('ready. calm:', isCalmOn(), 'sunday:', isSundayOn(),
             '| readings:', window.allWeightData.length,
