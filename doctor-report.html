@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doctor Visit Report - Weight Dashboard v2</title>
+<style>
+  :root {
+    --wm-blue:   #0071DC;
+    --wm-blue-d: #004f9c;
+    --wm-yellow: #FFC220;
+    --ink:       #1a1a1a;
+    --ink-2:     #4a5568;
+    --muted:     #718096;
+    --good:      #10b981;
+    --bad:       #ef4444;
+    --warn:      #f59e0b;
+    --border:    #e2e8f0;
+    --bg:        #f4f6fb;
+    --card:      #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    line-height: 1.5; font-size: 14px;
+  }
+
+  /* ─── Screen layout ─── */
+  .print-controls {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--wm-blue); color: #fff;
+    padding: 0.75rem 1rem;
+    display: flex; align-items: center; gap: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .print-controls button {
+    background: var(--wm-yellow); color: #1a1a1a;
+    border: none; border-radius: 6px;
+    padding: 0.5rem 1.2rem; font-weight: 700; font-size: 0.9rem;
+    cursor: pointer; transition: transform 0.1s;
+  }
+  .print-controls button:hover { transform: translateY(-1px); }
+  .print-controls .spacer { flex: 1; }
+  .print-controls a { color: #fff; text-decoration: none; font-size: 0.85rem; opacity: 0.85; }
+  .print-controls a:hover { opacity: 1; text-decoration: underline; }
+
+  .report {
+    max-width: 8.5in; margin: 1rem auto; background: var(--card);
+    padding: 1in 0.75in; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border-radius: 4px;
+  }
+  .header {
+    border-bottom: 3px solid var(--wm-blue);
+    padding-bottom: 0.75rem; margin-bottom: 1.25rem;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .header h1 { margin: 0; font-size: 1.5rem; color: var(--wm-blue-d); }
+  .header .patient { font-size: 0.95rem; color: var(--ink-2); }
+  .header .meta { text-align: right; font-size: 0.8rem; color: var(--muted); }
+
+  .countdown-banner {
+    background: linear-gradient(135deg, #fff7e0, #fffbeb);
+    border-left: 4px solid var(--wm-yellow);
+    padding: 0.6rem 1rem; margin-bottom: 1.25rem;
+    border-radius: 0 6px 6px 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .countdown-banner strong { color: #92400e; }
+
+  section {
+    margin-bottom: 1.25rem;
+    page-break-inside: avoid;
+  }
+  section h2 {
+    font-size: 1rem; margin: 0 0 0.6rem 0;
+    color: var(--wm-blue-d);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 0.3rem;
+  }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .metric {
+    padding: 0.5rem 0.6rem;
+    background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);
+  }
+  .metric .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .metric .value { font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 0.15rem 0; }
+  .metric .sub   { font-size: 0.75rem; color: var(--ink-2); }
+  .metric .value.good { color: var(--good); }
+  .metric .value.bad  { color: var(--bad); }
+  .metric .value.warn { color: var(--warn); }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 0.85rem;
+    margin-top: 0.3rem;
+  }
+  th, td {
+    text-align: left; padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  th { background: #f8fafc; color: var(--muted); font-weight: 600;
+       font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  .delta-good { color: var(--good); font-weight: 600; }
+  .delta-bad  { color: var(--bad);  font-weight: 600; }
+  .delta-neutral { color: var(--muted); }
+
+  .questions-box {
+    border: 1.5px dashed var(--border); border-radius: 6px;
+    padding: 0.7rem; min-height: 5.5rem;
+    background: repeating-linear-gradient(
+      transparent, transparent 1.6rem,
+      #edf2f7 1.6rem, #edf2f7 1.65rem
+    );
+  }
+  .questions-box .prompt {
+    color: var(--muted); font-size: 0.85rem;
+    margin: 0 0 0.4rem 0; font-style: italic;
+  }
+  .footnote { font-size: 0.75rem; color: var(--muted); margin-top: 0.4rem; }
+  .loading { text-align: center; padding: 3rem; color: var(--muted); }
+
+  /* ─── Print styles ─── */
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .no-print, .print-controls { display: none !important; }
+    .report {
+      max-width: none; width: 100%; margin: 0;
+      padding: 0.5in; box-shadow: none; border-radius: 0;
+    }
+    section { page-break-inside: avoid; }
+    .metric, table { break-inside: avoid; }
+    .header h1 { color: #000; }
+    section h2 { color: #000; }
+    .countdown-banner { border-left-color: #000; background: #f4f4f4; }
+    @page { size: letter; margin: 0.5in; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-controls no-print">
+  <button onclick="window.print()">Print Report</button>
+  <span style="font-size:0.85rem;opacity:0.9">Ctrl+P also works</span>
+  <div class="spacer"></div>
+  <a href="./index.html">&larr; Back to Dashboard</a>
+</div>
+
+<div class="report" id="report-root">
+  <div class="loading">Loading data&hellip; sign in if prompted.</div>
+</div>
+
+<!-- Firebase auth (module) - handles sign-in flow -->
+<script type="module" src="./auth.js"></script>
+
+<!-- Report renderer -->
+<script>
+  const DATA_URL   = 'https://davelane26.github.io/Weight-tracker/data.json';
+  const FIREBASE   = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
+  const DOCTOR_DATE     = new Date('2026-08-10T09:00:00');
+  const TITRATION_DATES = { '2.5mg':'2025-11-01','5mg':'2026-02-26','7.5mg':'2026-05-21' };
+  const KNOWN_BASELINES = { '5mg':296.0, '7.5mg':269.4 };  // Rylo's canonical baselines
+  const START_WEIGHT    = 315.0;
+  const GOAL_WEIGHT     = 220.0;
+
+  // ── Wait for Firebase auth ─────────────────────────────────
+  window._authReady = new Promise(res => { window._resolveAuthReady = res; });
+
+  // ── Fetch helpers ──────────────────────────────────────────
+  async function loadWeightData() {
+    // Public URL - no auth needed
+    const r = await fetch(DATA_URL + '?t=' + Date.now());
+    if (!r.ok) throw new Error('Weight data fetch failed');
+    const data = await r.json();
+    data.forEach(row => { row.dt = new Date(row.date); });
+    data.sort((a,b) => a.dt - b.dt);
+    return data;
+  }
+  async function loadFirebaseNode(path) {
+    const user = await window._authReady;
+    if (!user) return null;
+    const token = await user.getIdToken();
+    const r = await fetch(`${FIREBASE}${path}?auth=${token}`);
+    if (!r.ok) return null;
+    return r.json();
+  }
+
+  // ── Math ───────────────────────────────────────────────────
+  function linreg(points) {
+    // points: [{x:daysFromT0, y:weight}]
+    if (points.length < 2) return null;
+    const n = points.length;
+    const mx = points.reduce((s,p)=>s+p.x,0) / n;
+    const my = points.reduce((s,p)=>s+p.y,0) / n;
+    const num = points.reduce((s,p) => s + (p.x-mx)*(p.y-my), 0);
+    const den = points.reduce((s,p) => s + (p.x-mx)**2, 0);
+    if (den === 0) return null;
+    const slope = num / den;
+    const intercept = my - slope * mx;
+    // residual std error
+    let ssRes = 0;
+    for (const p of points) {
+      const yhat = intercept + slope * p.x;
+      ssRes += (p.y - yhat) ** 2;
+    }
+    const seSlope = n > 2 ? Math.sqrt(ssRes / (n-2) / den) : null;
+    return { slope, intercept, seSlope, n };
+  }
+  function fmtDate(d) {
+    return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+  }
+  function fmtDelta(v, unit='', reverse=false) {
+    if (v == null || isNaN(v)) return '—';
+    const sign = v > 0 ? '+' : '';
+    const good = reverse ? v < 0 : v > 0;
+    const cls = v === 0 ? 'delta-neutral' : (good ? 'delta-good' : 'delta-bad');
+    return `<span class="${cls}">${sign}${v.toFixed(2)}${unit}</span>`;
+  }
+  function daysUntil(d) {
+    return Math.ceil((d - new Date()) / 86400000);
+  }
+  function findNearest(data, targetDate, windowDays=7) {
+    // Find reading closest to target date within window
+    let best = null, bestDiff = Infinity;
+    for (const r of data) {
+      const diff = Math.abs(r.dt - targetDate);
+      if (diff < bestDiff && diff <= windowDays * 86400000) {
+        best = r; bestDiff = diff;
+      }
+    }
+    return best;
+  }
+
+  // ── Render sections ────────────────────────────────────────
+  function renderHeader() {
+    const today = new Date();
+    const days = daysUntil(DOCTOR_DATE);
+    return `
+      <div class="header">
+        <div>
+          <h1>Doctor Visit Report</h1>
+          <div class="patient">David Lane &middot; GLP-1 (Tirzepatide) 7.5mg</div>
+        </div>
+        <div class="meta">
+          Generated ${fmtDate(today)}<br>
+          For visit ${fmtDate(DOCTOR_DATE)}
+        </div>
+      </div>
+      <div class="countdown-banner">
+        <div><strong>Doctor visit:</strong> ${fmtDate(DOCTOR_DATE)}</div>
+        <div><strong>${days > 0 ? days + ' days away' : days === 0 ? 'TODAY' : Math.abs(days) + ' days ago'}</strong></div>
+      </div>
+    `;
+  }
+
+  function renderCurrentState(data) {
+    const latest = data[data.length - 1];
+    const totalLost = START_WEIGHT - latest.weight;
+    const journeyPct = (totalLost / (START_WEIGHT - GOAL_WEIGHT)) * 100;
+    const toGoal = latest.weight - GOAL_WEIGHT;
+    return `
+      <section>
+        <h2>Current State</h2>
+        <div class="grid">
+          <div class="metric">
+            <div class="label">Current Weight</div>
+            <div class="value">${latest.weight.toFixed(1)} lbs</div>
+            <div class="sub">as of ${fmtDate(latest.dt)}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Total Lost</div>
+            <div class="value good">${totalLost.toFixed(1)} lbs</div>
+            <div class="sub">from ${START_WEIGHT} lb start</div>
+          </div>
+          <div class="metric">
+            <div class="label">Journey Progress</div>
+            <div class="value">${journeyPct.toFixed(1)}%</div>
+            <div class="sub">of ${START_WEIGHT}→${GOAL_WEIGHT} lb path</div>
+          </div>
+          <div class="metric">
+            <div class="label">To Goal (${GOAL_WEIGHT})</div>
+            <div class="value">${toGoal.toFixed(1)} lbs</div>
+            <div class="sub">remaining</div>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTitrationAnalysis(data) {
+    const startDate = new Date(TITRATION_DATES['7.5mg']);
+    const baseline  = KNOWN_BASELINES['7.5mg'];
+    const era = data.filter(r => r.dt >= startDate);
+    if (era.length < 2) {
+      return `<section><h2>7.5mg Era Analysis</h2><p>Not enough data yet.</p></section>`;
+    }
+    const t0 = era[0].dt;
+    const points = era.map(r => ({ x: (r.dt - t0) / 86400000, y: r.weight }));
+    const reg = linreg(points);
+    const latest = era[era.length - 1];
+    const daysOn = Math.round((latest.dt - startDate) / 86400000);
+    const weeksOn = (daysOn / 7).toFixed(1);
+    const lossOnDose = baseline - latest.weight;
+    const slopeWk = reg ? reg.slope * 7 : null;
+    const ci95 = reg && reg.seSlope ? 1.96 * reg.seSlope * 7 : null;
+    const rateStr = slopeWk != null
+      ? `${slopeWk >= 0 ? '+' : ''}${slopeWk.toFixed(2)} lbs/wk`
+      : '—';
+    const ciStr = ci95 != null
+      ? `95% CI: ${(slopeWk - ci95).toFixed(2)} to ${(slopeWk + ci95).toFixed(2)} lbs/wk`
+      : `insufficient data for CI`;
+
+    // Weeks-to-goal projection
+    const wksToGoal = slopeWk && slopeWk < 0
+      ? Math.round((latest.weight - GOAL_WEIGHT) / -slopeWk)
+      : null;
+    const projDate = wksToGoal
+      ? new Date(latest.dt.getTime() + wksToGoal * 7 * 86400000)
+      : null;
+
+    return `
+      <section>
+        <h2>7.5mg Titration Analysis</h2>
+        <div class="grid">
+          <div class="metric">
+            <div class="label">Started 7.5mg</div>
+            <div class="value">${fmtDate(startDate)}</div>
+            <div class="sub">${weeksOn} weeks on dose</div>
+          </div>
+          <div class="metric">
+            <div class="label">Baseline</div>
+            <div class="value">${baseline.toFixed(1)} lbs</div>
+            <div class="sub">day of first shot</div>
+          </div>
+          <div class="metric">
+            <div class="label">Lost on 7.5mg</div>
+            <div class="value ${lossOnDose > 0 ? 'good' : 'bad'}">${lossOnDose >= 0 ? '-' : '+'}${Math.abs(lossOnDose).toFixed(1)} lbs</div>
+            <div class="sub">baseline &minus; today</div>
+          </div>
+          <div class="metric">
+            <div class="label">Loss Rate</div>
+            <div class="value ${slopeWk < 0 ? 'good' : 'bad'}">${rateStr}</div>
+            <div class="sub">${ciStr}</div>
+          </div>
+        </div>
+        ${wksToGoal ? `
+          <p class="footnote">
+            <strong>Projected to goal:</strong> at current 7.5mg pace,
+            reaching ${GOAL_WEIGHT} lbs would take approximately
+            <strong>${wksToGoal} more weeks</strong>
+            (~${fmtDate(projDate)}).
+            Actual timing depends on plateau patterns, titration decisions, and life events.
+          </p>` : ''}
+      </section>
+    `;
+  }
+
+  function renderSundayTrend(data) {
+    // Get last 8 Sundays worth of data
+    const sundays = data.filter(r => r.dt.getDay() === 0);
+    const last8 = sundays.slice(-8);
+    if (last8.length < 2) {
+      return `<section><h2>Sunday-over-Sunday Trend (last 8 weeks)</h2><p>Not enough Sunday readings.</p></section>`;
+    }
+    const rows = last8.map((r, i) => {
+      const prev = i > 0 ? last8[i-1] : null;
+      const delta = prev ? r.weight - prev.weight : null;
+      return `
+        <tr>
+          <td>${fmtDate(r.dt)}</td>
+          <td class="num">${r.weight.toFixed(1)}</td>
+          <td class="num">${delta != null ? fmtDelta(delta, ' lbs', true) : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+    const first = last8[0].weight;
+    const last  = last8[last8.length-1].weight;
+    const totalDelta = last - first;
+    const weekSpan = (last8[last8.length-1].dt - last8[0].dt) / (7 * 86400000);
+    const avgRate = totalDelta / weekSpan;
+    return `
+      <section>
+        <h2>Sunday-over-Sunday Trend (last ${last8.length} Sundays)</h2>
+        <table>
+          <thead><tr><th>Sunday</th><th class="num">Weight (lbs)</th><th class="num">WoW &Delta;</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr style="background:#f8fafc;font-weight:600">
+              <td>Overall (${weekSpan.toFixed(1)} wk span)</td>
+              <td class="num">${totalDelta >= 0 ? '+' : ''}${totalDelta.toFixed(1)} lbs</td>
+              <td class="num">${avgRate.toFixed(2)} lbs/wk avg</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p class="footnote">
+          Sunday readings are the least noisy (fasted overnight, minimal recent food/salt).
+          Doctor-visit day (Aug 10) is a Monday - fasting morning weigh will be comparable.
+        </p>
+      </section>
+    `;
+  }
+
+  function renderBodyComp(data) {
+    const startDate = new Date(TITRATION_DATES['7.5mg']);
+    const near75    = findNearest(data, startDate, 14);
+    const latest    = data[data.length - 1];
+    if (!near75 || !latest) return '';
+    const fields = [
+      { key:'weight',  label:'Weight (lbs)',  digits:1, reverse:true },
+      { key:'bmi',     label:'BMI',           digits:2, reverse:true },
+      { key:'bodyFat', label:'Body Fat (%)',  digits:1, reverse:true },
+      { key:'muscle',  label:'Muscle (%)',    digits:1, reverse:false },
+      { key:'water',   label:'Water (%)',     digits:1, reverse:false },
+      { key:'bmr',     label:'BMR (kcal)',    digits:0, reverse:false },
+    ];
+    const rows = fields.map(f => {
+      const a = near75[f.key], b = latest[f.key];
+      if (a == null || b == null) return '';
+      const d = b - a;
+      return `
+        <tr>
+          <td>${f.label}</td>
+          <td class="num">${a.toFixed(f.digits)}</td>
+          <td class="num">${b.toFixed(f.digits)}</td>
+          <td class="num">${fmtDelta(d, '', f.reverse)}</td>
+        </tr>`;
+    }).join('');
+    return `
+      <section>
+        <h2>Body Composition Changes on 7.5mg</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th class="num">${fmtDate(near75.dt)}<br><span style="color:var(--muted);font-weight:400">(start of 7.5mg)</span></th>
+              <th class="num">${fmtDate(latest.dt)}<br><span style="color:var(--muted);font-weight:400">(today)</span></th>
+              <th class="num">&Delta;</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="footnote">
+          Body composition from openScale (impedance-based) - directional indicator, not lab-grade.
+          Green = favorable change for weight-loss goals.
+        </p>
+      </section>
+    `;
+  }
+
+  function renderEvents(events) {
+    const startDate = new Date(TITRATION_DATES['7.5mg']);
+    const relevant = (events || []).filter(e => {
+      const end = new Date(e.end || e.start);
+      return end >= startDate;
+    }).sort((a,b) => new Date(a.start) - new Date(b.start));
+    if (relevant.length === 0) {
+      return `
+        <section>
+          <h2>Flagged Context Events (since 7.5mg started)</h2>
+          <p class="footnote" style="font-style:italic">No off-protocol events logged during this period.</p>
+        </section>
+      `;
+    }
+    const rows = relevant.map(e => {
+      const start = new Date(e.start);
+      const end   = e.end ? new Date(e.end) : null;
+      const range = end && end > start
+        ? `${fmtDate(start)} - ${fmtDate(end)}`
+        : fmtDate(start);
+      return `
+        <tr>
+          <td>${range}</td>
+          <td>${(e.type || 'other').replace(/^./, c => c.toUpperCase())}</td>
+          <td>${e.note ? e.note.replace(/[<>]/g,'') : ''}</td>
+        </tr>
+      `;
+    }).join('');
+    return `
+      <section>
+        <h2>Flagged Context Events (since 7.5mg started)</h2>
+        <table>
+          <thead><tr><th>Dates</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="footnote">
+          Events logged manually to distinguish behavioral plateaus from pharmacological ones.
+        </p>
+      </section>
+    `;
+  }
+
+  function renderShotLog(shots) {
+    const startDate = new Date(TITRATION_DATES['7.5mg']);
+    const era = (shots || []).filter(s => new Date(s.date) >= startDate);
+    if (era.length === 0) {
+      return `<section><h2>7.5mg Shot Log</h2><p class="footnote" style="font-style:italic">No shots logged since 7.5mg titration.</p></section>`;
+    }
+    era.sort((a,b) => new Date(a.date) - new Date(b.date));
+    const rows = era.map((s, i) => {
+      const d = new Date(s.date);
+      const prev = i > 0 ? new Date(era[i-1].date) : null;
+      const gap = prev ? Math.round((d - prev) / 86400000) : null;
+      return `
+        <tr>
+          <td>${fmtDate(d)}</td>
+          <td>${d.toLocaleDateString('en-US',{weekday:'short'})}</td>
+          <td class="num">${s.weight != null ? s.weight.toFixed(1) : '—'}</td>
+          <td>${s.site || '—'}</td>
+          <td class="num">${gap != null ? gap + ' days' : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+    return `
+      <section>
+        <h2>7.5mg Shot Log</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Day</th><th class="num">Weight</th><th>Site</th><th class="num">Gap</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  function renderQuestions() {
+    return `
+      <section>
+        <h2>Questions / Notes for Doctor</h2>
+        <div class="questions-box">
+          <p class="prompt">Write below during / after appointment&hellip;</p>
+        </div>
+      </section>
+    `;
+  }
+
+  // ── Main render pipeline ───────────────────────────────────
+  async function render() {
+    try {
+      const weightData = await loadWeightData();
+      // Firebase data is best-effort - report still renders if not signed in
+      let events = null, shots = null;
+      try {
+        events = await loadFirebaseNode('/medication/events.json');
+        shots  = await loadFirebaseNode('/medication/shots.json');
+        // Firebase stores as {id: {...}} for shots - flatten
+        if (shots && !Array.isArray(shots)) shots = Object.values(shots);
+        if (events && !Array.isArray(events)) events = Object.values(events);
+      } catch (e) { console.warn('Firebase load failed (report still works):', e); }
+
+      document.getElementById('report-root').innerHTML =
+        renderHeader() +
+        renderCurrentState(weightData) +
+        renderTitrationAnalysis(weightData) +
+        renderSundayTrend(weightData) +
+        renderBodyComp(weightData) +
+        renderEvents(events) +
+        renderShotLog(shots) +
+        renderQuestions();
+    } catch (e) {
+      document.getElementById('report-root').innerHTML =
+        `<div class="loading" style="color:var(--bad)">Failed to load: ${e.message}</div>`;
+      console.error(e);
+    }
+  }
+
+  // Wait for auth (or 3s timeout so unsigned-in users still see the report)
+  Promise.race([
+    window._authReady,
+    new Promise(r => setTimeout(() => r(null), 3000)),
+  ]).then(render);
+</script>
+
+</body>
+</html>
