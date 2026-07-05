@@ -949,7 +949,25 @@ main {
 }
 
 /* ── Daily snapshot strip ────────────────────────────────────────────── */
-.snapshot-strip { margin-bottom: 1rem; }
+/* Sticky, like the tab bar: pins right below .tab-nav so the daily
+   snapshot stays visible while scrolling the rest of the Weight tab.
+   --tab-nav-h is kept in sync with the real tab bar height by app-tabs.js. */
+.snapshot-strip {
+  margin-bottom: 1rem;
+  position: sticky;
+  top: var(--tab-nav-h, 42px);
+  z-index: 30;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 0.6rem 0 0.75rem;
+  box-shadow: 0 6px 16px -8px rgba(0,53,226,0.18);
+}
+@media (max-width: 640px) {
+  /* .tab-nav is hidden on mobile (bottom tab bar takes over), so the
+     snapshot strip sticks to the very top of the viewport instead. */
+  .snapshot-strip { top: 0; }
+}
 .snap-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

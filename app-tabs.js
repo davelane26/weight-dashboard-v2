@@ -24,6 +24,26 @@ function syncActivityUI() {
 }
 window.setActivityLevel = setActivityLevel;
 
+// ── Sticky snapshot header offset ─────────────────────────────────────
+// Keeps --tab-nav-h in sync with the real .tab-nav height so the Weight
+// tab's snapshot strip (style.css .snapshot-strip) sticks flush below it
+// instead of relying on a hardcoded pixel guess.
+(function initStickyHeaderOffset() {
+  const nav = document.querySelector('.tab-nav');
+  if (!nav) return;
+  const root = document.documentElement;
+  const sync = () => {
+    const h = nav.getBoundingClientRect().height;
+    if (h) root.style.setProperty('--tab-nav-h', h + 'px');
+  };
+  sync();
+  if (window.ResizeObserver) {
+    new ResizeObserver(sync).observe(nav);
+  } else {
+    window.addEventListener('resize', sync);
+  }
+})();
+
 // ── Tab switching ────────────────────────────────────────────────────
 function switchTab(name) {
   TABS.forEach(t => {
