@@ -111,7 +111,9 @@ main, header, #status-bar { position: relative; z-index: 1; }
   background-size: 300% 300%;
   animation: headerShift 12s ease infinite;
   box-shadow: 0 4px 32px rgba(0,53,226,0.35);
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 50;
   overflow: hidden;
 }
 
@@ -846,7 +848,9 @@ main {
   padding: 0.5rem 1rem 0;
   background: var(--blue-100);
   position: sticky;
-  top: 0;
+  /* Sits right below the sticky header — --header-h is kept in sync
+     with the header's real height by app-tabs.js. */
+  top: var(--header-h, 97px);
   z-index: 40;
   /* Mobile overflow: scroll instead of squish */
   overflow-x: auto;
@@ -949,13 +953,14 @@ main {
 }
 
 /* ── Daily snapshot strip ────────────────────────────────────────────── */
-/* Sticky, like the tab bar: pins right below .tab-nav so the daily
-   snapshot stays visible while scrolling the rest of the Weight tab.
-   --tab-nav-h is kept in sync with the real tab bar height by app-tabs.js. */
+/* Sticky, like the header + tab bar above it: pins right below both so
+   the daily snapshot stays visible while scrolling the rest of the
+   Weight tab. --header-h / --tab-nav-h are kept in sync with their real
+   heights by app-tabs.js. */
 .snapshot-strip {
   margin-bottom: 1rem;
   position: sticky;
-  top: var(--tab-nav-h, 42px);
+  top: calc(var(--header-h, 97px) + var(--tab-nav-h, 42px));
   z-index: 30;
   background: var(--card-bg);
   backdrop-filter: blur(10px);
@@ -965,8 +970,8 @@ main {
 }
 @media (max-width: 640px) {
   /* .tab-nav is hidden on mobile (bottom tab bar takes over), so the
-     snapshot strip sticks to the very top of the viewport instead. */
-  .snapshot-strip { top: 0; }
+     snapshot strip sticks right below the sticky header instead. */
+  .snapshot-strip { top: var(--header-h, 97px); }
 }
 .snap-grid {
   display: grid;
