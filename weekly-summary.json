@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-06-29T18:37:04.540324+00:00",
-  "week_ending": "2026-06-29",
-  "summary": "David, what a week you've had! You've now lost 60.8 pounds from your starting weight\u2014that's a major milestone and a testament to your commitment with Mounjaro and consistent logging. Your recent pace of 3.1 pounds per week over the last two weeks shows real momentum, and hitting 254.2 pounds means you're well into your journey with measurable progress. Next week, let's focus on keeping that logging streak going strong since you've captured 12 days so far\u2014consistency with your Dexcom and Garmin data is what's fueling these results. You're doing the work that matters most, and your body is responding beautifully.",
+  "generated_at": "2026-07-05T14:42:00.620323+00:00",
+  "week_ending": "2026-07-05",
+  "summary": "Hey David, what a week! You're down 3.9 pounds over the past two weeks and maintaining a solid 1.95 lbs per week loss rate\u2014that's exactly the kind of sustainable progress that sticks. You've now shed 59 pounds total from your starting point, which is a massive milestone and real proof that your Mounjaro and tracking routine are working together. I noticed you logged 11 days this period, so let's aim to capture those last few days next week\u2014complete logging helps you spot patterns and keeps momentum going. You're doing the hard work consistently, and your body is responding. Keep going.",
   "stats": {
-    "days_with_readings": 12,
-    "latest_weight": 254.2,
-    "total_lost_from_start": 60.8,
-    "change_last_14d": -6.2,
-    "rate_lbs_per_week": 3.1,
-    "avg_weight": 258.9
+    "days_with_readings": 11,
+    "latest_weight": 256.0,
+    "total_lost_from_start": 59.0,
+    "change_last_14d": -3.9,
+    "rate_lbs_per_week": 1.95,
+    "avg_weight": 257.5
   }
 }
