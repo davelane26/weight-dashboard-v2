@@ -78,6 +78,9 @@
 #root.dark .insight-label     { color: var(--text-sub); }
 #root.dark .insight-val       { color: var(--text); }
 #root.dark .insight-row       { background: #1c2130; border-color: #21262d; color: var(--text); }
+#root.dark .qa-example        { background: #1c2130; border-color: #30363d; color: var(--text-sub); }
+#root.dark .qa-input          { background: var(--input-bg); border-color: var(--input-border); color: var(--text); }
+#root.dark .qa-answer         { background: #1c2130; border-color: #21262d; color: var(--text); }
 #root.dark .insight-row:hover { background: #21262d; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1028,6 +1031,49 @@ main {
   box-shadow: var(--shadow-sm);
 }
 .insight-row:last-child { margin-bottom: 0; }
+
+/* ── Ask About Your Journey (deterministic Q&A) ─────────────────────── */
+.qa-examples { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+.qa-example {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--gray-10);
+  color: var(--text-sub);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.qa-example:hover { background: var(--card-bg); color: var(--text); border-color: var(--blue-100); }
+.qa-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.qa-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--gray-50);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.qa-input:focus { border-color: var(--blue-100); box-shadow: 0 0 0 3px rgba(0,83,226,0.12); }
+.qa-answer {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.875rem;
+  border-radius: 0.75rem;
+  background: var(--gray-10);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text);
+  display: none;
+}
+.qa-answer.qa-answer--visible { display: block; }
+@media (max-width: 480px) {
+  .qa-form { flex-direction: column; align-items: stretch; }
+}
 .insight-dot {
   width: 10px; height: 10px;
   border-radius: 50%;

@@ -41,6 +41,7 @@
 <script src="app-goal.js?v=1"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
 <script src="app.js?v=101"        defer></script>
+<script src="weight-qa.js?v=1"    defer></script>
   <script src="heatmap.js?v=1" defer></script>
   <!-- Eagerly loaded: these render into the default Weight tab + header button. -->
   <script src="healthscore.js?v=1" defer></script>
@@ -414,6 +415,27 @@
       <p id="insights-empty" style="font-size:0.8rem;color:#6d7a95">
         Not enough data yet to detect patterns.
       </p>
+    </section>
+
+    <section class="card fade-in" aria-label="Ask about your journey" id="qa-section">
+      <h2 class="card-title">💬 Ask About Your Journey</h2>
+      <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
+        Computed directly from your logged data — try one of these or type your own.
+      </p>
+      <div class="qa-examples" id="qa-examples">
+        <button type="button" class="qa-example">average weight loss last 2 weeks</button>
+        <button type="button" class="qa-example">how much have I lost total</button>
+        <button type="button" class="qa-example">what's my current BMI</button>
+        <button type="button" class="qa-example">days until goal</button>
+        <button type="button" class="qa-example">what's my weigh-in streak</button>
+        <button type="button" class="qa-example">lowest weight so far</button>
+      </div>
+      <form id="qa-form" class="qa-form">
+        <input type="text" id="qa-input" class="qa-input" autocomplete="off"
+               placeholder="Ask a question about your weight data…" aria-label="Ask a question about your weight data" />
+        <button type="submit" id="qa-ask-btn" class="btn-primary">Ask</button>
+      </form>
+      <div id="qa-answer" class="qa-answer" role="status" aria-live="polite"></div>
     </section>
 
   </div><!-- /tab-weight -->
