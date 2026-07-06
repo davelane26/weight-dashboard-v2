@@ -24,6 +24,37 @@ function syncActivityUI() {
 }
 window.setActivityLevel = setActivityLevel;
 
+// ── Sticky header offsets ──────────────────────────────────────────────
+// Keeps --header-h / --tab-nav-h in sync with the real header and tab
+// bar heights so the header, tab bar, and the Weight tab's snapshot
+// strip (style.css .header / .tab-nav / .snapshot-strip) stack flush
+// against each other when pinned, instead of relying on hardcoded
+// pixel guesses.
+(function initStickyHeaderOffsets() {
+  const header = document.querySelector('.header');
+  const nav = document.querySelector('.tab-nav');
+  if (!header && !nav) return;
+  const root = document.documentElement;
+  const sync = () => {
+    if (header) {
+      const h = header.getBoundingClientRect().height;
+      if (h) root.style.setProperty('--header-h', h + 'px');
+    }
+    if (nav) {
+      const h = nav.getBoundingClientRect().height;
+      if (h) root.style.setProperty('--tab-nav-h', h + 'px');
+    }
+  };
+  sync();
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(sync);
+    if (header) ro.observe(header);
+    if (nav) ro.observe(nav);
+  } else {
+    window.addEventListener('resize', sync);
+  }
+})();
+
 // ── Tab switching ────────────────────────────────────────────────────
 function switchTab(name) {
   TABS.forEach(t => {
