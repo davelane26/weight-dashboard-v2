@@ -566,12 +566,18 @@
     <!-- Context Events Card -->
     <section class="card fade-in" aria-label="Context events"
       style="margin-top:1.25rem;border-top:3px solid #f59f00">
-      <h2 class="card-title">&#128221; Context Events</h2>
-      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
-        Flag travel, illness, off-protocol eating, etc. so the readiness widget can interpret your trend with real-life context — not mistake a behavioral plateau for a pharmacological one. Bands also appear on the main weight chart.
-      </p>
-      <div id="events-card-body">
-        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      <button class="collapse-toggle" onclick="toggleContextEvents()"
+        aria-expanded="true" id="events-toggle">
+        <span>&#128221; Context Events</span>
+        <span class="collapse-chevron" id="events-chevron">▲</span>
+      </button>
+      <div id="events-content">
+        <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+          Flag travel, illness, off-protocol eating, etc. so the readiness widget can interpret your trend with real-life context — not mistake a behavioral plateau for a pharmacological one. Bands also appear on the main weight chart.
+        </p>
+        <div id="events-card-body">
+          <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+        </div>
       </div>
     </section>
 
