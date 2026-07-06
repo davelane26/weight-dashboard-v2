@@ -343,3 +343,14 @@
     }
   });
 })();
+
+// ── Collapse toggle (global — matches toggleMilestones/toggleBMI pattern) ──
+function toggleContextEvents() {
+  const content = document.getElementById('events-content');
+  const chevron = document.getElementById('events-chevron');
+  const toggle  = document.getElementById('events-toggle');
+  const isOpen  = toggle.getAttribute('aria-expanded') === 'true';
+  content.style.display = isOpen ? 'none' : '';
+  toggle.setAttribute('aria-expanded', !isOpen);
+  chevron.classList.toggle('closed', isOpen);
+}
