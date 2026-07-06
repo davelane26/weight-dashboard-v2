@@ -27,6 +27,8 @@
   function extractPeriodDays(q) {
     let m = q.match(/(?:last|past|previous)\s+(\d+)\s*(day|days|week|weeks|month|months)/);
     if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
+    m = q.match(/\b(?:last|past|previous)\s+(day|week|month)\b/);
+    if (m) return UNIT_DAYS[m[1]];
     m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)\s+ago/);
     if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
     m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)/);
@@ -38,9 +40,9 @@
   }
 
   function periodLabel(days) {
-    if (days >= 30 && days % 30 === 0) { const n = days / 30; return `${n} month${n === 1 ? '' : 's'}`; }
-    if (days >= 7  && days % 7  === 0) { const n = days / 7;  return `${n} week${n === 1 ? '' : 's'}`;  }
-    return `${days} day${days === 1 ? '' : 's'}`;
+    if (days >= 30 && days % 30 === 0) { const n = days / 30; return n === 1 ? 'month' : `${n} months`; }
+    if (days >= 7  && days % 7  === 0) { const n = days / 7;  return n === 1 ? 'week'  : `${n} weeks`;  }
+    return days === 1 ? 'day' : `${days} days`;
   }
 
   const fmt2   = n => (+n).toFixed(1);
