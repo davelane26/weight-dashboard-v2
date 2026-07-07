@@ -39,6 +39,13 @@
     return null;
   }
 
+  // A weight mentioned as a hypothetical target — "at 220lbs", "hit 220",
+  // "reach 220 lbs" — as opposed to the user's saved goalWeight.
+  function extractTargetWeight(q) {
+    const m = q.match(/(?:\bat\s+|\bto\s+|\bhits?\s+|\breach(?:ing|es)?\s+|\bget(?:s|ting)?\s+to\s+|\bweigh(?:s|ing)?\s+)(\d{2,3}(?:\.\d+)?)\s*(?:lbs?|pounds?)?\b/);
+    return m ? parseFloat(m[1]) : null;
+  }
+
   function periodLabel(days) {
     if (days >= 30 && days % 30 === 0) { const n = days / 30; return n === 1 ? 'month' : `${n} months`; }
     if (days >= 7  && days % 7  === 0) { const n = days / 7;  return n === 1 ? 'week'  : `${n} weeks`;  }
@@ -123,6 +130,20 @@
          + `${Math.round(daysLeft)} days away — around ${fmtDate(projDate)}.`;
   }
 
+  // Hypothetical: "what % of my body weight will I have lost at 220 lbs" —
+  // uses START_WEIGHT, not the user's saved goalWeight, since the target
+  // here comes straight from the question text.
+  function answerAtTargetWeight(target) {
+    const change = START_WEIGHT - target; // positive = loss
+    if (change < 0) {
+      return `${fmt2(target)} lbs is above your starting weight of ${fmt2(START_WEIGHT)} lbs, `
+           + `so that would be a gain, not a loss.`;
+    }
+    const pct = (change / START_WEIGHT) * 100;
+    return `At ${fmt2(target)} lbs you'll have lost ${fmtLbs(change)} total — `
+         + `${pct.toFixed(1)}% of your starting body weight of ${fmt2(START_WEIGHT)} lbs.`;
+  }
+
   function answerCurrentMetric(field, label, unit) {
     const latest = latestRecord();
     if (!latest || latest[field] == null) return `No ${label} reading on file yet.`;
@@ -167,6 +188,11 @@
     if (/(how (long|many days)|days).*(tracking|journey|been (going|on this))/.test(q)) return answerDaysTracking();
 
     if (/(goal|target)/.test(q) && /(day|when|eta|left|remaining|how (much|many))/.test(q)) return answerGoal();
+
+    const targetWeight = extractTargetWeight(q);
+    if (targetWeight != null && /(lost|lose|losing|percent|percentage|%)/.test(q)) {
+      return answerAtTargetWeight(targetWeight);
+    }
 
     for (const m of METRICS) {
       if (m.keys.some(k => q.includes(k))) return answerCurrentMetric(m.field, m.label, m.unit);
