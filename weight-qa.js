@@ -7,6 +7,7 @@
   'use strict';
 
   const UNIT_DAYS = { day: 1, days: 1, week: 7, weeks: 7, month: 30, months: 30 };
+  const WEEKDAYS  = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   function latestRecord() {
     return allData.length ? allData[allData.length - 1] : null;
@@ -29,6 +30,16 @@
     if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
     m = q.match(/\b(?:last|past|previous)\s+(day|week|month)\b/);
     if (m) return UNIT_DAYS[m[1]];
+    m = q.match(/\b(?:since\s+)?(?:last\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+    if (m) {
+      const latest = latestRecord();
+      if (latest) {
+        const targetDow = WEEKDAYS.indexOf(m[1]);
+        let offset = (latest.date.getDay() - targetDow + 7) % 7;
+        if (offset === 0) offset = 7; // "last Wednesday" when latest reading IS a Wednesday means a week ago
+        return offset;
+      }
+    }
     m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)\s+ago/);
     if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
     m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)/);
