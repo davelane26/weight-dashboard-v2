@@ -5,6 +5,7 @@
 
 // ⬇️ Replace this with your Cloudflare Worker URL after deploying
 const GLUCOSE_URL    = window.GLUCOSE_WORKER_URL || './glucose.json';
+const GMI_URL        = window.HEALTH_WORKER_URL ? window.HEALTH_WORKER_URL + '/gmi.json' : null;
 const GLUCOSE_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
 // Target range (mg/dL)
@@ -294,6 +295,24 @@ function renderGlucose(data) {
   }
 }
 
+// ── Render 14-day GMI chip ───────────────────────────────────────────────
+function renderGMI(g) {
+  const valEl = el('glucose-gmi');
+  const subEl = el('glucose-gmi-sub');
+  if (!valEl) return;
+  if (!g || g.gmi == null) {
+    valEl.textContent = '—';
+    if (subEl) subEl.textContent = 'collecting data';
+    return;
+  }
+  valEl.textContent = g.gmi + '%';
+  if (subEl) {
+    subEl.textContent = g.daysWithData >= 14
+      ? `14 days · ${g.meanGlucose} mg/dL avg`
+      : `${g.daysWithData}/14 days — settling in`;
+  }
+}
+
 // ── Data fetch ───────────────────────────────────────────────────────────
 async function loadGlucose() {
   try {
@@ -306,6 +325,18 @@ async function loadGlucose() {
   }
 }
 
+async function loadGMI() {
+  if (!GMI_URL) return;
+  try {
+    const resp = await fetch(GMI_URL + '?t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    renderGMI(await resp.json());
+  } catch (e) {
+    console.warn('GMI fetch failed:', e.message);
+  }
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────
 loadGlucose();
-setInterval(loadGlucose, GLUCOSE_REFRESH_MS);
+loadGMI();
+setInterval(() => { loadGlucose(); loadGMI(); }, GLUCOSE_REFRESH_MS);
