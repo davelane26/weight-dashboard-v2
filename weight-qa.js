@@ -210,7 +210,14 @@
     for (const m of METRICS) {
       if (m.keys.some(k => q.includes(k))) return answerCurrentMetric(m.field, m.label, m.unit);
     }
-    if (/\bweight\b/.test(q) && days == null) return answerCurrentWeight();
+    // Only treat this as a direct "what's my weight" lookup for genuinely
+    // short/plain phrasings or ones anchored with a "current/now" word —
+    // NOT any sentence that merely mentions "weight" in passing (e.g. "am I
+    // on track to hit my weight goal this year"), which should fall through
+    // to the AI fallback instead of being misanswered as a bare lookup.
+    const isBareWeightLookup = /^(what(?:'s| is) )?(my )?(current |latest )?weight\??$/.test(q);
+    const hasTimeAnchoredWeight = /\b(current|latest|now|today)\b/.test(q) && /\bweight\b/.test(q);
+    if (days == null && (isBareWeightLookup || hasTimeAnchoredWeight)) return answerCurrentWeight();
 
     return FALLBACK_MESSAGE;
   }
