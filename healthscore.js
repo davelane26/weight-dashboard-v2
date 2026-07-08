@@ -1,6 +1,6 @@
 /**
  * healthscore.js — Daily Health Score (0–100)
- * Combines steps and sleep into a single composite score.
+ * Combines steps, sleep, and glucose TIR into a single composite score.
  * Rendered as an SVG ring in #health-score-card inside the Activity tab.
  * Call refreshHealthScore() after any data module updates its globals.
  */
@@ -25,6 +25,7 @@ function _gradeInfo(score) {
 // ── Score calculation ────────────────────────────────────────────────────────
 function calcHealthScore() {
   const act  = window.snapActivityNow || {};
+  const tir  = window.snapGlucoseTIR; // null if glucose not loaded
 
   // Steps component  — 10k steps = full marks
   const stepsRaw = Math.min((act.steps || 0) / 10000, 1) * 100;
@@ -38,10 +39,14 @@ function calcHealthScore() {
     sleepRaw = h >= 8 ? 100 : h >= 7 ? 88 : h >= 6 ? 65 : h >= 5 ? 40 : 20;
   }
 
+  // Glucose TIR component — 90% TIR = full marks
+  const glucoseRaw = tir != null ? Math.min(tir / 90, 1) * 100 : null;
+
   // Weighted pool — drop components with no data and rescale
   const pool = [
-    { val: stepsRaw,  w: 45 },
-    { val: sleepRaw,  w: 55 },
+    { val: stepsRaw,  w: 30 },
+    { val: sleepRaw,  w: 35 },
+    { val: glucoseRaw,w: 35 },
   ].filter(c => c.val != null);
 
   if (!pool.length) return null;
@@ -91,6 +96,7 @@ function refreshHealthScore() {
 
   const score = calcHealthScore();
   const act   = window.snapActivityNow || {};
+  const tir   = window.snapGlucoseTIR;
 
   if (score == null) {
     card.innerHTML = '<p style="font-size:0.8rem;color:#6d7a95;text-align:center;padding:1rem">Loading health data…</p>';
@@ -103,6 +109,7 @@ function refreshHealthScore() {
   const sleepDisp = act.sleepScore != null ? act.sleepScore + ' pts'
                   : act.sleepHours  ? act.sleepHours.toFixed(1) + 'h'
                   : null;
+  const tirDisp  = tir != null ? tir + '%' : null;
 
   card.innerHTML = `
     <div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap">
@@ -113,7 +120,8 @@ function refreshHealthScore() {
           ${score >= 90 ? '🏆 Outstanding day!' : score >= 70 ? '💪 Solid day!' : score >= 55 ? '👍 Getting there' : '😴 Room to improve'}
         </p>
         ${_componentRow('👟', 'Steps', stepsDisp, '10,000', '#0053e2')}
-        ${_componentRow('', 'Sleep', sleepDisp, act.sleepScore ? '85 pts' : '8h', '#7c3aed')}
+        ${_componentRow('💤', 'Sleep', sleepDisp, act.sleepScore ? '85 pts' : '8h', '#7c3aed')}
+        ${_componentRow('🩸', 'Glucose TIR', tirDisp, '90%', '#2a8703')}
       </div>
     </div>`;
 

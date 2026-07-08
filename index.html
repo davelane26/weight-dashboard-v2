@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="David's Health Board" />
-  <meta name="description" content="David's personal health dashboard — weight, sleep, activity & more" />
+  <meta name="description" content="David's personal health dashboard — weight, glucose, sleep, activity & more" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <title>David's Health Board </title>
@@ -28,6 +28,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
     window.HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev';
+    window.GLUCOSE_WORKER_URL = window.HEALTH_WORKER_URL + '/glucose.json';
     window.AI_HEALTH_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-health';
   </script>
   <script>window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});</script>
@@ -47,8 +48,9 @@
   <script src="healthscore.js?v=1" defer></script>
   <script src="reportcard.js?v=1" defer></script>
   <script src="healthcard.js?v=1" defer></script>
-  <!-- Also eager: activity data feeds the Weight tab snapshot strip
-       (#snap-steps / #snap-sleep). -->
+  <!-- Also eager: their data feeds the Weight tab snapshot strip
+       (#snap-glucose / #snap-steps / #snap-sleep). -->
+  <script src="glucose.js?v=100" defer></script>
   <script src="activity.js?v=99" defer></script>
   <script src="enhancements.js?v=5" defer></script>
   <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
@@ -126,6 +128,7 @@
     <button class="tab-btn active" role="tab" id="tab-btn-weight" draggable="true" onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">⚖️ Weight</button>
     <button class="tab-btn" role="tab" id="tab-btn-charts" draggable="true" onclick="switchTab('charts')" aria-selected="false" aria-controls="tab-charts">📊 Charts</button>
     <button class="tab-btn" role="tab" id="tab-btn-projector" draggable="true" onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">🔮 Projector</button>
+    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">🩸 Glucose</button>
     <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true" onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">🏃 Activity</button>
     <button class="tab-btn" role="tab" id="tab-btn-medication" draggable="true" onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">💊 Medication</button>
     <button class="tab-btn" role="tab" id="tab-btn-photos" draggable="true" onclick="switchTab('photos')" aria-selected="false" aria-controls="tab-photos">📷 Photos</button>
@@ -142,6 +145,12 @@
           <p class="snap-label">Weight</p>
           <p class="snap-val skel" id="snap-weight">—</p>
           <p class="snap-delta" id="snap-weight-delta"></p>
+        </div>
+        <div class="snap-cell">
+          <span class="snap-icon" aria-hidden="true">🩸</span>
+          <p class="snap-label">Glucose</p>
+          <p class="snap-val skel" id="snap-glucose">—</p>
+          <p class="snap-delta" id="snap-glucose-delta"></p>
         </div>
         <div class="snap-cell">
           <span class="snap-icon" aria-hidden="true">👟</span>
@@ -729,11 +738,43 @@
     </div>
   </div><!-- /tab-charts -->
 
+  <!-- ── Glucose tab ── -->
+  <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
+    <section class="card fade-in glucose-card card--accent-green" id="glucose-section">
+      <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
+      <div class="glucose-hero">
+        <div class="glucose-reading">
+          <span class="glucose-value" id="glucose-value">—</span>
+          <span class="glucose-unit" id="glucose-unit">mg/dL</span>
+          <span class="glucose-arrow" id="glucose-trend-arrow">—</span>
+        </div>
+        <div class="glucose-meta">
+          <span class="glucose-status" id="glucose-status-label">Loading…</span>
+          <span class="glucose-desc" id="glucose-trend-desc"></span>
+          <span class="glucose-ago" id="glucose-ago"></span>
+        </div>
+      </div>
+      <div class="glucose-stats">
+        <div class="glucose-chip"><p class="chip-label">Time In Range</p><p class="chip-val" id="glucose-tir" style="color:#2a8703">—</p><p class="chip-sub">70–180 mg/dL</p></div>
+        <div class="glucose-chip"><p class="chip-label">24h Average</p><p class="chip-val" id="glucose-avg">—</p><p class="chip-sub">mg/dL</p></div>
+        <div class="glucose-chip"><p class="chip-label">Est. A1C</p><p class="chip-val" id="glucose-a1c">—</p><p class="chip-sub">24h estimate</p></div>
+        <div class="glucose-chip"><p class="chip-label">Range</p><p class="chip-val" style="font-size:0.85rem" id="glucose-min">—</p><p class="chip-sub">low · <span id="glucose-max">—</span> high</p></div>
+        <div class="glucose-chip" style="background:#fff1f0"><p class="chip-label" style="color:#ea1100">Lows &lt;70</p><p class="chip-val" style="color:#ea1100" id="glucose-lows">—</p><p class="chip-sub"><span id="glucose-count">—</span> total</p></div>
+        <div class="glucose-chip" style="background:#fef9ec"><p class="chip-label" style="color:#995213">Highs &gt;180</p><p class="chip-val" style="color:#995213" id="glucose-highs">—</p><p class="chip-sub">readings</p></div>
+      </div>
+      <div style="margin-top:1rem">
+        <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Last 24 Hours</p>
+        <div class="chart-wrap"><canvas id="glucoseChart"></canvas></div>
+      </div>
+      <p style="font-size:0.65rem;color:#6d7a95;margin-top:0.6rem;text-align:right" id="glucose-updated"></p>
+    </section>
+  </div><!-- /tab-glucose -->
+
   <!-- ── Activity tab ── -->
   <div id="tab-activity" role="tabpanel" aria-labelledby="tab-btn-activity" hidden>
     <section class="card fade-in card--accent-gold" aria-label="Daily health score" style="margin-top:0.75rem">
       <h2 class="card-title">💯 Today's Health Score</h2>
-      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Composite of steps &amp; sleep · updates as data loads</p>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.85rem">Composite of steps, sleep &amp; glucose · updates as data loads</p>
       <div id="health-score-card"><p style="font-size:0.8rem;color:#6d7a95">Loading…</p></div>
     </section>
 
@@ -1229,6 +1270,10 @@
   <button class="mob-tab" role="tab" aria-selected="false" aria-label="Charts tab" onclick="switchTab('charts')" data-tab="charts">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 18 9 12 13 16 21 6"/><polyline points="15 6 21 6 21 12"/></svg>
     <span>Charts</span>
+  </button>
+  <button class="mob-tab" role="tab" aria-selected="false" aria-label="Glucose tab" onclick="switchTab('glucose')" data-tab="glucose">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>
+    <span>Glucose</span>
   </button>
   <button class="mob-tab" role="tab" aria-selected="false" aria-label="Activity tab" onclick="switchTab('activity')" data-tab="activity">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>

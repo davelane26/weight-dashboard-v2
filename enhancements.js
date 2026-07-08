@@ -24,13 +24,14 @@
     if (document.visibilityState === 'visible') {
       // Force a single immediate refresh on return to foreground
       if (typeof window.loadData === 'function') window.loadData();
+      if (typeof window.loadGlucose === 'function') window.loadGlucose();
       if (typeof window.loadActivityData === 'function') window.loadActivityData();
     }
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
 
   // Patch setInterval ONLY for refresh callbacks so they no-op when hidden
-  const REFRESH_FN_NAMES = new Set(['loadData', 'loadActivityData']);
+  const REFRESH_FN_NAMES = new Set(['loadData', 'loadGlucose', 'loadActivityData']);
   const _origSetInterval = window.setInterval;
   window.setInterval = function (fn, ms, ...rest) {
     const wrapped = (...a) => {
@@ -141,6 +142,7 @@
   // 3. Data export (CSV + JSON)
   //    Sources (whatever's loaded at click time):
   //      • window.allWeightData — weight readings (date,weight,bmi,...)
+  //      • window.glucoseHistory — ~24h CGM readings (if Glucose tab visited)
   //      • window.snapActivityDays — Garmin daily summaries
   //    Renders a dropdown next to the Export Card button.
   // ─────────────────────────────────────────────────────────────
@@ -187,9 +189,11 @@
       exportedAt: new Date().toISOString(),
       counts: {
         weightReadings: weight.length,
+        glucoseReadings: (window.glucoseHistory   || []).length,
         activityDays:    (window.snapActivityDays || []).length,
       },
       weight: weight.map(r => ({ ...r, date: fmtIsoDate(r.date) })),
+      glucose:  window.glucoseHistory   || null,
       activity: window.snapActivityDays || null,
     };
     downloadFile(
@@ -373,8 +377,8 @@
   //    Note: this requires removing those <script> tags from
   //    index.html <head>. Done in companion commit.
   // ─────────────────────────────────────────────────────────────
-  // Only medication.js is lazy now — activity.js feeds the
-  // Weight tab snapshot strip, so it must be eager-loaded.
+  // Only medication.js is lazy now — glucose.js + activity.js feed the
+  // Weight tab snapshot strip, so they must be eager-loaded.
   const LAZY_TAB_SCRIPTS = {
     medication: ['medication.js?v=207'],
   };

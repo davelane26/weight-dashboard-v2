@@ -80,7 +80,11 @@ function switchTab(name) {
       }
     }, 0);
   }
-
+  if (name === 'glucose') {
+    setTimeout(() => {
+      if (window.glucoseChartInstance) window.glucoseChartInstance.resize();
+    }, 50);
+  }
   if (name === 'activity') {
     setTimeout(() => {
       ['actStepsChartInst','actSleepChartInst','actHRChartInst'].forEach(k => {
