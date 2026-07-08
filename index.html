@@ -30,6 +30,7 @@
     window.HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev';
     window.GLUCOSE_WORKER_URL = window.HEALTH_WORKER_URL + '/glucose.json';
     window.AI_HEALTH_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-health';
+    window.AI_ASK_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-ask';
   </script>
   <script>window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});</script>
   <script type="module" src="auth.js?v=1"></script>
@@ -429,7 +430,7 @@
     <section class="card fade-in" aria-label="Ask about your journey" id="qa-section">
       <h2 class="card-title">💬 Ask About Your Journey</h2>
       <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
-        Computed directly from your logged data — try one of these or type your own.
+        Answered instantly from your data when possible — falls back to AI for anything more open-ended.
       </p>
       <div class="qa-examples" id="qa-examples">
         <button type="button" class="qa-example">average weight loss last 2 weeks</button>

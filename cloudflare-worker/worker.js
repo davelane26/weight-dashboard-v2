@@ -306,6 +306,50 @@ export default {
       return cors(JSON.stringify({ analysis, metrics }));
     }
 
+    // ── POST /ai-ask  (Q&A card — LLM fallback for questions the
+    //    deterministic parser in weight-qa.js can't match) ──────────────
+    if (method === 'POST' && url.pathname === '/ai-ask') {
+      const apiKey = env.ANTHROPIC_API_KEY;
+      if (!apiKey) return cors('{"error":"ANTHROPIC_API_KEY secret not set on this Worker"}', 503);
+
+      // This endpoint is called straight from the public dashboard with no
+      // per-user auth (the Firebase login gates the page, not this Worker).
+      // Cap total volume per hour so a stray loop or bot traffic can't run
+      // up the API bill, regardless of who's calling it.
+      const hourBucket = Math.floor(Date.now() / 3600000);
+      const rlKey       = 'ai_ask_count:' + hourBucket;
+      const count       = parseInt((await env.GLUCOSE_KV.get(rlKey)) ?? '0', 10);
+      if (count >= 30) return cors('{"error":"Rate limit reached — try again in a bit"}', 429);
+      await env.GLUCOSE_KV.put(rlKey, String(count + 1), { expirationTtl: 3700 });
+
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const { question, digest } = body;
+      if (!question) return cors('{"error":"question required"}', 400);
+
+      const prompt = 'You are a helpful assistant answering questions about a personal weight-loss '
+        + 'tracking dashboard. Answer ONLY using the data below — do not guess or invent numbers, '
+        + "and don't use outside knowledge about this specific person. Be concise (1-3 sentences), "
+        + "warm, and direct. If the data doesn't contain what's needed to answer, say so plainly "
+        + 'instead of guessing.\n\nDATA:\n' + (digest || '(no data provided)')
+        + '\n\nQUESTION: ' + question;
+
+      const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300,
+          messages: [{ role: 'user', content: prompt }] }),
+      });
+
+      const aiData = await aiResp.json();
+      if (aiData.error) return cors(JSON.stringify({ error: aiData.error.message }), aiResp.status);
+      const answer = aiData.content[0].text.trim();
+      return cors(JSON.stringify({ answer }));
+    }
 
     return cors('{"error":"Not found"}', 404);
   },

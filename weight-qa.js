@@ -8,6 +8,8 @@
 
   const UNIT_DAYS = { day: 1, days: 1, week: 7, weeks: 7, month: 30, months: 30 };
   const WEEKDAYS  = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const FALLBACK_MESSAGE = "I couldn't quite parse that — try one of the example questions above, "
+    + 'or phrase it like "average weight loss last 2 weeks" or "how much have I lost total".';
 
   function latestRecord() {
     return allData.length ? allData[allData.length - 1] : null;
@@ -210,20 +212,98 @@
     }
     if (/\bweight\b/.test(q) && days == null) return answerCurrentWeight();
 
-    return "I couldn't quite parse that — try one of the example questions above, "
-         + 'or phrase it like "average weight loss last 2 weeks" or "how much have I lost total".';
+    return FALLBACK_MESSAGE;
   }
 
   window.answerWeightQuestion = answerQuestion; // exposed for console/debugging
 
+  // ── AI fallback ───────────────────────────────────────────────────
+  // Only called when the deterministic parser above can't match the
+  // question. Sends a compact digest of the current data (not the full
+  // history) to the Worker, which forwards it to Claude — no local
+  // computation, so this covers open-ended/compound/correlational
+  // questions the pattern matcher was never going to handle.
+  function buildDigest() {
+    const latest = latestRecord();
+    if (!latest) return '';
+    const lines = [];
+    lines.push(
+      `Latest reading (${fmtDate(latest.date)}): weight ${fmt2(latest.weight)} lbs` +
+      (latest.bmi     != null ? `, BMI ${fmt2(latest.bmi)}`             : '') +
+      (latest.bodyFat != null ? `, body fat ${fmt2(latest.bodyFat)}%`   : '') +
+      (latest.muscle  != null ? `, muscle ${fmt2(latest.muscle)}%`      : '') +
+      (latest.water   != null ? `, body water ${fmt2(latest.water)}%`   : '') +
+      (latest.bone    != null ? `, bone mass ${fmt2(latest.bone)} lbs`  : '') +
+      (latest.bmr     != null ? `, BMR ${fmt2(latest.bmr)} cal`         : '') +
+      (latest.tdee    != null ? `, TDEE ${fmt2(latest.tdee)} cal`       : '')
+    );
+    lines.push(`Starting weight: ${fmt2(START_WEIGHT)} lbs on ${START_DATE}`);
+    const totalLost = START_WEIGHT - latest.weight;
+    lines.push(`Total lost so far: ${fmtLbs(totalLost)} (${(totalLost / START_WEIGHT * 100).toFixed(1)}% of starting body weight)`);
+    if (goalWeight) lines.push(`Goal weight: ${fmt2(goalWeight)} lbs`);
+    const best = allData.reduce((b, r) => r.weight < b.weight ? r : b, allData[0]);
+    lines.push(`Personal best (lowest) weight: ${fmt2(best.weight)} lbs on ${fmtDate(best.date)}`);
+    lines.push(`Current weigh-in streak: ${calcStreak(allData)} days`);
+    const slope = regressionSlopeLbsPerDay(allData, 28);
+    if (slope != null) lines.push(`Recent trend (last 28 days): ${fmtLbs(slope * 7)}/week ${slope < 0 ? 'loss' : 'gain'}`);
+
+    // Weekly average rollup so the model has broader trend context
+    // without needing every raw daily reading.
+    const byWeek = {};
+    allData.forEach(r => {
+      const weekStart = new Date(r.date);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const key = weekStart.toISOString().slice(0, 10);
+      (byWeek[key] = byWeek[key] || []).push(r.weight);
+    });
+    const weeks = Object.keys(byWeek).sort().slice(-16);
+    if (weeks.length) {
+      const weeklyLine = weeks
+        .map(k => `${k}: ${(byWeek[k].reduce((a, b) => a + b, 0) / byWeek[k].length).toFixed(1)}`)
+        .join('; ');
+      lines.push(`Weekly average weight, last ${weeks.length} weeks (week-start date: avg lbs): ${weeklyLine}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  async function askAI(question) {
+    const url = window.AI_ASK_WORKER_URL;
+    if (!url) throw new Error('AI Q&A worker URL not configured.');
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, digest: buildDigest() }),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    return data.answer;
+  }
+
   // ── UI wiring ─────────────────────────────────────────────────────
-  function handleAsk() {
+  async function handleAsk() {
     const input = document.getElementById('qa-input');
     const out   = document.getElementById('qa-answer');
+    const btn   = document.getElementById('qa-ask-btn');
     if (!input || !out) return;
-    if (!input.value.trim()) return;
-    out.textContent = answerQuestion(input.value);
+    const question = input.value;
+    if (!question.trim()) return;
+
+    const deterministic = answerQuestion(question);
+    out.textContent = deterministic;
     out.classList.add('qa-answer--visible');
+
+    if (deterministic !== FALLBACK_MESSAGE) return;
+
+    if (btn) btn.disabled = true;
+    out.textContent = '🤖 Thinking…';
+    try {
+      out.textContent = await askAI(question);
+    } catch (err) {
+      out.textContent = deterministic; // couldn't reach AI — fall back to the parser's message
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   const form  = document.getElementById('qa-form');
