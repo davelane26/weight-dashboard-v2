@@ -12,6 +12,7 @@
  */
 
 const MAX_READINGS = 288; // 24h at 5-min intervals
+const ARCHIVE_DAYS = 15;  // rolling archive: 14 full days + today, feeds GMI
 
 // ── Trend mappings (Nightscout direction strings → display) ───────────────
 const ARROWS = {
@@ -134,6 +135,21 @@ export default {
       const payload = buildPayload(latest, sorted);
       await env.GLUCOSE_KV.put('payload', JSON.stringify(payload));
 
+      // Fold the deduped 24h window into the rolling 14-day archive.
+      // Merging `sorted` (not just this upload) means the archive seeds
+      // itself from existing data on first run and self-heals gaps.
+      const archive = await env.GLUCOSE_KV.get('archive', { type: 'json' }) ?? [];
+      const archMap = new Map();
+      for (const r of archive) archMap.set(r.time, r.value);
+      for (const r of sorted)  archMap.set(r.time, r.value);
+      const cutoff = Date.now() - ARCHIVE_DAYS * 86400000;
+      const archSorted = [...archMap.entries()]
+        .map(([time, value]) => ({ time, value }))
+        .filter(r => new Date(r.time).getTime() >= cutoff)
+        .sort((a, b) => new Date(a.time) - new Date(b.time));
+      await env.GLUCOSE_KV.put('archive', JSON.stringify(archSorted));
+      await env.GLUCOSE_KV.put('gmi', JSON.stringify(buildGmiPayload(archSorted)));
+
       return cors(JSON.stringify({ ok: true, saved: parsed.length }));
     }
 
@@ -141,6 +157,16 @@ export default {
     if (method === 'GET' && url.pathname === '/glucose.json') {
       const payload = await env.GLUCOSE_KV.get('payload', { type: 'json' });
       if (!payload) return cors(JSON.stringify({ current: null, readings: [], updatedAt: null }));
+      return cors(JSON.stringify(payload));
+    }
+
+    // ── GET /gmi.json  (14-day GMI for dashboard) ──────────────────────
+    if (method === 'GET' && url.pathname === '/gmi.json') {
+      let payload = await env.GLUCOSE_KV.get('gmi', { type: 'json' });
+      if (!payload) {
+        const archive = await env.GLUCOSE_KV.get('archive', { type: 'json' }) ?? [];
+        payload = buildGmiPayload(archive);
+      }
       return cors(JSON.stringify(payload));
     }
 
@@ -305,6 +331,44 @@ function buildHealthEntry(body) {
     workoutsMins:     n(body.workoutsMins),
     workoutsKm:       n(body.workoutsKm),
     updatedAt:        new Date().toISOString(),
+  };
+}
+
+// ── Build the 14-day GMI payload ────────────────────────────────────────────
+// GMI (Glucose Management Indicator) is the clinical-standard estimate of
+// lab A1C from CGM data: GMI% = 3.31 + 0.02392 × mean glucose (mg/dL),
+// meant to be read over ≥14 days of wear.
+function buildGmiPayload(archive) {
+  const byDay = new Map();
+  for (const r of archive) {
+    const day = r.time.slice(0, 10); // reading's own local date (offset preserved by xDrip)
+    let d = byDay.get(day);
+    if (!d) { d = { date: day, sum: 0, count: 0, min: Infinity, max: -Infinity, inRange: 0 }; byDay.set(day, d); }
+    d.sum += r.value; d.count++;
+    d.min = Math.min(d.min, r.value);
+    d.max = Math.max(d.max, r.value);
+    if (r.value >= 70 && r.value <= 180) d.inRange++;
+  }
+  const kept = [...byDay.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-14);
+  const totalSum   = kept.reduce((a, d) => a + d.sum, 0);
+  const totalCount = kept.reduce((a, d) => a + d.count, 0);
+  const mean = totalCount ? totalSum / totalCount : null;
+  return {
+    gmi:          mean != null ? +(3.31 + 0.02392 * mean).toFixed(1) : null,
+    meanGlucose:  mean != null ? Math.round(mean) : null,
+    daysWithData: kept.length,
+    readingCount: totalCount,
+    days: kept.map(d => ({
+      date:  d.date,
+      avg:   Math.round(d.sum / d.count),
+      min:   d.min,
+      max:   d.max,
+      count: d.count,
+      tir:   Math.round((d.inRange / d.count) * 100),
+    })),
+    updatedAt: new Date().toISOString(),
   };
 }
 
