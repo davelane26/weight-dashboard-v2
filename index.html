@@ -50,7 +50,7 @@
   <script src="healthcard.js?v=1" defer></script>
   <!-- Also eager: their data feeds the Weight tab snapshot strip
        (#snap-glucose / #snap-steps / #snap-sleep). -->
-  <script src="glucose.js?v=100" defer></script>
+  <script src="glucose.js?v=101" defer></script>
   <script src="activity.js?v=99" defer></script>
   <script src="enhancements.js?v=5" defer></script>
   <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
@@ -741,7 +741,7 @@
   <!-- ── Glucose tab ── -->
   <div id="tab-glucose" role="tabpanel" aria-labelledby="tab-btn-glucose" hidden>
     <section class="card fade-in glucose-card card--accent-green" id="glucose-section">
-      <h2 class="card-title">🩸 Dexcom G7 · Live Glucose</h2>
+      <h2 class="card-title">🩸 Dexcom Stelo · Live Glucose</h2>
       <div class="glucose-hero">
         <div class="glucose-reading">
           <span class="glucose-value" id="glucose-value">—</span>
@@ -762,6 +762,7 @@
         <div class="glucose-chip" style="background:#fff1f0"><p class="chip-label" style="color:#ea1100">Lows &lt;70</p><p class="chip-val" style="color:#ea1100" id="glucose-lows">—</p><p class="chip-sub"><span id="glucose-count">—</span> total</p></div>
         <div class="glucose-chip" style="background:#fef9ec"><p class="chip-label" style="color:#995213">Highs &gt;180</p><p class="chip-val" style="color:#995213" id="glucose-highs">—</p><p class="chip-sub">readings</p></div>
       </div>
+      <p style="font-size:0.68rem;color:#6d7a95;margin-top:0.5rem;display:none" id="glucose-compression-note"></p>
       <div style="margin-top:1rem">
         <p style="font-size:0.72rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">Last 24 Hours</p>
         <div class="chart-wrap"><canvas id="glucoseChart"></canvas></div>

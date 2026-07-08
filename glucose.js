@@ -41,6 +41,44 @@ function estA1C(avgGlucose) {
   return ((avgGlucose + 46.7) / 28.7).toFixed(1);
 }
 
+// ── Compression-low detection ─────────────────────────────────────────────
+// A compression low is a false low caused by pressure on the sensor (e.g.
+// sleeping on it): a sharp V-shaped dip that snaps back to baseline within
+// minutes. Real hypoglycemia doesn't recover that fast unassisted, so dips
+// matching this shape are excluded from avg/TIR/eA1C/lows (still charted).
+const CL_MAX_DIP_MIN = 45; // whole dip (baseline → baseline) must fit in this window
+const CL_MIN_DROP    = 25; // mg/dL fall from pre-dip baseline to dip minimum
+const CL_REBOUND_TOL = 20; // post-dip value must land within this of baseline
+
+function flagCompressionLows(readings) {
+  const flagged = new Array(readings.length).fill(false);
+  let episodes = 0;
+  let i = 0;
+  while (i < readings.length) {
+    if (!(readings[i].value < TARGET_LOW)) { i++; continue; }
+    let end = i;
+    while (end + 1 < readings.length && readings[end + 1].value < TARGET_LOW) end++;
+    const prev = i > 0 ? readings[i - 1] : null;
+    const next = end + 1 < readings.length ? readings[end + 1] : null;
+    // Dips at the edges of the window have no baseline on both sides,
+    // so they can't be verified as compression — leave them counted.
+    if (prev && next) {
+      const dipMin = (new Date(next.time) - new Date(prev.time)) / 60000;
+      const minVal = Math.min(...readings.slice(i, end + 1).map(r => r.value));
+      const vShaped = dipMin > 0 && dipMin <= CL_MAX_DIP_MIN
+                   && prev.value - minVal >= CL_MIN_DROP
+                   && next.value >= TARGET_LOW
+                   && Math.abs(next.value - prev.value) <= CL_REBOUND_TOL;
+      if (vShaped) {
+        for (let k = i; k <= end; k++) flagged[k] = true;
+        episodes++;
+      }
+    }
+    i = end + 1;
+  }
+  return { flagged, episodes };
+}
+
 // ── Minutes since a reading ───────────────────────────────────────────────
 function minutesAgo(isoTime) {
   if (!isoTime) return null;
@@ -80,19 +118,23 @@ function renderGlucoseHero(current) {
 }
 
 // ── Render stats chips ───────────────────────────────────────────────────
-function renderGlucoseStats(readings) {
+function renderGlucoseStats(readings, cl) {
   if (!readings.length) return;
   // Expose for export feature (CSV/JSON downloads)
   window.glucoseHistory = readings;
 
-  const vals   = readings.map(r => r.value).filter(Boolean);
+  // Stats are computed on readings with suspected compression lows removed
+  let kept = cl ? readings.filter((_, idx) => !cl.flagged[idx]) : readings;
+  if (!kept.length) kept = readings;
+
+  const vals   = kept.map(r => r.value).filter(Boolean);
   const avg    = vals.reduce((a, b) => a + b, 0) / vals.length;
   const min    = Math.min(...vals);
   const max    = Math.max(...vals);
-  const tir    = timeInRange(readings);
+  const tir    = timeInRange(kept);
   const a1c    = estA1C(avg);
-  const lows   = readings.filter(r => r.value < TARGET_LOW).length;
-  const highs  = readings.filter(r => r.value > TARGET_HIGH).length;
+  const lows   = kept.filter(r => r.value < TARGET_LOW).length;
+  const highs  = kept.filter(r => r.value > TARGET_HIGH).length;
 
   setText('glucose-avg',   Math.round(avg) + ' mg/dL');
   setText('glucose-min',   min + ' mg/dL');
@@ -114,10 +156,23 @@ function renderGlucoseStats(readings) {
   // Low / high event count badges
   setText('glucose-lows',  lows  + (lows  === 1 ? ' event' : ' events'));
   setText('glucose-highs', highs + (highs === 1 ? ' event' : ' events'));
+
+  // Compression-low filter note
+  const noteEl = el('glucose-compression-note');
+  if (noteEl) {
+    const episodes = cl ? cl.episodes : 0;
+    if (episodes > 0) {
+      const n = cl.flagged.filter(Boolean).length;
+      noteEl.textContent = `🛏️ ${episodes} suspected compression low${episodes === 1 ? '' : 's'} (${n} reading${n === 1 ? '' : 's'}) excluded from stats — shown gray on the chart`;
+      noteEl.style.display = '';
+    } else {
+      noteEl.style.display = 'none';
+    }
+  }
 }
 
 // ── Render 24h chart ─────────────────────────────────────────────────────
-function renderGlucoseChart(readings) {
+function renderGlucoseChart(readings, flagged) {
   const canvas = el('glucoseChart');
   if (!canvas || !readings.length) return;
 
@@ -129,8 +184,8 @@ function renderGlucoseChart(readings) {
   });
   const values = readings.map(r => r.value);
 
-  // Point color array — red/yellow/green per reading
-  const pointColors = values.map(v => glucoseColor(v));
+  // Point color array — red/yellow/green per reading, gray for compression lows
+  const pointColors = values.map((v, idx) => (flagged && flagged[idx]) ? '#8a94ad' : glucoseColor(v));
 
   const ctx = canvas.getContext('2d');
 
@@ -191,6 +246,7 @@ function renderGlucoseChart(readings) {
             label: c => {
               if (c.datasetIndex !== 0) return null; // skip target lines in tooltip
               const v = c.parsed.y;
+              if (flagged && flagged[c.dataIndex]) return ` ${v} mg/dL  🛏️ suspected compression low`;
               return ` ${v} mg/dL  ${glucoseLabel(v)}`;
             },
           },
@@ -220,8 +276,9 @@ function renderGlucose(data) {
   renderGlucoseHero(data.current);
 
   if (data.readings && data.readings.length) {
-    renderGlucoseStats(data.readings);
-    renderGlucoseChart(data.readings);
+    const cl = flagCompressionLows(data.readings);
+    renderGlucoseStats(data.readings, cl);
+    renderGlucoseChart(data.readings, cl.flagged);
   }
 
   // Updated-at footer
