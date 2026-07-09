@@ -68,7 +68,23 @@
   const fmt2   = n => (+n).toFixed(1);
   const fmtLbs = n => Math.abs(n).toFixed(1) + ' lb' + (Math.abs(n) === 1 ? '' : 's');
 
+  function agoPhrase(days) {
+    const label = periodLabel(days);
+    if (label === 'day') return 'yesterday';
+    if (label === 'week' || label === 'month') return `a ${label} ago`;
+    return `${label} ago`;
+  }
+
   // ── Individual answerers ────────────────────────────────────────────
+  // Direct historical value lookup — "what was my weight last Thursday" —
+  // as opposed to answerRateOrLoss, which answers the *change* over a period.
+  function answerHistoricalWeight(days) {
+    if (days === 0) return answerCurrentWeight();
+    const record = recordDaysAgo(days);
+    if (!record) return `You don't have data going back ${periodLabel(days)} yet.`;
+    return `Your weight ${agoPhrase(days)} was ${fmt2(record.weight)} lbs, recorded on ${fmtDate(record.date)}.`;
+  }
+
   function answerRateOrLoss(days) {
     const latest = latestRecord();
     if (!latest) return null;
@@ -249,6 +265,8 @@
 
     if (/\b(average|avg\.?|rate)\b/.test(q)) return answerRateOrLoss(days);
     if (days != null && /(lost|lose|losing|gain|gained|change|down|up)/.test(q)) return answerRateOrLoss(days);
+
+    if (days != null && /\b(what(?:'s| was| is| did)|weigh(?:ed)?)\b/.test(q)) return answerHistoricalWeight(days);
 
     if (/(total|overall|since (i )?start(ed)?|so far)/.test(q) && /(lost|loss|lose)/.test(q)) return answerTotalLost();
 
