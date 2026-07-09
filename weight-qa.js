@@ -16,9 +16,12 @@
   }
 
   // Nearest reading at or before `daysAgo` days before the latest reading.
+  // A negative daysAgo means the resolved calendar date is more recent than
+  // our latest sync — there's no data for it yet, so return null rather than
+  // let the loop below fall through to (incorrectly) matching the latest row.
   function recordDaysAgo(daysAgo) {
     const latest = latestRecord();
-    if (!latest) return null;
+    if (!latest || daysAgo < 0) return null;
     const target = new Date(latest.date);
     target.setDate(target.getDate() - daysAgo);
     for (let i = allData.length - 1; i >= 0; i--) {
@@ -27,29 +30,66 @@
     return null;
   }
 
+  function daysBefore(date, n) {
+    const d = new Date(date);
+    d.setDate(d.getDate() - n);
+    return d;
+  }
+
+  // Converts an absolute calendar date into "days before the latest
+  // reading" so the rest of the pipeline (recordDaysAgo etc.) can stay in
+  // that unit. Anchoring resolution on the real current date — not the
+  // latest synced reading — matters whenever the scale hasn't synced today:
+  // "last Thursday" must mean the actual most recent Thursday relative to
+  // now, not relative to however stale the last weigh-in happens to be.
+  function daysAgoForCalendarDate(targetDate) {
+    const latest = latestRecord();
+    if (!latest) return null;
+    return Math.round((latest.date - targetDate) / 86400000);
+  }
+
   function extractPeriodDays(q) {
+    // Normalize to midnight so day-difference math is based on calendar
+    // dates, not the current wall-clock time — otherwise "yesterday" asked
+    // at 11pm can round to the wrong day relative to an 8am scale reading.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let targetDate = null;
+
     let m = q.match(/(?:last|past|previous)\s+(\d+)\s*(day|days|week|weeks|month|months)/);
-    if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
-    m = q.match(/\b(?:last|past|previous)\s+(day|week|month)\b/);
-    if (m) return UNIT_DAYS[m[1]];
-    m = q.match(/\b(?:since\s+)?(?:last\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
-    if (m) {
-      const latest = latestRecord();
-      if (latest) {
+    if (m) targetDate = daysBefore(today, parseInt(m[1], 10) * UNIT_DAYS[m[2]]);
+
+    if (!targetDate) {
+      m = q.match(/\b(?:last|past|previous)\s+(day|week|month)\b/);
+      if (m) targetDate = daysBefore(today, UNIT_DAYS[m[1]]);
+    }
+
+    if (!targetDate) {
+      m = q.match(/\b(?:since\s+)?(?:last\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+      if (m) {
         const targetDow = WEEKDAYS.indexOf(m[1]);
-        let offset = (latest.date.getDay() - targetDow + 7) % 7;
-        if (offset === 0) offset = 7; // "last Wednesday" when latest reading IS a Wednesday means a week ago
-        return offset;
+        let offset = (today.getDay() - targetDow + 7) % 7;
+        if (offset === 0) offset = 7; // "last Thursday" when today IS Thursday means a week ago
+        targetDate = daysBefore(today, offset);
       }
     }
-    m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)\s+ago/);
-    if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
-    m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)/);
-    if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
-    if (/\bthis week\b/.test(q))  return 7;
-    if (/\bthis month\b/.test(q)) return 30;
-    if (/\byesterday\b/.test(q))  return 1;
-    return null;
+
+    if (!targetDate) {
+      m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)\s+ago/);
+      if (m) targetDate = daysBefore(today, parseInt(m[1], 10) * UNIT_DAYS[m[2]]);
+    }
+
+    if (!targetDate) {
+      m = q.match(/(\d+)\s*(day|days|week|weeks|month|months)/);
+      if (m) targetDate = daysBefore(today, parseInt(m[1], 10) * UNIT_DAYS[m[2]]);
+    }
+
+    if (!targetDate && /\bthis week\b/.test(q))  targetDate = daysBefore(today, 7);
+    if (!targetDate && /\bthis month\b/.test(q)) targetDate = daysBefore(today, 30);
+    if (!targetDate && /\byesterday\b/.test(q))  targetDate = daysBefore(today, 1);
+
+    if (!targetDate) return null;
+    return daysAgoForCalendarDate(targetDate);
   }
 
   // A weight mentioned as a hypothetical target — "at 220lbs", "hit 220",
@@ -75,14 +115,36 @@
     return `${label} ago`;
   }
 
+  // Real calendar days between a record's date and today — used for display
+  // phrasing so "N days ago" always matches the shown date, regardless of
+  // how many days it's been since the record nearest that internal lookup
+  // offset (which is measured from the latest *sync*, not from today).
+  function realDaysAgo(date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return Math.round((today - d) / 86400000);
+  }
+
   // ── Individual answerers ────────────────────────────────────────────
   // Direct historical value lookup — "what was my weight last Thursday" —
   // as opposed to answerRateOrLoss, which answers the *change* over a period.
   function answerHistoricalWeight(days) {
     if (days === 0) return answerCurrentWeight();
+    if (days < 0) return staleSyncMessage();
     const record = recordDaysAgo(days);
     if (!record) return `You don't have data going back ${periodLabel(days)} yet.`;
-    return `Your weight ${agoPhrase(days)} was ${fmt2(record.weight)} lbs, recorded on ${fmtDate(record.date)}.`;
+    return `Your weight ${agoPhrase(realDaysAgo(record.date))} was ${fmt2(record.weight)} lbs, recorded on ${fmtDate(record.date)}.`;
+  }
+
+  // The resolved date is more recent than the latest sync — e.g. the scale
+  // hasn't synced today and the question asks about a date after that gap.
+  function staleSyncMessage() {
+    const latest = latestRecord();
+    return latest
+      ? `Your last synced weigh-in is from ${fmtDate(latest.date)} — nothing recorded that recently yet.`
+      : null;
   }
 
   function answerRateOrLoss(days) {
@@ -99,6 +161,7 @@
            + `(${fmtLbs(totalLost)} total over ${Math.round(totalDays / 7)} weeks).`;
     }
 
+    if (days < 0) return staleSyncMessage();
     const start = recordDaysAgo(days);
     if (!start) return `You don't have data going back ${periodLabel(days)} yet.`;
     const change = start.weight - latest.weight; // positive = lost
