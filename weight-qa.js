@@ -122,7 +122,28 @@
   // a 7-day rolling trend, not a raw per-weekday average, so a weekday isn't
   // flagged just because it happened to fall in a lighter/heavier month.
   const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  function answerDayOfWeekPattern(wantLowest) {
+
+  function ordinalSuffix(n) {
+    const v = n % 100;
+    if (v >= 11 && v <= 13) return n + 'th';
+    return n + ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+  }
+
+  const ORDINAL_WORDS = {
+    first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7,
+  };
+  // "2nd to the lowest", "third highest", etc. — defaults to 1 (the actual
+  // extreme) when no ordinal is mentioned.
+  function extractRank(q) {
+    const m = q.match(/\b(\d+)(?:st|nd|rd|th)\b/);
+    if (m) return parseInt(m[1], 10);
+    for (const word of Object.keys(ORDINAL_WORDS)) {
+      if (new RegExp('\\b' + word + '\\b').test(q)) return ORDINAL_WORDS[word];
+    }
+    return 1;
+  }
+
+  function answerDayOfWeekPattern(wantLowest, rank) {
     const dedupMap = {};
     allData.forEach(r => { dedupMap[r.date.toDateString()] = r; });
     const daily = Object.values(dedupMap).sort((a, b) => a.date - b.date);
@@ -137,19 +158,24 @@
       sums[r.date.getDay()] += r.weight - smoothed[i]; // deviation from trend
       counts[r.date.getDay()]++;
     });
-    let bestIdx = null;
+    const ranked = [];
     for (let i = 0; i < 7; i++) {
       if (counts[i] < 2) continue;
-      const avg = sums[i] / counts[i];
-      const bestAvg = bestIdx == null ? null : sums[bestIdx] / counts[bestIdx];
-      if (bestIdx == null || (wantLowest ? avg < bestAvg : avg > bestAvg)) bestIdx = i;
+      ranked.push({ day: i, avgDev: sums[i] / counts[i], count: counts[i] });
     }
-    if (bestIdx == null) return "Not enough spread across weekdays yet to spot a pattern.";
-    const avgDev = sums[bestIdx] / counts[bestIdx];
+    if (!ranked.length) return "Not enough spread across weekdays yet to spot a pattern.";
+    ranked.sort((a, b) => wantLowest ? a.avgDev - b.avgDev : b.avgDev - a.avgDev);
+
+    const clampedRank = Math.min(Math.max(rank, 1), ranked.length);
+    const picked = ranked[clampedRank - 1];
     const verb = wantLowest ? 'lowest' : 'highest';
-    const sign = avgDev >= 0 ? '+' : '−';
-    return `Relative to your trend line, ${DOW_NAMES[bestIdx]} tends to be your ${verb}-weight day of the week `
-         + `(averaging ${sign}${Math.abs(avgDev).toFixed(2)} lbs vs. trend, across ${counts[bestIdx]} ${DOW_NAMES[bestIdx]} readings).`;
+    const label = clampedRank === 1 ? verb : `${ordinalSuffix(clampedRank)}-${verb}`;
+    const sign = picked.avgDev >= 0 ? '+' : '−';
+    const note = rank > ranked.length
+      ? ` (only ${ranked.length} weekdays have enough data — showing the ${label} of those)`
+      : '';
+    return `Relative to your trend line, ${DOW_NAMES[picked.day]} is your ${label}-weight day of the week${note} `
+         + `(averaging ${sign}${Math.abs(picked.avgDev).toFixed(2)} lbs vs. trend, across ${picked.count} ${DOW_NAMES[picked.day]} readings).`;
   }
 
   function answerDaysTracking() {
@@ -234,7 +260,7 @@
 
     if (/\bweekday\b|(\bday\b.*\bweek\b|\bweek\b.*\bday\b)/.test(q)
         && /(lowest|lightest|smallest|highest|heaviest|biggest)/.test(q)) {
-      return answerDayOfWeekPattern(/(lowest|lightest|smallest)/.test(q));
+      return answerDayOfWeekPattern(/(lowest|lightest|smallest)/.test(q), extractRank(q));
     }
 
     if (/(how (long|many days)|days).*(tracking|journey|been (going|on this))/.test(q)) return answerDaysTracking();
