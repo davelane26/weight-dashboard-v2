@@ -274,6 +274,23 @@
     return lines.join('\n');
   }
 
+  // AI answers commonly use light markdown (**bold**). Escape everything
+  // first so the source text can never smuggle in real HTML, then
+  // re-introduce only the specific tags we build ourselves from matched
+  // markdown syntax — an AI response can never inject arbitrary markup.
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function renderMarkdownLite(text) {
+    let html = escapeHtml(text);
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
   async function askAI(question) {
     const url = window.AI_ASK_WORKER_URL;
     if (!url) throw new Error('AI Q&A worker URL not configured.');
@@ -305,7 +322,7 @@
     if (btn) btn.disabled = true;
     out.textContent = '🤖 Thinking…';
     try {
-      out.textContent = await askAI(question);
+      out.innerHTML = renderMarkdownLite(await askAI(question));
     } catch (err) {
       out.textContent = deterministic; // couldn't reach AI — fall back to the parser's message
     } finally {
