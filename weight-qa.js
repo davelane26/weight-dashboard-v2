@@ -118,6 +118,40 @@
     return `Your lowest weight so far is ${fmt2(best.weight)} lbs, on ${fmtDate(best.date)}.`;
   }
 
+  // Which weekday tends to run lightest/heaviest — measured as deviation from
+  // a 7-day rolling trend, not a raw per-weekday average, so a weekday isn't
+  // flagged just because it happened to fall in a lighter/heavier month.
+  const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function answerDayOfWeekPattern(wantLowest) {
+    const dedupMap = {};
+    allData.forEach(r => { dedupMap[r.date.toDateString()] = r; });
+    const daily = Object.values(dedupMap).sort((a, b) => a.date - b.date);
+    if (daily.length < 14) {
+      return "Not enough data yet to spot a day-of-week pattern — need at least a couple weeks of daily readings.";
+    }
+    const smoothed = movingAvg(daily.map(r => r.weight), 7);
+    const sums = new Array(7).fill(0);
+    const counts = new Array(7).fill(0);
+    daily.forEach((r, i) => {
+      if (smoothed[i] == null) return;
+      sums[r.date.getDay()] += r.weight - smoothed[i]; // deviation from trend
+      counts[r.date.getDay()]++;
+    });
+    let bestIdx = null;
+    for (let i = 0; i < 7; i++) {
+      if (counts[i] < 2) continue;
+      const avg = sums[i] / counts[i];
+      const bestAvg = bestIdx == null ? null : sums[bestIdx] / counts[bestIdx];
+      if (bestIdx == null || (wantLowest ? avg < bestAvg : avg > bestAvg)) bestIdx = i;
+    }
+    if (bestIdx == null) return "Not enough spread across weekdays yet to spot a pattern.";
+    const avgDev = sums[bestIdx] / counts[bestIdx];
+    const verb = wantLowest ? 'lowest' : 'highest';
+    const sign = avgDev >= 0 ? '+' : '−';
+    return `Relative to your trend line, ${DOW_NAMES[bestIdx]} tends to be your ${verb}-weight day of the week `
+         + `(averaging ${sign}${Math.abs(avgDev).toFixed(2)} lbs vs. trend, across ${counts[bestIdx]} ${DOW_NAMES[bestIdx]} readings).`;
+  }
+
   function answerDaysTracking() {
     const latest = latestRecord();
     if (!latest) return null;
@@ -197,6 +231,11 @@
     if (/streak/.test(q)) return answerStreak();
 
     if (/(lowest|best|personal best|minimum) weight/.test(q)) return answerBest();
+
+    if (/\bweekday\b|(\bday\b.*\bweek\b|\bweek\b.*\bday\b)/.test(q)
+        && /(lowest|lightest|smallest|highest|heaviest|biggest)/.test(q)) {
+      return answerDayOfWeekPattern(/(lowest|lightest|smallest)/.test(q));
+    }
 
     if (/(how (long|many days)|days).*(tracking|journey|been (going|on this))/.test(q)) return answerDaysTracking();
 
