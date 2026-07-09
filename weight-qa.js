@@ -8,6 +8,18 @@
 
   const UNIT_DAYS = { day: 1, days: 1, week: 7, weeks: 7, month: 30, months: 30 };
   const WEEKDAYS  = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const NUMBER_WORDS = {
+    a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+    seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  };
+  // "two weeks ago" / "a month ago" → "2 weeks ago" / "1 month ago" so the
+  // existing digit-based period regexes below can match them.
+  function normalizeNumberWords(q) {
+    return q.replace(
+      /\b(a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b(?=\s*(?:days?|weeks?|months?)\b)/g,
+      w => String(NUMBER_WORDS[w])
+    );
+  }
   const FALLBACK_MESSAGE = "I couldn't quite parse that — try one of the example questions above, "
     + 'or phrase it like "average weight loss last 2 weeks" or "how much have I lost total".';
 
@@ -49,6 +61,7 @@
   }
 
   function extractPeriodDays(q) {
+    q = normalizeNumberWords(q);
     // Normalize to midnight so day-difference math is based on calendar
     // dates, not the current wall-clock time — otherwise "yesterday" asked
     // at 11pm can round to the wrong day relative to an 8am scale reading.
