@@ -45,6 +45,16 @@ map back.
    must be the PC's **LAN IP** (find it with `ipconfig` → IPv4 address under
    the WiFi adapter), port `1883`. `localhost` only works from the PC itself.
 
+   ⚠️ **The PC's IP is dynamic** — if the router hands it a new address, the
+   phone keeps publishing into the void and weigh-ins silently stop. Pin it:
+   - **Preferred — DHCP reservation:** get the adapter's MAC with
+     `getmac /v`, then in the router admin page (DHCP → Address Reservation
+     / Static Lease) bind that MAC to the current IP. Nothing on the PC or
+     phone changes afterward.
+   - **Fallback — static IP on the PC:** Windows Settings → Network &
+     Internet → adapter → IP assignment → Manual. Riskier (can conflict
+     with the DHCP pool); prefer the reservation.
+
 3. Let the phone reach the broker — two things commonly block it:
    - **Mosquitto 2.x refuses remote connections by default.** The config
      (`C:\Program Files\mosquitto\mosquitto.conf`) needs:
@@ -79,9 +89,10 @@ Work top-down; each step isolates one link.
 3. **Do messages reach the broker?** On the PC:
    `"C:\Program Files\mosquitto\mosquitto_sub.exe" -h localhost -t "#" -v`
    then trigger a reading from the phone. Nothing arriving = phone-side
-   problem: wrong broker IP in openScale (PC's LAN IP may have changed —
-   consider a DHCP reservation in the router), firewall, or the
-   `listener`/`allow_anonymous` config above.
+   problem: the PC's LAN IP changed and openScale is publishing to the old
+   one (compare `ipconfig` with the host set in openScale — and pin the IP
+   per the setup section), firewall, or the `listener`/`allow_anonymous`
+   config above.
 
 4. **Does the bridge push?** Watch the bridge window output after a reading,
    then confirm `data.json` updated:
