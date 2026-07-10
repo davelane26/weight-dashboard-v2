@@ -27,15 +27,24 @@
     return allData.length ? allData[allData.length - 1] : null;
   }
 
-  // Nearest reading at or before `daysAgo` days before the latest reading.
-  // A negative daysAgo means the resolved calendar date is more recent than
-  // our latest sync — there's no data for it yet, so return null rather than
-  // let the loop below fall through to (incorrectly) matching the latest row.
+  // Nearest reading at or before `daysAgo` calendar days before the latest
+  // reading. A negative daysAgo means the resolved calendar date is more
+  // recent than our latest sync — there's no data for it yet, so return
+  // null rather than let the loop below fall through to (incorrectly)
+  // matching the latest row.
   function recordDaysAgo(daysAgo) {
     const latest = latestRecord();
     if (!latest || daysAgo < 0) return null;
-    const target = new Date(latest.date);
+    // Anchor on the latest reading's calendar date (midnight), then extend
+    // the target to end-of-day — otherwise a reading logged later in the
+    // day than the latest sync's own timestamp (e.g. latest synced at 8am,
+    // but the target date's weigh-in was logged at 9pm) gets skipped and
+    // the search silently falls back to the day before.
+    const latestMidnight = new Date(latest.date);
+    latestMidnight.setHours(0, 0, 0, 0);
+    const target = new Date(latestMidnight);
     target.setDate(target.getDate() - daysAgo);
+    target.setHours(23, 59, 59, 999);
     for (let i = allData.length - 1; i >= 0; i--) {
       if (allData[i].date <= target) return allData[i];
     }
@@ -57,7 +66,14 @@
   function daysAgoForCalendarDate(targetDate) {
     const latest = latestRecord();
     if (!latest) return null;
-    return Math.round((latest.date - targetDate) / 86400000);
+    // Compare calendar dates only (both midnight-normalized) so the result
+    // is an exact integer day count, never a time-of-day-dependent rounding
+    // that could land on the wrong day — recordDaysAgo() reconstructs this
+    // same calendar date from the returned integer, so any rounding error
+    // here would propagate into an off-by-one lookup there.
+    const latestMidnight = new Date(latest.date);
+    latestMidnight.setHours(0, 0, 0, 0);
+    return Math.round((latestMidnight - targetDate) / 86400000);
   }
 
   const MONTH_NAMES = {
