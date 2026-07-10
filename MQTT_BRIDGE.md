@@ -106,3 +106,24 @@ Work top-down; each step isolates one link.
 If a reading gets lost while the pipeline is down, add it manually via
 [add-weighin.html](add-weighin.html) — it writes straight to
 `Weight-tracker/data.json`.
+
+---
+
+## Data recovery & removing bad weigh-ins
+
+**The phone is the source of truth.** openScale's sync publishes its entire
+measurement table, and the bridge rewrites `data.json` from it. Two
+consequences:
+
+- **To remove a bad weigh-in:** delete it in the openScale app, then sync.
+  The rewritten `data.json` won't have it.
+- **If `data.json` ever gets wiped or corrupted** (it happened 2026-07-09:
+  an empty sync message made the bridge push an empty array): just sync
+  again from the phone — the full table comes back. Failing that, every
+  prior version lives in git history:
+  `git checkout <last-good-commit> -- data.json` in the PC's
+  weight-tracker folder, then push.
+
+⚠️ Known risk: unless the bridge has since been patched to refuse
+empty/shrinking payloads, a malformed sync can still blank `data.json`.
+It's recoverable (above), but the bridge-side guard is the real fix.
