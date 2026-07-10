@@ -60,6 +60,46 @@
     return Math.round((latest.date - targetDate) / 86400000);
   }
 
+  const MONTH_NAMES = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+    may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
+    sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10,
+    dec: 11, december: 11,
+  };
+
+  // Builds a midnight-normalized Date from a month/day, inferring the year
+  // (this year, unless that lands in the future — then last year) when none
+  // is given.
+  function buildDate(month, day, year, today) {
+    if (month == null || isNaN(month) || month < 0 || month > 11) return null;
+    if (day == null || isNaN(day) || day < 1 || day > 31) return null;
+    if (year == null) {
+      year = today.getFullYear();
+      if (new Date(year, month, day) > today) year -= 1;
+    } else if (year < 100) {
+      year += 2000;
+    }
+    const d = new Date(year, month, day);
+    d.setHours(0, 0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Explicit calendar dates — "7/4", "7/4/2026", "July 4", "Jul 4th, 2026" —
+  // as opposed to the relative phrases (weekday names, "N days ago") below.
+  function extractExplicitDate(q, today) {
+    let m = q.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+    if (m) {
+      return buildDate(parseInt(m[1], 10) - 1, parseInt(m[2], 10),
+        m[3] ? parseInt(m[3], 10) : null, today);
+    }
+    m = q.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/);
+    if (m) {
+      return buildDate(MONTH_NAMES[m[1]], parseInt(m[2], 10),
+        m[3] ? parseInt(m[3], 10) : null, today);
+    }
+    return null;
+  }
+
   function extractPeriodDays(q) {
     q = normalizeNumberWords(q);
     // Normalize to midnight so day-difference math is based on calendar
@@ -67,10 +107,13 @@
     // at 11pm can round to the wrong day relative to an 8am scale reading.
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    let targetDate = null;
+    let targetDate = extractExplicitDate(q, today);
+    let m;
 
-    let m = q.match(/(?:last|past|previous)\s+(\d+)\s*(day|days|week|weeks|month|months)/);
-    if (m) targetDate = daysBefore(today, parseInt(m[1], 10) * UNIT_DAYS[m[2]]);
+    if (!targetDate) {
+      m = q.match(/(?:last|past|previous)\s+(\d+)\s*(day|days|week|weeks|month|months)/);
+      if (m) targetDate = daysBefore(today, parseInt(m[1], 10) * UNIT_DAYS[m[2]]);
+    }
 
     if (!targetDate) {
       m = q.match(/\b(?:last|past|previous)\s+(day|week|month)\b/);
