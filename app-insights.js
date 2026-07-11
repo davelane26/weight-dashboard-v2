@@ -19,6 +19,11 @@ function updateSnapshot() {
     setSnap('snap-weight', latest.weight.toFixed(1) + ' lbs');
     const sevenDaysAgo = new Date(latest.date);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Extend to end-of-day so a reading logged later in the day than the
+    // latest sync's own timestamp (e.g. latest synced at 8am, but the
+    // 7-days-ago weigh-in was logged at 9pm) still counts as "that day"
+    // instead of being skipped in favor of an even older reading.
+    sevenDaysAgo.setHours(23, 59, 59, 999);
     const older = allData.slice().reverse().find(r => r.date <= sevenDaysAgo);
     if (older) {
       const d    = latest.weight - older.weight;
