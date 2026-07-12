@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-07-12T14:25:27.228569+00:00",
+  "generated_at": "2026-07-12T20:17:07.943891+00:00",
   "week_ending": "2026-07-12",
-  "summary": "David, you're at 253.1 pounds this week, which means you've lost an impressive 61.9 pounds total since starting\u2014that's nearly a fifth of your starting weight. Your consistency is showing: even though the scale moved just 1.1 pounds over the last two weeks, you're maintaining a steady 0.55 pounds per week, which is exactly the kind of sustainable pace that leads to lasting results. I noticed you logged 11 days this period, so let's aim for complete tracking next week\u2014those gaps in data can make it harder to spot patterns that help you optimize. You're doing the hard work and it's paying off; keep trusting the process.",
+  "summary": "David, what a week! You're now at 252.9 pounds, which means you've shed an impressive 62.1 pounds total since starting this journey\u2014that's real, lasting progress. Over the past two weeks you've lost a steady 2 pounds, putting you right on pace at about 1 pound per week, which is exactly the sustainable rate that sets you up for long-term success. I noticed you logged 11 of 7 days, so you're staying engaged with your data, and that consistency is what's driving these results. Next week, let's focus on keeping that logging streak going every single day\u2014your Dexcom and Garmin are giving you valuable insights, so capturing them all will help us fine-tune what's working. You're doing the work, and it's paying off.",
   "stats": {
     "days_with_readings": 11,
-    "latest_weight": 253.1,
-    "total_lost_from_start": 61.9,
-    "change_last_14d": -1.1,
-    "rate_lbs_per_week": 0.55,
-    "avg_weight": 255.1
+    "latest_weight": 252.9,
+    "total_lost_from_start": 62.1,
+    "change_last_14d": -2.0,
+    "rate_lbs_per_week": 1.0,
+    "avg_weight": 255.0
   }
 }
