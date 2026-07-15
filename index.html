@@ -397,16 +397,22 @@
 
 
     <section class="card fade-in card--accent-purple" aria-label="AI weekly summary" id="ai-summary-section">
-      <div class="ai-summary-header">
-        <h2 class="card-title" style="margin:0">🤖 Weekly AI Summary</h2>
-        <button type="button" id="ai-summary-trigger" class="ai-trigger-btn"
-                onclick="triggerWeeklySummary()"
-                aria-label="Generate a fresh summary now (opens GitHub Actions)">
-          ⚡ Generate Now
-        </button>
+      <button class="collapse-toggle" onclick="toggleCollapsible('ai-summary-content','ai-summary-toggle','ai-summary-chevron')"
+        aria-expanded="false" id="ai-summary-toggle">
+        <span>Weekly AI Summary</span>
+        <span class="collapse-chevron closed" id="ai-summary-chevron">▲</span>
+      </button>
+      <div id="ai-summary-content" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.6rem;margin-bottom:0.4rem">
+          <p style="font-size:0.72rem;color:#6d7a95;margin:0">Generated every Sunday by Element (GPT-4.1-mini) · <span id="ai-summary-date"></span></p>
+          <button type="button" id="ai-summary-trigger" class="ai-trigger-btn"
+                  onclick="triggerWeeklySummary()"
+                  aria-label="Generate a fresh summary now (opens GitHub Actions)">
+            Generate Now
+          </button>
+        </div>
+        <p id="ai-summary-text" style="font-size:0.88rem;line-height:1.65;color:var(--text)">Loading…</p>
       </div>
-      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:0.75rem">Generated every Sunday by Element (GPT-4.1-mini) · <span id="ai-summary-date"></span></p>
-      <p id="ai-summary-text" style="font-size:0.88rem;line-height:1.65;color:var(--text)">Loading…</p>
     </section>
 
     <section class="card fade-in" aria-label="Pattern insights" id="insights-section">
@@ -421,24 +427,30 @@
     </section>
 
     <section class="card fade-in" aria-label="Ask about your journey" id="qa-section">
-      <h2 class="card-title">💬 Ask About Your Journey</h2>
-      <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
-        Answered instantly from your data when possible — falls back to AI for anything more open-ended.
-      </p>
-      <div class="qa-examples" id="qa-examples">
-        <button type="button" class="qa-example">average weight loss last 2 weeks</button>
-        <button type="button" class="qa-example">how much have I lost total</button>
-        <button type="button" class="qa-example">what's my current BMI</button>
-        <button type="button" class="qa-example">days until goal</button>
-        <button type="button" class="qa-example">what's my weigh-in streak</button>
-        <button type="button" class="qa-example">lowest weight so far</button>
+      <button class="collapse-toggle" onclick="toggleCollapsible('qa-content','qa-toggle','qa-chevron')"
+        aria-expanded="false" id="qa-toggle">
+        <span>Ask About Your Journey</span>
+        <span class="collapse-chevron closed" id="qa-chevron">▲</span>
+      </button>
+      <div id="qa-content" style="display:none">
+        <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
+          Answered instantly from your data when possible — falls back to AI for anything more open-ended.
+        </p>
+        <div class="qa-examples" id="qa-examples">
+          <button type="button" class="qa-example">average weight loss last 2 weeks</button>
+          <button type="button" class="qa-example">how much have I lost total</button>
+          <button type="button" class="qa-example">what's my current BMI</button>
+          <button type="button" class="qa-example">days until goal</button>
+          <button type="button" class="qa-example">what's my weigh-in streak</button>
+          <button type="button" class="qa-example">lowest weight so far</button>
+        </div>
+        <form id="qa-form" class="qa-form">
+          <input type="text" id="qa-input" class="qa-input" autocomplete="off"
+                 placeholder="Ask a question about your weight data…" aria-label="Ask a question about your weight data" />
+          <button type="submit" id="qa-ask-btn" class="btn-primary">Ask</button>
+        </form>
+        <div id="qa-answer" class="qa-answer" role="status" aria-live="polite"></div>
       </div>
-      <form id="qa-form" class="qa-form">
-        <input type="text" id="qa-input" class="qa-input" autocomplete="off"
-               placeholder="Ask a question about your weight data…" aria-label="Ask a question about your weight data" />
-        <button type="submit" id="qa-ask-btn" class="btn-primary">Ask</button>
-      </form>
-      <div id="qa-answer" class="qa-answer" role="status" aria-live="polite"></div>
     </section>
 
   </div><!-- /tab-weight -->

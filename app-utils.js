@@ -106,6 +106,18 @@ const el      = id => document.getElementById(id);
 const setText = (id, v) => { const e = el(id); if (e) { e.textContent = v; e.classList.remove('skel'); } };
 const setHTML = (id, v) => { const e = el(id); if (e) { e.innerHTML   = v; e.classList.remove('skel'); } };
 
+// Generic collapse toggle. Assumes a body div, a header button with
+// aria-expanded, and a chevron span. All three are addressed by id
+// so any section can opt in without needing its own function.
+function toggleCollapsible(bodyId, toggleId, chevronId) {
+  const body = el(bodyId), tog = el(toggleId), chev = el(chevronId);
+  if (!body || !tog || !chev) return;
+  const isOpen = tog.getAttribute('aria-expanded') === 'true';
+  body.style.display = isOpen ? 'none' : '';
+  tog.setAttribute('aria-expanded', String(!isOpen));
+  chev.classList.toggle('closed', isOpen);
+}
+
 // ── Animated counter ─────────────────────────────────────────────────
 function countUp(id, target, decimals = 1, suffix = '', duration = 900) {
   const e = el(id);
