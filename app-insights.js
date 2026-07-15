@@ -29,8 +29,6 @@ function updateSnapshot() {
     };
     const sevenDaysAgo = new Date(latest.date);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgo = new Date(latest.date);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     // Extend to end-of-day so a reading logged later in the day than the
     // latest sync's own timestamp still counts as "that day".
     sevenDaysAgo.setHours(23, 59, 59, 999);
@@ -38,7 +36,6 @@ function updateSnapshot() {
     const priorAvg = trailingAvg(sevenDaysAgo);
     if (nowAvg != null && priorAvg != null) {
       const d    = nowAvg - priorAvg;
-      const sign = d > 0 ? '+' : '';
       const sign = d > 0 ? '+' : '';
       setSnap('snap-weight-delta', sign + d.toFixed(1) + ' lbs vs 7d ago (trend)',
               d < 0 ? 'good' : d > 0 ? 'bad' : 'neutral');
