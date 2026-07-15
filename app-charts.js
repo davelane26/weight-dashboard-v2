@@ -168,25 +168,40 @@ function renderWeeklyStats(data) {
     }
   }
 
-  // ── Rolling 7-day (latest vs closest reading 7 days ago) ──
+  // ── Rolling 7-day trend (trailing 5-reading avg now vs ~7 days ago) ──
+  // Point-to-point endpoints are noisy: a single low reading ~7 days ago
+  // (or a data gap) makes today look like a gain even while the real trend
+  // drops. Compare SMOOTHED trailing averages instead.
+  const asc = [...sorted].reverse(); // oldest -> newest
+  const trailAvg = (cutoffMs) => {
+    const upto = asc.filter(r => new Date(r.date).getTime() <= cutoffMs);
+    if (!upto.length) return null;
+    const last5 = upto.slice(-5);
+    return last5.reduce((s, r) => s + r.weight, 0) / last5.length;
+  };
   const latest   = sorted[0];
   const latestMs = new Date(latest.date).getTime();
-  const target7  = latestMs - 7 * DAY;
-  const ref7     = sorted.slice(1).reduce((best, r) => {
-    const d = new Date(r.date).getTime();
-    return Math.abs(d - target7) < Math.abs(new Date(best.date).getTime() - target7) ? r : best;
-  }, sorted[sorted.length - 1]);
+  const nowAvg7  = trailAvg(latestMs);
+  const refAvg7  = trailAvg(latestMs - 7 * DAY);
 
   const r7Card = el('rolling7-card');
   if (r7Card) {
-    const diff7  = latest.weight - ref7.weight;
-    const color7 = diff7 <= 0 ? '#2a8703' : '#ea1100';
-    const icon7  = diff7 <= 0 ? '▼' : '▲';
-    r7Card.innerHTML = `
-      <p class="kpi-label" style="color:#7c3aed">📅 Rolling 7-Day</p>
-      <p class="kpi-value" style="color:${color7}">${icon7} ${fmt(Math.abs(diff7))}</p>
-      <p class="kpi-unit">lbs difference</p>
-      <p class="kpi-sub">${fmtDate(new Date(ref7.date))} ${fmt(ref7.weight)} → ${fmtDate(new Date(latest.date))} ${fmt(latest.weight)}</p>
-    `;
+    if (nowAvg7 != null && refAvg7 != null) {
+      const diff7  = nowAvg7 - refAvg7;
+      const color7 = diff7 <= 0 ? '#2a8703' : '#ea1100';
+      const icon7  = diff7 <= 0 ? '▼' : '▲';
+      r7Card.innerHTML = `
+        <p class="kpi-label" style="color:#7c3aed">Rolling 7-Day (trend)</p>
+        <p class="kpi-value" style="color:${color7}">${icon7} ${fmt(Math.abs(diff7))}</p>
+        <p class="kpi-unit">lbs difference</p>
+        <p class="kpi-sub">${fmt(refAvg7)} → ${fmt(nowAvg7)} (5-day avgs)</p>
+      `;
+    } else {
+      r7Card.innerHTML = `
+        <p class="kpi-label" style="color:#7c3aed">Rolling 7-Day (trend)</p>
+        <p class="kpi-value" style="color:#c5c9d5">—</p>
+        <p class="kpi-sub">Not enough data</p>
+      `;
+    }
   }
 }
