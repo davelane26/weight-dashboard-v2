@@ -36,7 +36,6 @@ function renderAll() {
   renderGoal(latest, allData);
 
   updateSnapshot();
-  generateInsights();
 
   // Optional renderers from sibling feature scripts (heatmap.js etc).
   // Use feature-detection so we never crash if a script hasn't loaded.
