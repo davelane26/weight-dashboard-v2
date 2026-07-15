@@ -415,23 +415,6 @@
       </div>
     </section>
 
-    <section class="card fade-in" aria-label="Pattern insights" id="insights-section">
-      <button class="collapse-toggle" onclick="toggleCollapsible('insights-content','insights-toggle','insights-chevron')"
-        aria-expanded="false" id="insights-toggle">
-        <span>Patterns</span>
-        <span class="collapse-chevron closed" id="insights-chevron">▲</span>
-      </button>
-      <div id="insights-content" style="display:none">
-        <p style="font-size:0.75rem;color:#6d7a95;margin-bottom:0.75rem">
-          Auto-detected from your data — needs at least 4 weeks of readings.
-        </p>
-        <div id="insights-list"></div>
-        <p id="insights-empty" style="font-size:0.8rem;color:#6d7a95">
-          Not enough data yet to detect patterns.
-        </p>
-      </div>
-    </section>
-
     <section class="card fade-in" aria-label="Ask about your journey" id="qa-section">
       <button class="collapse-toggle" onclick="toggleCollapsible('qa-content','qa-toggle','qa-chevron')"
         aria-expanded="false" id="qa-toggle">
@@ -542,27 +525,6 @@
         <span style="color:#0053e2">&#9632; Moderate (1.75 lbs/wk)</span>
         <span style="color:#2a8703">&#9632; Optimistic (2.50 lbs/wk)</span>
         <span style="color:#ffc220">&#9679; Actual weight</span>
-      </div>
-
-      <!-- Milestone table -->
-      <p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;
-                color:#6d7a95;margin-bottom:0.6rem">Milestone ETAs</p>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
-          <thead>
-            <tr style="border-bottom:2px solid #e5e9f5">
-              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
-                         text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95">Target</th>
-              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
-                         text-transform:uppercase;letter-spacing:0.08em;color:#995213">Conservative</th>
-              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
-                         text-transform:uppercase;letter-spacing:0.08em;color:#0053e2">Moderate</th>
-              <th style="padding:0.4rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;
-                         text-transform:uppercase;letter-spacing:0.08em;color:#2a8703">Optimistic</th>
-            </tr>
-          </thead>
-          <tbody id="tj-milestones"></tbody>
-        </table>
       </div>
 
       <p style="font-size:0.65rem;color:#9aa5b4;margin-top:1rem">
