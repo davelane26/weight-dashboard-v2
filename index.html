@@ -173,53 +173,60 @@
         <!-- BMI card tone is updated by renderKPIs based on the value
              (green < 25, gold 25–34.9, red ≥ 35). Default = gold. -->
         <div class="kpi kpi--gold" id="kpi-bmi-card">
-          <p class="kpi-label">📋 BMI</p>
+          <p class="kpi-label">&#128203; BMI</p>
           <p class="kpi-value skel" id="kpi-bmi">—</p>
           <p class="kpi-unit">kg/m²</p>
           <p class="kpi-sub" id="kpi-bmi-sub"></p>
         </div>
         <div class="kpi kpi--gold">
-          <p class="kpi-label">🔥 Body Fat</p>
+          <p class="kpi-label">&#128293; Body Fat</p>
           <p class="kpi-value skel" id="kpi-fat">—</p>
           <p class="kpi-unit">% of total weight</p>
           <p class="kpi-sub" id="kpi-fat-sub"></p>
         </div>
+        <div class="kpi kpi--green">
+          <p class="kpi-label">&#128170; Muscle</p>
+          <p class="kpi-value skel" id="kpi-muscle">—</p>
+          <p class="kpi-unit">skeletal muscle %</p>
+          <p class="kpi-sub" id="kpi-muscle-sub"></p>
+        </div>
+        <div class="kpi kpi--cyan">
+          <p class="kpi-label">&#128167; Body Water</p>
+          <p class="kpi-value skel" id="kpi-water">—</p>
+          <p class="kpi-unit">% of total weight</p>
+          <p class="kpi-sub" id="kpi-water-sub"></p>
+        </div>
+      </div>
+      <button class="collapse-toggle" onclick="toggleCollapsible('body-comp-extras','body-comp-toggle','body-comp-chevron')"
+        aria-expanded="false" id="body-comp-toggle" style="margin-top:0.75rem">
+        <span>Show all metrics</span>
+        <span class="collapse-chevron closed" id="body-comp-chevron">▲</span>
+      </button>
+      <div id="body-comp-extras" class="kpi-grid" style="display:none;margin-top:0.5rem">
         <div class="kpi kpi--gold">
-          <p class="kpi-label">🔥 Fat Mass</p>
+          <p class="kpi-label">&#128293; Fat Mass</p>
           <p class="kpi-value skel" id="kpi-fat-lbs">—</p>
           <p class="kpi-unit">lbs of fat</p>
           <p class="kpi-sub" id="kpi-fat-lbs-sub"></p>
         </div>
         <div class="kpi kpi--green">
-          <p class="kpi-label">💪 Muscle</p>
-          <p class="kpi-value skel" id="kpi-muscle">—</p>
-          <p class="kpi-unit">skeletal muscle %</p>
-          <p class="kpi-sub" id="kpi-muscle-sub"></p>
-        </div>
-        <div class="kpi kpi--green">
-          <p class="kpi-label">💪 Muscle Mass</p>
+          <p class="kpi-label">&#128170; Muscle Mass</p>
           <p class="kpi-value skel" id="kpi-muscle-lbs">—</p>
           <p class="kpi-unit">lbs of muscle</p>
           <p class="kpi-sub" id="kpi-muscle-lbs-sub"></p>
         </div>
-        <div class="kpi kpi--cyan">
-          <p class="kpi-label">💧 Body Water</p>
-          <p class="kpi-value skel" id="kpi-water">—</p>
-          <p class="kpi-unit">% of total weight</p>
-          <p class="kpi-sub" id="kpi-water-sub"></p>
-        </div>
         <div class="kpi kpi--gray">
-          <p class="kpi-label">🦴 Bone Mass</p>
+          <p class="kpi-label">&#129460; Bone Mass</p>
           <p class="kpi-value skel" id="kpi-bone">—</p>
           <p class="kpi-unit">lbs</p>
         </div>
         <div class="kpi kpi--purple">
-          <p class="kpi-label">⚡ BMR</p>
+          <p class="kpi-label">&#9889; BMR</p>
           <p class="kpi-value skel" id="kpi-bmr">—</p>
           <p class="kpi-unit">kcal/day at rest</p>
         </div>
         <div class="kpi kpi--blue">
-          <p class="kpi-label">🏃 TDEE</p>
+          <p class="kpi-label">&#127939; TDEE</p>
           <p class="kpi-value skel" id="kpi-tdee">—</p>
           <p class="kpi-unit">kcal/day total burn</p>
         </div>
