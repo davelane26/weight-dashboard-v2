@@ -17,18 +17,30 @@ function updateSnapshot() {
   if (allData.length) {
     const latest = allData[allData.length - 1];
     setSnap('snap-weight', latest.weight.toFixed(1) + ' lbs');
+
+    // Compare SMOOTHED trend, not single noisy readings. A raw point-to-point
+    // diff can land on a lucky trough/peak (or a data gap) and lie about the
+    // real direction. Trailing 5-reading average ending at-or-before a date.
+    const trailingAvg = (cutoff) => {
+      const upto = allData.filter(r => r.date <= cutoff);
+      if (!upto.length) return null;
+      const last5 = upto.slice(-5);
+      return last5.reduce((s, r) => s + r.weight, 0) / last5.length;
+    };
+    const sevenDaysAgo = new Date(latest.date);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgo = new Date(latest.date);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     // Extend to end-of-day so a reading logged later in the day than the
-    // latest sync's own timestamp (e.g. latest synced at 8am, but the
-    // 7-days-ago weigh-in was logged at 9pm) still counts as "that day"
-    // instead of being skipped in favor of an even older reading.
+    // latest sync's own timestamp still counts as "that day".
     sevenDaysAgo.setHours(23, 59, 59, 999);
-    const older = allData.slice().reverse().find(r => r.date <= sevenDaysAgo);
-    if (older) {
-      const d    = latest.weight - older.weight;
+    const nowAvg   = trailingAvg(latest.date);
+    const priorAvg = trailingAvg(sevenDaysAgo);
+    if (nowAvg != null && priorAvg != null) {
+      const d    = nowAvg - priorAvg;
       const sign = d > 0 ? '+' : '';
-      setSnap('snap-weight-delta', sign + d.toFixed(1) + ' lbs vs 7d ago',
+      const sign = d > 0 ? '+' : '';
+      setSnap('snap-weight-delta', sign + d.toFixed(1) + ' lbs vs 7d ago (trend)',
               d < 0 ? 'good' : d > 0 ? 'bad' : 'neutral');
     } else {
       setSnap('snap-weight-delta', 'no 7d comparison', 'neutral');
