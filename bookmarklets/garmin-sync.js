@@ -161,21 +161,33 @@
   else scrapeActivity();
 
   // ── Push to Firebase + backup worker ─────────────────────────────
+  // Report success/failure explicitly — fetch() does NOT reject on 4xx/5xx,
+  // so a write that's rejected (e.g. 401 Unauthorized, Firebase permission
+  // denied) would otherwise fail 100% silently: the scrape alert above still
+  // shows real numbers, but nothing actually got persisted anywhere.
+  const describe = (label, p) => p
+    .then(res => `${label}: ${res.ok ? 'OK' : 'FAILED (' + res.status + ' ' + res.statusText + ')'}`)
+    .catch(e => `${label}: FAILED (${e.message})`);
+
   Promise.all([
-    fetch(FIREBASE + '/garmin/' + dateKey + '.json', {
+    describe('Firebase (day)', fetch(FIREBASE + '/garmin/' + dateKey + '.json', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }),
-    fetch(FIREBASE + '/garmin/latest.json', {
+    })),
+    describe('Firebase (latest)', fetch(FIREBASE + '/garmin/latest.json', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }),
-    fetch(WORKER + '/health/patch', {
+    })),
+    describe('Worker patch', fetch(WORKER + '/health/patch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }),
-  ]).catch(e => console.error('[garmin-sync] Sync error:', e));
+    })),
+  ]).then(results => {
+    console.log('[garmin-sync] Push results:\n' + results.join('\n'));
+    const failed = results.filter(r => r.includes('FAILED'));
+    if (failed.length) alert('Sync push had failures:\n\n' + results.join('\n'));
+  });
 })();
