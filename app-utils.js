@@ -105,6 +105,50 @@ function computeWeightSlowdown(data, windowDays = 28) {
   return { currentRate, priorRate, slowdownPct, windowDays };
 }
 
+// ── Slowdown-adjusted projection model ───────────────────────────────
+// Extrapolates the observed deceleration: the weekly rate starts at the
+// current 4-wk regression rate and keeps easing by the same amount it
+// eased between the two windows. Units are lbs/WEEK; decel > 0 = slowing
+// by that many lbs/wk each week. When the pace is steady or speeding up
+// we do NOT extrapolate the acceleration — we project linearly at the
+// current rate (the conservative choice).
+function slowdownModel(sd) {
+  if (!sd || sd.currentRate == null || sd.priorRate == null) return null;
+  const r0    = sd.currentRate;
+  const decel = (sd.priorRate - sd.currentRate) / (sd.windowDays / 7);
+  return { r0, decel };
+}
+
+// Projected lbs lost after `weeks` under the decelerating model.
+// Once the extrapolated rate reaches zero the curve flattens — we never
+// project regain out of a decaying loss rate.
+function slowdownLossAt(model, weeks) {
+  const { r0, decel } = model;
+  if (r0 <= 0 || weeks <= 0) return 0;
+  if (decel <= 0) return r0 * weeks;
+  const w = Math.min(weeks, r0 / decel);
+  return r0 * w - (decel / 2) * w * w;
+}
+
+// Weeks needed to lose `lbs` under the model, or null if the pace is
+// projected to stall before getting there.
+function slowdownWeeksToLose(model, lbs) {
+  const { r0, decel } = model;
+  if (r0 <= 0 || lbs <= 0) return lbs <= 0 ? 0 : null;
+  if (decel <= 0) return lbs / r0;
+  const disc = r0 * r0 - 2 * decel * lbs;
+  if (disc < 0) return null;
+  return (r0 - Math.sqrt(disc)) / decel;
+}
+
+// Where the extrapolated pace hits zero: { weeks, loss } of additional
+// loss remaining before the stall, or null when there's no deceleration.
+function slowdownPlateau(model) {
+  const { r0, decel } = model;
+  if (r0 <= 0 || decel <= 0) return null;
+  return { weeks: r0 / decel, loss: (r0 * r0) / (2 * decel) };
+}
+
 // ── Streak counter (consecutive calendar-day readings) ───────────────
 function calcStreak(data) {
   if (!data.length) return 0;
