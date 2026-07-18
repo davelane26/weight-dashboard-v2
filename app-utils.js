@@ -77,6 +77,34 @@ function weightTrendSlope(data, days = 28) {
   return regressionSlopeLbsPerDay(data, days);
 }
 
+// ── Weight slowdown (deceleration) ───────────────────────────────────
+// Compares the regression rate of the most recent `windowDays` against
+// the window immediately before it (same length, ending where the
+// current one starts). Rates are lbs/WEEK, positive = losing.
+// slowdownPct > 0 means the pace is slowing; null when the prior rate
+// is too close to zero for a percentage to mean anything.
+function computeWeightSlowdown(data, windowDays = 28) {
+  if (!data || data.length < 6) return null;
+  const sorted = [...data].sort((a, b) => a.date - b.date);
+  const latestMs = sorted[sorted.length - 1].date.getTime();
+  const cutoff   = latestMs - windowDays * 86_400_000;
+  const priorData = sorted.filter(r => r.date.getTime() < cutoff);
+
+  // regressionSlopeLbsPerDay anchors its window on the last reading of
+  // whatever it's given, so passing only pre-cutoff readings yields the
+  // prior window's slope with identical math to the current one.
+  const currentSlope = regressionSlopeLbsPerDay(sorted, windowDays);
+  const priorSlope   = regressionSlopeLbsPerDay(priorData, windowDays);
+  if (currentSlope == null || priorSlope == null) return null;
+
+  const currentRate = -currentSlope * 7;
+  const priorRate   = -priorSlope * 7;
+  const slowdownPct = priorRate > 0.1
+    ? ((priorRate - currentRate) / priorRate) * 100
+    : null;
+  return { currentRate, priorRate, slowdownPct, windowDays };
+}
+
 // ── Streak counter (consecutive calendar-day readings) ───────────────
 function calcStreak(data) {
   if (!data.length) return 0;

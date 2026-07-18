@@ -85,12 +85,57 @@ function clearGoal() {
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
 
+// ── Slowdown check (Weight Projector card) ───────────────────────────
+// Fills the "Slowdown Check" panel: recent 4-wk regression rate vs the
+// 4 weeks before it. Returns the slowdown object (or null) so
+// computeProjection can also show a recent-pace arrival date.
+function renderProjectorSlowdown() {
+  const panel = document.getElementById('proj-slowdown');
+  if (!panel) return null;
+
+  const data = (typeof allData !== 'undefined' && allData.length) ? allData : null;
+  const sd   = data ? computeWeightSlowdown(data, 28) : null;
+  if (!sd) { panel.style.display = 'none'; return null; }
+  panel.style.display = 'block';
+
+  const set = (id, txt, color) => {
+    const e = document.getElementById(id);
+    if (e) { e.textContent = txt; if (color) e.style.color = color; }
+  };
+  const rateStr = r => `${r.toFixed(2)} lbs/wk`;
+  set('proj-sd-prior',   rateStr(sd.priorRate));
+  set('proj-sd-current', rateStr(sd.currentRate));
+
+  let pctTxt, pctColor, note;
+  if (sd.slowdownPct == null) {
+    pctTxt   = '—';
+    pctColor = '#6d7a95';
+    note = 'Prior 4-week pace was near zero, so a percent change isn’t meaningful. Watch the raw rates instead.';
+  } else if (sd.slowdownPct >= 15) {
+    pctTxt   = `▼ ${Math.round(sd.slowdownPct)}% slower`;
+    pctColor = '#ea1100';
+    note = `Pace has slowed ${Math.round(sd.slowdownPct)}% vs the prior 4 weeks. The projections above use your de-skewed average — the countdown card also shows arrival at your recent pace.`;
+  } else if (sd.slowdownPct <= -15) {
+    pctTxt   = `▲ ${Math.round(Math.abs(sd.slowdownPct))}% faster`;
+    pctColor = '#2a8703';
+    note = `Pace has picked up ${Math.round(Math.abs(sd.slowdownPct))}% vs the prior 4 weeks — projections above may be conservative.`;
+  } else {
+    pctTxt   = `${sd.slowdownPct >= 0 ? '▼' : '▲'} ${Math.round(Math.abs(sd.slowdownPct))}%`;
+    pctColor = '#6d7a95';
+    note = 'Pace is holding steady vs the prior 4 weeks — the linear projections above are a fair estimate.';
+  }
+  set('proj-sd-pct', pctTxt, pctColor);
+  set('proj-sd-note', note);
+  return sd;
+}
+
 // ── Weight Projector ─────────────────────────────────────────────────
 function computeProjection() {
   const dateInput   = document.getElementById('proj-date-input');
   const weightInput = document.getElementById('proj-weight-input');
   const dateResult  = document.getElementById('proj-date-result');
   const weightResult= document.getElementById('proj-weight-result');
+  const slowdown    = renderProjectorSlowdown();
 
   const noTrend = () => {
     if (dateResult)   dateResult.textContent   = 'Need more data (< 30 days of readings)';
@@ -168,6 +213,29 @@ function computeProjection() {
           `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
         document.getElementById('proj-cd-togo').textContent  =
           `${fmt(stillToGo)} lbs`;
+
+        // Recent-pace arrival: same countdown recomputed with the last
+        // 4 weeks' regression rate instead of the de-skewed average.
+        const adjWrap = document.getElementById('proj-cd-adjusted-wrap');
+        const adjEl   = document.getElementById('proj-cd-adjusted');
+        if (adjWrap && adjEl) {
+          if (slowdown && slowdown.currentRate > 0.05) {
+            const adjDays  = stillToGo / (slowdown.currentRate / 7);
+            const adjDate  = new Date(projLatestDate.getTime() + adjDays * MS_PER_DAY);
+            const deltaDays = Math.round(adjDays - daysNeeded);
+            const deltaStr  = deltaDays === 0 ? 'same as projection'
+              : deltaDays > 0 ? `+${deltaDays} days later`
+              : `${Math.abs(deltaDays)} days sooner`;
+            adjEl.textContent = `${adjDate.toLocaleDateString('en-US',
+              { month: 'long', day: 'numeric', year: 'numeric' })} · ${deltaStr}`;
+            adjWrap.style.display = 'block';
+          } else if (slowdown) {
+            adjEl.textContent = 'Recent trend is flat — no recent-pace ETA';
+            adjWrap.style.display = 'block';
+          } else {
+            adjWrap.style.display = 'none';
+          }
+        }
       }
       weightResult.textContent = '';
     }
