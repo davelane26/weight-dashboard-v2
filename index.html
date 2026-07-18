@@ -40,7 +40,7 @@
 <script src="app-tabs.js?v=3"     defer></script>
 <script src="app-kpis.js?v=2"     defer></script>
 <script src="app-charts.js?v=1"   defer></script>
-<script src="app-goal.js?v=2"     defer></script>
+<script src="app-goal.js?v=3"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
 <script src="app.js?v=101"        defer></script>
 <script src="weight-qa.js?v=1"    defer></script>
@@ -454,6 +454,7 @@
           <label for="proj-date-input" style="display:block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.4rem">📅 Pick a date — see your projected weight</label>
           <input type="date" id="proj-date-input" oninput="computeProjection()" style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
           <p id="proj-date-result" style="margin-top:0.75rem;font-size:0.95rem;font-weight:700;color:#6d7a95;min-height:1.4rem">Pick a date above</p>
+          <p id="proj-date-recent" style="margin-top:0.4rem;font-size:0.8rem;font-weight:700;color:#995213;min-height:1.1rem"></p>
         </div>
         <div>
           <label style="display:block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">🎯 Drag to a target — see your arrival date</label>

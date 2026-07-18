@@ -151,6 +151,8 @@ function computeProjection() {
   // ── Date → Projected weight ──
   if (dateInput && dateResult) {
     const targetDate = dateInput.value ? new Date(dateInput.value + 'T12:00:00') : null;
+    const recentEl   = document.getElementById('proj-date-recent');
+    if (recentEl) recentEl.textContent = '';
     if (!targetDate || isNaN(targetDate)) {
       dateResult.textContent = 'Pick a date above';
     } else {
@@ -171,6 +173,22 @@ function computeProjection() {
           : `▲ ${fmt(Math.abs(lostNow))} lbs from now`;
         dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
         dateResult.style.color = lostNow > 0 ? '#2a8703' : '#ea1100';
+
+        // Same date recomputed at the last 4 weeks' regression rate, so
+        // the calendar answer reflects any slowdown too.
+        if (recentEl && slowdown) {
+          if (slowdown.currentRate > 0.05) {
+            const recentProj = projLatestWeight - (slowdown.currentRate / 7) * daysDiff;
+            const recentRounded = Math.round(recentProj * 10) / 10;
+            const diff = recentRounded - rounded;
+            recentEl.textContent = `🐢 At recent 4-wk pace: ~${fmt(recentRounded)} lbs` +
+              (Math.abs(diff) >= 0.1
+                ? ` (${diff > 0 ? '+' : ''}${fmt(diff)} lbs vs projection)`
+                : ' (same as projection)');
+          } else {
+            recentEl.textContent = '🐢 Recent trend is flat — recent-pace estimate unavailable';
+          }
+        }
       }
     }
   }
