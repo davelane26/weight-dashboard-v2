@@ -183,6 +183,10 @@
    selector for its original "background:#f5f0ff" text stops matching the
    instant the widget is used, silently reverting it to the light background. */
 #root.dark #proj-countdown { background: rgba(124, 58, 237, 0.12) !important; }
+/* Same story for #proj-slowdown ("Slowdown Check" panel): renderProjectorSlowdown()
+   also sets its .style.display via JS, so its original "background:#f8f9fe" text
+   stops matching an attribute selector the first time the projector renders. */
+#root.dark #proj-slowdown { background: var(--stat-box-bg) !important; border-color: var(--border) !important; }
 #root.dark #tab-projector [style*="background:#f0fdf4"] { background: rgba(42, 135, 3, 0.14)   !important; }
 #root.dark #tab-projector [style*="background:#fff7e6"] { background: rgba(245, 159, 0, 0.12)  !important; }
 #root.dark #tab-projector [style*="background:#e5e9f5"] { background: rgba(255, 255, 255, 0.08) !important; }
