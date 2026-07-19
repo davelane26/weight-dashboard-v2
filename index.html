@@ -36,11 +36,11 @@
   <script type="module" src="auth.js?v=1"></script>
   <!-- Modular app split — load in dependency order, all defer = parsed in HTML order, executed after DOM ready -->
 <script src="app-config.js?v=1"   defer></script>
-<script src="app-utils.js?v=2"    defer></script>
+<script src="app-utils.js?v=4"    defer></script>
 <script src="app-tabs.js?v=3"     defer></script>
 <script src="app-kpis.js?v=2"     defer></script>
 <script src="app-charts.js?v=1"   defer></script>
-<script src="app-goal.js?v=1"     defer></script>
+<script src="app-goal.js?v=4"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
 <script src="app.js?v=101"        defer></script>
 <script src="weight-qa.js?v=1"    defer></script>
@@ -454,6 +454,7 @@
           <label for="proj-date-input" style="display:block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.4rem">📅 Pick a date — see your projected weight</label>
           <input type="date" id="proj-date-input" oninput="computeProjection()" style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340" />
           <p id="proj-date-result" style="margin-top:0.75rem;font-size:0.95rem;font-weight:700;color:#6d7a95;min-height:1.4rem">Pick a date above</p>
+          <p id="proj-date-recent" style="margin-top:0.4rem;font-size:0.8rem;font-weight:700;color:#995213;min-height:1.1rem"></p>
         </div>
         <div>
           <label style="display:block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">🎯 Drag to a target — see your arrival date</label>
@@ -472,10 +473,21 @@
               <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#7c3aed;margin-bottom:0.2rem">⏳ Days Away</p><p id="proj-cd-days" style="font-size:0.92rem;font-weight:800;color:#1a2340"></p></div>
               <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#2a8703;margin-bottom:0.2rem">✅ Total Lost</p><p id="proj-cd-total" style="font-size:0.92rem;font-weight:800;color:#2a8703"></p></div>
               <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#0053e2;margin-bottom:0.2rem">▼ Still To Go</p><p id="proj-cd-togo" style="font-size:0.92rem;font-weight:800;color:#0053e2"></p></div>
+              <div id="proj-cd-adjusted-wrap" style="grid-column:1/-1;display:none;border-top:1px solid #ddd6fe;padding-top:0.55rem"><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#995213;margin-bottom:0.2rem">⚖ At Steady Long-Run Average</p><p id="proj-cd-adjusted" style="font-size:0.92rem;font-weight:800;color:#1a2340"></p></div>
             </div>
           </div>
           <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;color:#ea1100;min-height:1.2rem"></p>
         </div>
+      </div>
+      <!-- Slowdown check: recent 4-wk pace vs the 4 weeks before it -->
+      <div id="proj-slowdown" style="display:none;margin-top:1.2rem;background:#f8f9fe;border:1.5px solid #d0d5e8;border-radius:12px;padding:0.9rem 1rem">
+        <p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">🐢 Slowdown Check</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;text-align:center;margin-bottom:0.55rem">
+          <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6d7a95;margin-bottom:0.2rem">Prior 4 Wks</p><p id="proj-sd-prior" style="font-size:1rem;font-weight:800;color:#1a2340">—</p></div>
+          <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6d7a95;margin-bottom:0.2rem">Last 4 Wks</p><p id="proj-sd-current" style="font-size:1rem;font-weight:800;color:#1a2340">—</p></div>
+          <div><p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6d7a95;margin-bottom:0.2rem">Pace Change</p><p id="proj-sd-pct" style="font-size:1rem;font-weight:800;color:#6d7a95">—</p></div>
+        </div>
+        <p id="proj-sd-note" style="font-size:0.7rem;color:#6d7a95;line-height:1.45"></p>
       </div>
     </section>
     <!-- 7.5mg Titration Trajectory Card -->

@@ -85,12 +85,57 @@ function clearGoal() {
 window.setGoal   = setGoal;
 window.clearGoal = clearGoal;
 
+// ── Slowdown check (Weight Projector card) ───────────────────────────
+// Fills the "Slowdown Check" panel: recent 4-wk regression rate vs the
+// 4 weeks before it. Returns the slowdown object (or null) so
+// computeProjection can also show a recent-pace arrival date.
+function renderProjectorSlowdown() {
+  const panel = document.getElementById('proj-slowdown');
+  if (!panel) return null;
+
+  const data = (typeof allData !== 'undefined' && allData.length) ? allData : null;
+  const sd   = data ? computeWeightSlowdown(data, 28) : null;
+  if (!sd) { panel.style.display = 'none'; return null; }
+  panel.style.display = 'block';
+
+  const set = (id, txt, color) => {
+    const e = document.getElementById(id);
+    if (e) { e.textContent = txt; if (color) e.style.color = color; }
+  };
+  const rateStr = r => `${r.toFixed(2)} lbs/wk`;
+  set('proj-sd-prior',   rateStr(sd.priorRate));
+  set('proj-sd-current', rateStr(sd.currentRate));
+
+  let pctTxt, pctColor, note;
+  if (sd.slowdownPct == null) {
+    pctTxt   = '—';
+    pctColor = '#6d7a95';
+    note = 'Prior 4-week pace was near zero, so a percent change isn’t meaningful. Watch the raw rates instead.';
+  } else if (sd.slowdownPct >= 15) {
+    pctTxt   = `▼ ${Math.round(sd.slowdownPct)}% slower`;
+    pctColor = '#ea1100';
+    note = `Pace has slowed ${Math.round(sd.slowdownPct)}% vs the prior 4 weeks. The projections above bake this in — the rate starts at your recent pace and keeps easing at the observed slowdown.`;
+  } else if (sd.slowdownPct <= -15) {
+    pctTxt   = `▲ ${Math.round(Math.abs(sd.slowdownPct))}% faster`;
+    pctColor = '#2a8703';
+    note = `Pace has picked up ${Math.round(Math.abs(sd.slowdownPct))}% vs the prior 4 weeks. Projections use your current rate without extrapolating the speed-up, so they may be conservative.`;
+  } else {
+    pctTxt   = `${sd.slowdownPct >= 0 ? '▼' : '▲'} ${Math.round(Math.abs(sd.slowdownPct))}%`;
+    pctColor = '#6d7a95';
+    note = 'Pace is holding roughly steady vs the prior 4 weeks — the slowdown-adjusted projection is close to linear at your recent rate.';
+  }
+  set('proj-sd-pct', pctTxt, pctColor);
+  set('proj-sd-note', note);
+  return sd;
+}
+
 // ── Weight Projector ─────────────────────────────────────────────────
 function computeProjection() {
   const dateInput   = document.getElementById('proj-date-input');
   const weightInput = document.getElementById('proj-weight-input');
   const dateResult  = document.getElementById('proj-date-result');
   const weightResult= document.getElementById('proj-weight-result');
+  const slowdown    = renderProjectorSlowdown();
 
   const noTrend = () => {
     if (dateResult)   dateResult.textContent   = 'Need more data (< 30 days of readings)';
@@ -103,29 +148,65 @@ function computeProjection() {
 
   const MS_PER_DAY = 86_400_000;
 
+  // Slowdown-adjusted model drives the headline numbers when we have a
+  // usable recent rate; otherwise everything falls back to the linear
+  // de-skewed average exactly as before.
+  const model    = slowdown ? slowdownModel(slowdown) : null;
+  const useModel = !!(model && model.r0 > 0.05);
+  const fmtLongDate = d => d.toLocaleDateString('en-US',
+    { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const blurb = document.getElementById('proj-trend-blurb');
+  if (blurb && useModel) {
+    blurb.textContent = model.decel > 0.01
+      ? `Slowdown-adjusted: losing ~${model.r0.toFixed(2)} lbs/wk now, easing ~${model.decel.toFixed(2)} lbs/wk each week (from your last 8 weeks)`
+      : `Recent 4-wk pace ~${model.r0.toFixed(2)} lbs/wk · no slowdown detected — projecting linearly`;
+  }
+
   // ── Date → Projected weight ──
   if (dateInput && dateResult) {
     const targetDate = dateInput.value ? new Date(dateInput.value + 'T12:00:00') : null;
+    const recentEl   = document.getElementById('proj-date-recent');
+    if (recentEl) recentEl.textContent = '';
     if (!targetDate || isNaN(targetDate)) {
       dateResult.textContent = 'Pick a date above';
     } else {
-      const daysDiff    = (targetDate - projLatestDate) / MS_PER_DAY;
-      const projected   = projLatestWeight + projSlopeLbsPerDay * daysDiff;
-      const isFuture    = daysDiff > 0;
-      const rounded     = Math.round(projected * 10) / 10;
+      const daysDiff = (targetDate - projLatestDate) / MS_PER_DAY;
+      const isFuture = daysDiff > 0;
+      const linear   = projLatestWeight + projSlopeLbsPerDay * daysDiff;
+      const projected = useModel
+        ? projLatestWeight - slowdownLossAt(model, daysDiff / 7)
+        : linear;
+      const rounded = Math.round(projected * 10) / 10;
       if (!isFuture) {
         dateResult.textContent = 'Pick a future date';
       } else if (rounded < 100) {
         dateResult.textContent = "Way beyond goal — you'd be a ghost 👻";
       } else {
-        const dateLabel  = targetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const dateLabel  = fmtLongDate(targetDate);
         const lostNow    = projLatestWeight - rounded;          // change from current
         const lostTotal  = START_WEIGHT - rounded;              // total from 315.0
         const lostNowStr = lostNow > 0
           ? `▼ ${fmt(lostNow)} lbs from now`
           : `▲ ${fmt(Math.abs(lostNow))} lbs from now`;
-        dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
+        let main = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
+        const plateau = useModel ? slowdownPlateau(model) : null;
+        if (plateau && daysDiff / 7 > plateau.weeks) {
+          const stallDate = new Date(projLatestDate.getTime() + plateau.weeks * 7 * MS_PER_DAY);
+          main += ` · ⚠ pace projected to stall ~${stallDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        }
+        dateResult.textContent = main;
         dateResult.style.color = lostNow > 0 ? '#2a8703' : '#ea1100';
+
+        // Comparison line: what the plain linear average would have said.
+        if (recentEl && useModel) {
+          const linRounded = Math.round(linear * 10) / 10;
+          const diff = linRounded - rounded;
+          recentEl.textContent = `⚖ At steady long-run average: ~${fmt(linRounded)} lbs` +
+            (Math.abs(diff) >= 0.1
+              ? ` (${diff > 0 ? '+' : ''}${fmt(diff)} lbs vs slowdown-adjusted)`
+              : ' (same as slowdown-adjusted)');
+        }
       }
     }
   }
@@ -148,28 +229,65 @@ function computeProjection() {
       hide('', '#6d7a95');
     } else if (targetW >= projLatestWeight) {
       hide('Slide below your current weight');
-    } else if (projSlopeLbsPerDay >= 0) {
+    } else if (projSlopeLbsPerDay >= 0 && !useModel) {
       hide('Trend is flat or gaining — projection unavailable');
     } else {
-      const daysNeeded = (projLatestWeight - targetW) / Math.abs(projSlopeLbsPerDay);
-      const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
-      const dateLabel   = arrivalDate.toLocaleDateString('en-US',
-        { month: 'long', day: 'numeric', year: 'numeric' });
-      const daysRounded = Math.round(daysNeeded);
-      const totalLost   = START_WEIGHT - targetW;
-      const stillToGo   = projLatestWeight - targetW;
+      const stillToGo = projLatestWeight - targetW;
+      const totalLost = START_WEIGHT - targetW;
+      const avgDays   = projSlopeLbsPerDay < 0
+        ? stillToGo / Math.abs(projSlopeLbsPerDay) : null;
 
-      if (countdown) {
-        countdown.style.display = 'block';
-        document.getElementById('proj-cd-date').textContent  = dateLabel;
-        document.getElementById('proj-cd-days').textContent  =
-          `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
-        document.getElementById('proj-cd-total').textContent =
-          `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
-        document.getElementById('proj-cd-togo').textContent  =
-          `${fmt(stillToGo)} lbs`;
+      let daysNeeded = null;
+      if (useModel) {
+        const weeks = slowdownWeeksToLose(model, stillToGo);
+        if (weeks != null) daysNeeded = weeks * 7;
+      } else {
+        daysNeeded = avgDays;
       }
-      weightResult.textContent = '';
+
+      if (daysNeeded == null) {
+        // Extrapolated pace hits zero before the target.
+        const plateau   = slowdownPlateau(model);
+        const stallDate = new Date(projLatestDate.getTime() + plateau.weeks * 7 * MS_PER_DAY);
+        const short     = stillToGo - plateau.loss;
+        let msg = `⚠ At the current slowdown, pace is projected to stall ~${fmt(short)} lbs short of ${fmt(targetW)} (around ${fmtLongDate(stallDate)}).`;
+        if (avgDays != null) {
+          msg += ` At your steady long-run average you'd arrive ${fmtLongDate(new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY))}.`;
+        }
+        hide(msg, '#995213');
+      } else {
+        const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
+        const daysRounded = Math.round(daysNeeded);
+
+        if (countdown) {
+          countdown.style.display = 'block';
+          document.getElementById('proj-cd-date').textContent  = fmtLongDate(arrivalDate);
+          document.getElementById('proj-cd-days').textContent  =
+            `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
+          document.getElementById('proj-cd-total').textContent =
+            `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
+          document.getElementById('proj-cd-togo').textContent  =
+            `${fmt(stillToGo)} lbs`;
+
+          // Comparison row: arrival at the steady long-run average.
+          const adjWrap = document.getElementById('proj-cd-adjusted-wrap');
+          const adjEl   = document.getElementById('proj-cd-adjusted');
+          if (adjWrap && adjEl) {
+            if (useModel && avgDays != null) {
+              const avgDate   = new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY);
+              const deltaDays = Math.round(avgDays - daysNeeded);
+              const deltaStr  = deltaDays === 0 ? 'same as slowdown-adjusted'
+                : deltaDays > 0 ? `+${deltaDays} days later`
+                : `${Math.abs(deltaDays)} days sooner`;
+              adjEl.textContent = `${fmtLongDate(avgDate)} · ${deltaStr}`;
+              adjWrap.style.display = 'block';
+            } else {
+              adjWrap.style.display = 'none';
+            }
+          }
+        }
+        weightResult.textContent = '';
+      }
     }
   }
 }
