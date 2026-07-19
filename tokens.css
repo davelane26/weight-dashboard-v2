@@ -135,25 +135,60 @@
 .text-sm  { font-size: 0.78rem; }
 
 /* ── Projector & medication: dark-safe text fallback ──────────── */
-/* These inline-styled tabs were missing dark-mode coverage.        */
+/* These inline-styled tabs (plus the titration/dose-comparison/events
+   JS that render into them) were missing dark-mode coverage. td/th
+   added because the milestone + dose-comparison tables color their
+   cells directly instead of wrapping text in p/span.               */
 #root.dark #tab-projector  p,
 #root.dark #tab-projector  span,
 #root.dark #tab-projector  label,
+#root.dark #tab-projector  td,
+#root.dark #tab-projector  th,
 #root.dark #tab-medication p,
 #root.dark #tab-medication span,
 #root.dark #tab-medication label,
 #root.dark #tab-medication h2,
 #root.dark #tab-medication h3 {
-  /* Override hardcoded #1a2340 / #374151 / #6d7a95 inline colors */
+  /* Override hardcoded #1a2340 / #374151 / #6d7a95 / #9aa5b4 inline colors */
   color: var(--text) !important;
 }
 /* Subtle text inside those tabs uses the dark-aware sub color */
-#root.dark #tab-projector  p[style*="color:#6d7a95"],
-#root.dark #tab-projector  span[style*="color:#6d7a95"],
+#root.dark #tab-projector  [style*="color:#6d7a95"],
+#root.dark #tab-projector  [style*="color:#9aa5b4"],
 #root.dark #tab-medication p[style*="color:#6d7a95"],
 #root.dark #tab-medication span[style*="color:#6d7a95"] {
   color: var(--text-sub) !important;
 }
+/* Semantic accent colors (pace/status color-coding) — remap to the
+   lighter dark-mode-safe hue instead of flattening to plain text.
+   Attribute selectors out-specificity the tag rule above, so these
+   correctly win over it regardless of source order. */
+#root.dark #tab-projector [style*="color:#7c3aed"] { color: #a78bfa !important; }
+#root.dark #tab-projector [style*="color:#2a8703"] { color: #4ade80 !important; }
+#root.dark #tab-projector [style*="color:#0053e2"] { color: #60a5fa !important; }
+#root.dark #tab-projector [style*="color:#995213"] { color: #fcd34d !important; }
+#root.dark #tab-projector [style*="color:#ea1100"] { color: #fca5a5 !important; }
+
+/* Pastel card/box backgrounds → tinted dark equivalents. Without this
+   the boxes above kept their light backgrounds while the text inside
+   them (now forced light by the rules above) became invisible. */
+#root.dark #tab-projector [style*="background:#f0f4ff"],
+#root.dark #tab-projector [style*="background:#f5f7fb"],
+#root.dark #tab-projector [style*="background:#f8f9fe"] {
+  background: var(--stat-box-bg) !important;
+}
+/* #proj-countdown targeted by ID, not by attribute-value: computeProjection()
+   sets its .style.display via JS, which makes the browser re-serialize the
+   WHOLE style attribute (hex → rgb(), respaced) — an attribute-substring
+   selector for its original "background:#f5f0ff" text stops matching the
+   instant the widget is used, silently reverting it to the light background. */
+#root.dark #proj-countdown { background: rgba(124, 58, 237, 0.12) !important; }
+#root.dark #tab-projector [style*="background:#f0fdf4"] { background: rgba(42, 135, 3, 0.14)   !important; }
+#root.dark #tab-projector [style*="background:#fff7e6"] { background: rgba(245, 159, 0, 0.12)  !important; }
+#root.dark #tab-projector [style*="background:#e5e9f5"] { background: rgba(255, 255, 255, 0.08) !important; }
+/* dose-comparison table row backgrounds (current-dose highlight + zebra stripe) */
+#root.dark #tab-projector [style*="background:#dbeafe"] { background: rgba(96, 165, 250, 0.16)  !important; }
+#root.dark #tab-projector [style*="background:#f8fafc"] { background: rgba(255, 255, 255, 0.04) !important; }
 /* Inputs in the projector */
 #root.dark #proj-date-input,
 #root.dark #med-edit-start,
