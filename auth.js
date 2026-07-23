@@ -28,7 +28,7 @@ const FIREBASE_CONFIG = {
 // but the data.json is still public (see Fix #2 -- move data behind the
 // Cloudflare Worker with token verification to truly protect it).
 const ALLOWED_EMAILS = [
-  'REPLACE_WITH_YOUR_GOOGLE_EMAIL@gmail.com',
+  'djtwo6@gmail.com',
 ];
 
 function isAllowed(user) {
