@@ -54,11 +54,40 @@ function renderAll() {
 // ── Data loading ─────────────────────────────────────────────────────
 let _lastDataKey = null;
 
+// Fetch the weight array. Prefers the TOKEN-GATED worker endpoint
+// (window.WEIGHT_WORKER_URL) using the signed-in user's Firebase ID
+// token; falls back to the public DATA_URL only if the worker fetch
+// fails (e.g. during migration before the public JSON is deleted).
+// Once you delete the public JSON, the fallback simply stops working
+// for anyone who isn't signed in as an allowed user — which is the goal.
+async function fetchWeightRaw() {
+  const workerUrl = window.WEIGHT_WORKER_URL;
+  if (workerUrl) {
+    try {
+      // Wait for Firebase to settle so we actually have a token on first load.
+      if (window.authReadyPromise) { try { await window.authReadyPromise; } catch {} }
+      const user = window.fbUser;
+      if (user && typeof user.getIdToken === 'function') {
+        const token = await user.getIdToken();
+        const resp = await fetch(workerUrl + '?t=' + Date.now(), {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        if (resp.ok) return await resp.json();
+        console.warn('[weight] worker fetch', resp.status, '— falling back to public URL');
+      }
+    } catch (e) {
+      console.warn('[weight] worker fetch failed, falling back:', e.message);
+    }
+  }
+  // Public fallback (remove once cutover is complete).
+  const resp = await fetch(DATA_URL + '?t=' + Date.now());
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return await resp.json();
+}
+
 async function loadData() {
   try {
-    const resp = await fetch(DATA_URL + '?t=' + Date.now());
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const raw = await resp.json();
+    const raw = await fetchWeightRaw();
     if (!raw.length) throw new Error('empty');
     const parsed = raw
       .map(r => ({ ...r, date: parseDate(r.date) }))

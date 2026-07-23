@@ -49,7 +49,7 @@ const NUM_TO_DIR = {
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, API-SECRET, api-secret',
+  'Access-Control-Allow-Headers': 'Content-Type, API-SECRET, api-secret, Authorization',
 };
 
 function cors(body, status = 200, extra = {}) {
@@ -74,6 +74,96 @@ async function isAuthorized(request, env) {
   const hashed = await sha1(secret);
   if (header === hashed) return true;           // SHA1 hash match (xDrip+)
   return false;
+}
+
+// ── Firebase ID-token verification ─────────────────────────────────────────
+// The dashboard's weight data is private. GET /weight.json requires a valid
+// Firebase ID token (RS256 JWT) whose email is on the allow-list. We verify
+// the signature against Google's rotating public keys (JWK set) with WebCrypto
+// — no external deps. This is the REAL lock: even if someone knows the URL,
+// without a signed-in-as-David token they get 401.
+const FIREBASE_PROJECT_ID = 'weight-dashboard-6b5f3';
+const FIREBASE_JWK_URL =
+  'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
+
+// Module-scope JWK cache (persists across requests in the same isolate).
+let _jwkCache = { keys: null, exp: 0 };
+
+function b64urlToBytes(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function b64urlToJson(s) {
+  return JSON.parse(new TextDecoder().decode(b64urlToBytes(s)));
+}
+
+async function getFirebaseJwks() {
+  const now = Date.now();
+  if (_jwkCache.keys && now < _jwkCache.exp) return _jwkCache.keys;
+  const resp = await fetch(FIREBASE_JWK_URL);
+  const data = await resp.json();
+  const cc   = resp.headers.get('cache-control') || '';
+  const m    = /max-age=(\d+)/.exec(cc);
+  const ttl  = m ? parseInt(m[1], 10) * 1000 : 3600_000;
+  _jwkCache  = { keys: data.keys || [], exp: now + ttl };
+  return _jwkCache.keys;
+}
+
+// Returns the decoded payload if the token is valid, else null.
+async function verifyFirebaseToken(token) {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  let header, payload;
+  try { header = b64urlToJson(parts[0]); payload = b64urlToJson(parts[1]); }
+  catch { return null; }
+
+  // Claim checks (per Firebase docs)
+  const now = Math.floor(Date.now() / 1000);
+  const iss = 'https://securetoken.google.com/' + FIREBASE_PROJECT_ID;
+  if (payload.aud !== FIREBASE_PROJECT_ID) return null;
+  if (payload.iss !== iss)                 return null;
+  if (!payload.sub)                        return null;
+  if (typeof payload.exp !== 'number' || payload.exp <= now) return null;
+  if (typeof payload.iat === 'number' && payload.iat > now + 300) return null;
+
+  // Signature check against the matching Google public key
+  const jwks = await getFirebaseJwks();
+  const jwk  = jwks.find(k => k.kid === header.kid);
+  if (!jwk) return null;
+  const key = await crypto.subtle.importKey(
+    'jwk', jwk,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['verify']
+  );
+  const signed = new TextEncoder().encode(parts[0] + '.' + parts[1]);
+  const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(parts[2]), signed);
+  return ok ? payload : null;
+}
+
+function allowedEmails(env) {
+  return (env.ALLOWED_EMAILS || '')
+    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+
+// Verify the Bearer token AND enforce the email allow-list.
+// Returns the token payload, or null if unauthorized.
+async function requireUser(request, env) {
+  const authz = request.headers.get('Authorization') || '';
+  const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+  const payload = await verifyFirebaseToken(token);
+  if (!payload) return null;
+  const allow = allowedEmails(env);
+  // If ALLOWED_EMAILS is unset we fail CLOSED for data reads (better safe
+  // than sorry for a private health endpoint). Set it as a Worker var.
+  if (!allow.length) return null;
+  if (!payload.email || !allow.includes(payload.email.toLowerCase())) return null;
+  return payload;
 }
 
 // ── Parse a single Nightscout entry → our format ─────────────────────────
@@ -264,7 +354,8 @@ export default {
       await env.GLUCOSE_KV.put('health', JSON.stringify(sorted));
       return cors(JSON.stringify({ ok: true, date, patched: Object.keys(body).filter(k => allowed.includes(k)) }));
     }
-    // ── POST /ai-health  (AI health document analysis) ─────────────────
+
+    // ── POST /ai-health  (AI health document analysis) ─────────────────
     if (method === 'POST' && url.pathname === '/ai-health') {
       const apiKey = env.ANTHROPIC_API_KEY;
       if (!apiKey) return cors('{"error":"ANTHROPIC_API_KEY secret not set on this Worker"}', 503);
@@ -349,6 +440,30 @@ export default {
       if (aiData.error) return cors(JSON.stringify({ error: aiData.error.message }), aiResp.status);
       const answer = aiData.content[0].text.trim();
       return cors(JSON.stringify({ answer }));
+    }
+
+    // ── GET /weight.json  (token-gated dashboard fetch) ────────────────
+    // The private replacement for the public data.json. Requires a valid
+    // Firebase ID token whose email is on ALLOWED_EMAILS.
+    if (method === 'GET' && url.pathname === '/weight.json') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const data = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
+      return cors(JSON.stringify(data));
+    }
+
+    // ── POST /weight  (sync job pushes the full weight array) ──────────
+    // Protected by API_SECRET (same as the other write endpoints). Accepts
+    // either a bare array of readings or { data: [...] }.
+    if (method === 'POST' && url.pathname === '/weight') {
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const rows = Array.isArray(body) ? body
+                 : (Array.isArray(body.data) ? body.data : null);
+      if (!rows) return cors('{"error":"expected an array of readings or {data:[...]}"}', 400);
+      await env.GLUCOSE_KV.put('weight', JSON.stringify(rows));
+      return cors(JSON.stringify({ ok: true, count: rows.length }));
     }
 
     return cors('{"error":"Not found"}', 404);

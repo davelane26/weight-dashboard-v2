@@ -31,9 +31,15 @@
     window.GLUCOSE_WORKER_URL = window.HEALTH_WORKER_URL + '/glucose.json';
     window.AI_HEALTH_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-health';
     window.AI_ASK_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-ask';
+    // Token-gated private weight data (Fix #2). While set, app.js fetches
+    // weight readings from the worker with the signed-in user's Firebase
+    // token, and only falls back to the public DATA_URL if that fails.
+    // After you migrate data into the worker and DELETE the public JSON,
+    // this becomes the sole (authenticated) source.
+    window.WEIGHT_WORKER_URL = window.HEALTH_WORKER_URL + '/weight.json';
   </script>
   <script>window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});</script>
-  <script type="module" src="auth.js?v=1"></script>
+  <script type="module" src="auth.js?v=2"></script>
   <!-- Modular app split — load in dependency order, all defer = parsed in HTML order, executed after DOM ready -->
 <script src="app-config.js?v=1"   defer></script>
 <script src="app-utils.js?v=4"    defer></script>
@@ -42,7 +48,7 @@
 <script src="app-charts.js?v=1"   defer></script>
 <script src="app-goal.js?v=4"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
-<script src="app.js?v=101"        defer></script>
+<script src="app.js?v=102"        defer></script>
 <script src="weight-qa.js?v=1"    defer></script>
   <script src="heatmap.js?v=1" defer></script>
   <!-- Eagerly loaded: these render into the default Weight tab + header button. -->
@@ -62,6 +68,7 @@
 <script src="events.js?v=2" defer></script>
 <script src="titration-trajectory.js?v=7" defer></script>
 <script src="titration-readiness.js?v=12" defer></script>
+<script src="plateau-radar.js?v=1" defer></script>
 <script src="dose-comparison.js?v=5" defer></script>
 <script src="health.js?v=11"  defer></script>
 <script src="calm-mode.js?v=7" defer></script>
@@ -523,13 +530,10 @@
         <canvas id="tj-chart"></canvas>
       </div>
 
-      <!-- Scenario legend -->
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;font-size:0.72rem;font-weight:700">
-        <span style="color:#995213">&#9632; Conservative (0.75 lbs/wk)</span>
-        <span style="color:#0053e2">&#9632; Moderate (1.75 lbs/wk)</span>
-        <span style="color:#2a8703">&#9632; Optimistic (2.50 lbs/wk)</span>
-        <span style="color:#ffc220">&#9679; Actual weight</span>
-      </div>
+      <!-- Scenario legend removed: Chart.js renders it dynamically at the
+           top of the canvas from the SCENARIOS array in titration-trajectory.js.
+           Keeping a hardcoded copy here caused label/rate drift. Single source
+           of truth wins. -->
 
       <p style="font-size:0.65rem;color:#9aa5b4;margin-top:1rem">
         Projections use linear rates derived from your 5mg history.
@@ -546,6 +550,18 @@
         Heuristic check: is the current dose still working, or is it time to ask your prescriber about the next step?
       </p>
       <div id="tr-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+      </div>
+    </section>
+
+    <!-- Plateau / Deceleration Radar Card -->
+    <section class="card fade-in" aria-label="Plateau deceleration radar"
+      style="margin-top:1.25rem;border-top:3px solid #12b5a5">
+      <h2 class="card-title">&#128225; Plateau Radar</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Early warning: is your 4-week pace itself <em>decelerating</em>, and how many weeks of runway before it hits the trigger? The 5mg lesson &mdash; catch the plateau while it's forming, not after.
+      </p>
+      <div id="pr-card-body">
         <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
       </div>
     </section>
