@@ -68,7 +68,7 @@
 <script src="events.js?v=2" defer></script>
 <script src="titration-trajectory.js?v=7" defer></script>
 <script src="titration-readiness.js?v=12" defer></script>
-<script src="plateau-radar.js?v=1" defer></script>
+<script src="plateau-radar.js?v=2" defer></script>
 <script src="dose-comparison.js?v=5" defer></script>
 <script src="health.js?v=11"  defer></script>
 <script src="calm-mode.js?v=7" defer></script>
@@ -170,6 +170,18 @@
           <p class="snap-val skel" id="snap-sleep">—</p>
           <p class="snap-delta" id="snap-sleep-delta"></p>
         </div>
+      </div>
+    </section>
+
+    <!-- Plateau / Deceleration Radar Card (moved to main Weight tab for visibility) -->
+    <section class="card fade-in" aria-label="Plateau deceleration radar"
+      style="margin-top:1.25rem;border-top:3px solid #12b5a5">
+      <h2 class="card-title">&#128225; Plateau Radar</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Early warning: is your 4-week pace itself <em>decelerating</em>, and how many weeks of runway before it hits the trigger? The 5mg lesson &mdash; catch the plateau while it's forming, not after.
+      </p>
+      <div id="pr-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
       </div>
     </section>
 
@@ -550,18 +562,6 @@
         Heuristic check: is the current dose still working, or is it time to ask your prescriber about the next step?
       </p>
       <div id="tr-card-body">
-        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
-      </div>
-    </section>
-
-    <!-- Plateau / Deceleration Radar Card -->
-    <section class="card fade-in" aria-label="Plateau deceleration radar"
-      style="margin-top:1.25rem;border-top:3px solid #12b5a5">
-      <h2 class="card-title">&#128225; Plateau Radar</h2>
-      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
-        Early warning: is your 4-week pace itself <em>decelerating</em>, and how many weeks of runway before it hits the trigger? The 5mg lesson &mdash; catch the plateau while it's forming, not after.
-      </p>
-      <div id="pr-card-body">
         <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
       </div>
     </section>

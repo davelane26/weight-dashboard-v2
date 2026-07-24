@@ -304,7 +304,7 @@
     if (typeof orig !== 'function' || orig.__prHooked) return false;
     const wrapped = function (name) {
       const out = orig.apply(this, arguments);
-      if (name === 'projector') {
+      if (name === 'weight') {
         requestAnimationFrame(() => {
           try { render(); } catch (e) { console.warn('[plateau-radar]', e); }
         });
