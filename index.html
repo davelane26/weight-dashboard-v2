@@ -31,6 +31,15 @@
     window.GLUCOSE_WORKER_URL = window.HEALTH_WORKER_URL + '/glucose.json';
     window.AI_HEALTH_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-health';
     window.AI_ASK_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-ask';
+
+    // -- Google Drive / Photos picker config ---------------------------
+    // Fill these in with values from Google Cloud Console (same project
+    // as Firebase). See PHOTO_PICKER_SETUP.md for the 5-min walkthrough.
+    // While blank, the picker buttons show a helpful error instead of
+    // silently failing.
+    window.GOOGLE_OAUTH_CLIENT_ID = '';
+    window.GOOGLE_API_KEY         = '';
+    window.GOOGLE_APP_ID          = '';   // Cloud project number (Drive Picker only)
     // Token-gated private weight data (Fix #2). While set, app.js fetches
     // weight readings from the worker with the signed-in user's Firebase
     // token, and only falls back to the public DATA_URL if that fails.
@@ -61,7 +70,8 @@
   <script src="activity.js?v=99" defer></script>
   <script src="enhancements.js?v=5" defer></script>
   <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
-<script src="photos.js?v=2" defer></script>
+<script src="photos.js?v=3" defer></script>
+<script src="photo-picker.js?v=1" defer></script>
 <script src="charts-tab.js?v=1" defer></script>
 <script src="rate-analysis.js?v=2" defer></script>
 <script src="titration-utils.js?v=3" defer></script>
@@ -1024,6 +1034,10 @@
           </div>
           <input type="file" id="photos-before-input" accept="image/*" style="display:none" />
           <button id="photos-before-btn" class="btn-primary" style="width:100%;font-size:0.85rem">Upload Before Photo</button>
+          <div style="display:flex;gap:0.4rem;margin-top:0.4rem">
+            <button id="photos-before-drive-btn" style="flex:1;font-size:0.68rem;padding:0.35rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer">From Drive</button>
+            <button id="photos-before-photos-btn" style="flex:1;font-size:0.68rem;padding:0.35rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer">From Photos</button>
+          </div>
           <div id="photos-before-status" style="font-size:0.7rem;margin-top:0.5rem;min-height:1em;text-align:center"></div>
         </div>
         <div class="card fade-in card--accent-purple">
@@ -1034,6 +1048,10 @@
           </div>
           <input type="file" id="photos-goal-input" accept="image/*" style="display:none" />
           <button id="photos-goal-btn" class="btn-primary" style="width:100%;font-size:0.85rem;background:linear-gradient(135deg,#7c3aed,#a855f7)">Upload Goal Photo</button>
+          <div style="display:flex;gap:0.4rem;margin-top:0.4rem">
+            <button id="photos-goal-drive-btn" style="flex:1;font-size:0.68rem;padding:0.35rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer">From Drive</button>
+            <button id="photos-goal-photos-btn" style="flex:1;font-size:0.68rem;padding:0.35rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer">From Photos</button>
+          </div>
           <div id="photos-goal-status" style="font-size:0.7rem;margin-top:0.5rem;min-height:1em;text-align:center"></div>
         </div>
         <div class="card fade-in card--accent-green">
@@ -1044,6 +1062,10 @@
           </div>
           <input type="file" id="photos-after-input" accept="image/*" style="display:none" />
           <button id="photos-after-btn" class="btn-primary" style="width:100%;font-size:0.85rem;background:linear-gradient(135deg,#2a8703,#16a34a)">Upload After Photo</button>
+          <div style="display:flex;gap:0.4rem;margin-top:0.4rem">
+            <button id="photos-after-drive-btn" style="flex:1;font-size:0.68rem;padding:0.35rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer">From Drive</button>
+            <button id="photos-after-photos-btn" style="flex:1;font-size:0.68rem;padding:0.35rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer">From Photos</button>
+          </div>
           <div id="photos-after-status" style="font-size:0.7rem;margin-top:0.5rem;min-height:1em;text-align:center"></div>
         </div>
       </div>
