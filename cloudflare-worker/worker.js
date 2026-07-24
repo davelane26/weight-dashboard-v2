@@ -12,6 +12,13 @@
  */
 
 const MAX_READINGS = 288; // 24h at 5-min intervals
+
+// Progress-photo slots we accept. Whitelisted so a bad client can't
+// spam arbitrary KV keys under 'photo:*'.
+const ALLOWED_PHOTO_KEYS = ['before', 'goal', 'after'];
+
+// KV per-value cap is 25MB; leave headroom for base64 overhead + slack.
+const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
 const ARCHIVE_DAYS = 15;  // rolling archive: 14 full days + today, feeds GMI
 
 // ── Trend mappings (Nightscout direction strings → display) ───────────────
@@ -450,6 +457,38 @@ export default {
       if (!user) return cors('{"error":"Unauthorized"}', 401);
       const data = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
       return cors(JSON.stringify(data));
+    }
+
+    // ── GET /photo?key=<slot>  (token-gated photo fetch) ───────────────
+    // Serves a base64 data URL previously stored via POST /photo.
+    // Returns { key, dataUrl }  (dataUrl is null when the slot is empty).
+    if (method === 'GET' && url.pathname === '/photo') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const key = (url.searchParams.get('key') || '').toLowerCase();
+      if (!ALLOWED_PHOTO_KEYS.includes(key)) return cors('{"error":"invalid key"}', 400);
+      const dataUrl = await env.GLUCOSE_KV.get('photo:' + key);
+      return cors(JSON.stringify({ key, dataUrl: dataUrl || null }));
+    }
+
+    // ── POST /photo?key=<slot>  (token-gated photo upload) ────────────
+    // Body: { dataUrl: 'data:image/jpeg;base64,....' }
+    if (method === 'POST' && url.pathname === '/photo') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const key = (url.searchParams.get('key') || '').toLowerCase();
+      if (!ALLOWED_PHOTO_KEYS.includes(key)) return cors('{"error":"invalid key"}', 400);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const dataUrl = body && body.dataUrl;
+      if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+        return cors('{"error":"expected {dataUrl: \"data:image/...\"}"}', 400);
+      }
+      if (dataUrl.length > MAX_PHOTO_BYTES) {
+        return cors('{"error":"image too large (limit ~15MB post-compression)"}', 413);
+      }
+      await env.GLUCOSE_KV.put('photo:' + key, dataUrl);
+      return cors(JSON.stringify({ ok: true, key, bytes: dataUrl.length }));
     }
 
     // ── POST /weight  (sync job pushes the full weight array) ──────────

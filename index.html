@@ -1011,7 +1011,11 @@
   <div id="tab-photos" role="tabpanel" aria-labelledby="tab-btn-photos" hidden>
 
     <div id="photos-content">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+      <p style="font-size:0.72rem;color:#6d7a95;margin:0 0 0.85rem;text-align:center">
+        Photos sync to the cloud while you're signed in and appear on every device.
+        A local copy is kept as an offline fallback.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem">
         <div class="card fade-in card--accent-blue">
           <h2 class="card-title" style="margin-bottom:0.75rem">&#128247; Before</h2>
           <div id="photos-before-preview"
@@ -1020,6 +1024,17 @@
           </div>
           <input type="file" id="photos-before-input" accept="image/*" style="display:none" />
           <button id="photos-before-btn" class="btn-primary" style="width:100%;font-size:0.85rem">Upload Before Photo</button>
+          <div id="photos-before-status" style="font-size:0.7rem;margin-top:0.5rem;min-height:1em;text-align:center"></div>
+        </div>
+        <div class="card fade-in card--accent-purple">
+          <h2 class="card-title" style="margin-bottom:0.75rem">&#127919; Goal</h2>
+          <div id="photos-goal-preview"
+            style="width:100%;min-height:200px;border-radius:10px;background:linear-gradient(135deg,#faf5ff,#ede9fe);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:0.85rem">
+            <span style="font-size:0.8rem;color:#6d7a95;text-align:center;padding:1rem">No goal photo yet</span>
+          </div>
+          <input type="file" id="photos-goal-input" accept="image/*" style="display:none" />
+          <button id="photos-goal-btn" class="btn-primary" style="width:100%;font-size:0.85rem;background:linear-gradient(135deg,#7c3aed,#a855f7)">Upload Goal Photo</button>
+          <div id="photos-goal-status" style="font-size:0.7rem;margin-top:0.5rem;min-height:1em;text-align:center"></div>
         </div>
         <div class="card fade-in card--accent-green">
           <h2 class="card-title" style="margin-bottom:0.75rem">&#128248; After</h2>
@@ -1029,6 +1044,7 @@
           </div>
           <input type="file" id="photos-after-input" accept="image/*" style="display:none" />
           <button id="photos-after-btn" class="btn-primary" style="width:100%;font-size:0.85rem;background:linear-gradient(135deg,#2a8703,#16a34a)">Upload After Photo</button>
+          <div id="photos-after-status" style="font-size:0.7rem;margin-top:0.5rem;min-height:1em;text-align:center"></div>
         </div>
       </div>
     </div>
