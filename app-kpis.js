@@ -26,12 +26,19 @@ function renderKPIs(latest, prev) {
     }
   }
 
-  latest.bodyFat ? countUp('kpi-fat', latest.bodyFat, 1, '%') : setText('kpi-fat', '—');
-  const fd = prev?.bodyFat ? latest.bodyFat - prev.bodyFat : null;
+  // Same DEXA calibration offset the Charts tab's Body Composition section
+  // uses (see dexa.js) — applied here too so the Weight tab's headline
+  // Body Fat KPI doesn't disagree with the Charts tab on the same reading.
+  const fatOffset  = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
+  const latestFat  = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
+  const prevFat    = prev?.bodyFat  != null ? prev.bodyFat  + fatOffset : null;
+
+  latestFat != null ? countUp('kpi-fat', latestFat, 1, '%') : setText('kpi-fat', '—');
+  const fd = prevFat != null && latestFat != null ? latestFat - prevFat : null;
   setHTML('kpi-fat-sub', fd != null ? delta(fd) + '% from last' : '');
 
-  const fatLbs  = latest.bodyFat && latest.weight ? +(latest.weight * latest.bodyFat / 100).toFixed(1) : null;
-  const pFatLbs = prev?.bodyFat  && prev?.weight  ? +(prev.weight  * prev.bodyFat  / 100).toFixed(1) : null;
+  const fatLbs  = latestFat != null && latest.weight ? +(latest.weight * latestFat / 100).toFixed(1) : null;
+  const pFatLbs = prevFat   != null && prev?.weight  ? +(prev.weight  * prevFat   / 100).toFixed(1) : null;
   fatLbs != null ? countUp('kpi-fat-lbs', fatLbs, 1) : setText('kpi-fat-lbs', '—');
   const fld = fatLbs != null && pFatLbs != null ? +(fatLbs - pFatLbs).toFixed(1) : null;
   setHTML('kpi-fat-lbs-sub', fld != null ? delta(fld) + ' lbs from last' : '');
