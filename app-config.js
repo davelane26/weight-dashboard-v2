@@ -9,6 +9,13 @@ const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 29, 2026';
 const REFRESH_MS   = 30_000;
 
+// Clinically measured at the July 27, 2026 DEXA scan (74.0 in). openScale's
+// on-file height was 75.0 in, which understated BMI by ~0.85 points at any
+// given weight — every synced reading's `bmi` field is recomputed against
+// this constant in loadData() rather than trusted as-is, so the correction
+// applies consistently across all history, not just new readings.
+const HEIGHT_IN = 74.0;
+
 const ACTIVITY_LEVELS = {
   sedentary:   { label: 'Sedentary',   desc: 'Desk job, little or no exercise',       multiplier: 1.2   },
   light:       { label: 'Light',       desc: 'Light exercise 1-3 days/week',          multiplier: 1.375 },

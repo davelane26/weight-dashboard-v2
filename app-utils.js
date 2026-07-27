@@ -3,6 +3,16 @@
    No DOM event wiring. No render functions. Just utilities.
    ──────────────────────────────────────────────────────────────────── */
 
+// ── BMI (recomputed, not trusted from the synced reading) ────────────
+// openScale's synced `bmi` field is computed against whatever height is
+// configured in the app, which was 75.0 in — 1 in taller than the 74.0 in
+// clinically measured at the July 27 DEXA scan. Recomputing from HEIGHT_IN
+// here means every reading, past and future, uses the correct height
+// instead of trusting a value baked in with the wrong one.
+function correctedBmi(weightLb) {
+  return weightLb != null ? 703 * weightLb / (HEIGHT_IN * HEIGHT_IN) : null;
+}
+
 // ── Number formatters ────────────────────────────────────────────────
 const fmt    = (n, d = 1)  => n != null ? (+n).toFixed(d) : '—';
 const fmtK   = n            => n != null ? Math.round(n).toLocaleString('en-US') : '—';
