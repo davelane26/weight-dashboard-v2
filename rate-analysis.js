@@ -155,22 +155,27 @@
 
   function renderBodyCompKPIs(filtered) {
     if (!filtered.length) return;
-    // Fat % calibrated against the logged DEXA scan, if any (see dexa.js).
-    // Muscle % is left uncalibrated — DEXA "lean mass" is a broader
-    // category (bone/organs/water included) than the scale's isolated
-    // skeletal-muscle estimate, so blending them would be a false
-    // equivalence rather than a real correction.
-    const fatOffset = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
+    // Both offsets come from the logged DEXA scan, if any (see dexa.js).
+    // Fat % is compared against the report's whole-body %Fat — a valid
+    // same-thing comparison. Muscle % is compared against the report's
+    // appendicular lean mass (arms+legs only), NOT its raw whole-body
+    // Lean Mass — that broader figure includes organs/water/bone and
+    // isn't the same target as the scale's isolated muscle estimate, so
+    // it stays a chart reference marker only, never a calibration input.
+    const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
+    const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
     const latest = filtered[filtered.length - 1];
     const first  = filtered[0];
-    const latestFat = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
-    const firstFat  = first.bodyFat  != null ? first.bodyFat  + fatOffset : null;
+    const latestFat    = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
+    const firstFat     = first.bodyFat  != null ? first.bodyFat  + fatOffset : null;
+    const latestMuscle = latest.muscle  != null ? latest.muscle  + muscleOffset : null;
+    const firstMuscle  = first.muscle   != null ? first.muscle   + muscleOffset : null;
     const fmt = v => (v == null || isNaN(v)) ? '—' : v.toFixed(1) + '%';
     const sgn = (d) => (d == null || isNaN(d)) ? ''
       : (d > 0 ? '+' : '') + d.toFixed(1) + ' pp';
 
-    const fatDelta    = (latestFat != null && firstFat != null) ? latestFat - firstFat : null;
-    const muscleDelta = (latest.muscle  != null && first.muscle  != null) ? latest.muscle  - first.muscle  : null;
+    const fatDelta    = (latestFat     != null && firstFat     != null) ? latestFat     - firstFat     : null;
+    const muscleDelta = (latestMuscle  != null && firstMuscle  != null) ? latestMuscle  - firstMuscle  : null;
 
     const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
     const setColored = (id, v, goodIfNegative) => {
@@ -183,7 +188,7 @@
     };
 
     set('ra-bc-fat',    fmt(latestFat));
-    set('ra-bc-muscle', fmt(latest.muscle));
+    set('ra-bc-muscle', fmt(latestMuscle));
     setColored('ra-bc-fat-delta',    sgn(fatDelta),    /*goodIfNeg*/ true);
     setColored('ra-bc-muscle-delta', sgn(muscleDelta), /*goodIfNeg*/ false);
 
@@ -201,16 +206,19 @@
     if (!canvas || typeof Chart === 'undefined') return;
     if (bcChart) { bcChart.destroy(); bcChart = null; }
 
-    const fatOffset = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
+    const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
+    const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
     const labels = filtered.map(r => fmtDateShort(r.date));
-    const fat    = filtered.map(r => r.bodyFat != null ? r.bodyFat + fatOffset : null);
-    const muscle = filtered.map(r => r.muscle  ?? null);
+    const fat    = filtered.map(r => r.bodyFat != null ? r.bodyFat + fatOffset    : null);
+    const muscle = filtered.map(r => r.muscle  != null ? r.muscle  + muscleOffset : null);
 
     // DEXA reference point(s): plotted at the nearest matching date in
     // `filtered` since the chart's x-axis is a category axis of that
-    // array's dates, not a continuous time scale.
+    // array's dates, not a continuous time scale. Lean % (whole-body) and
+    // Muscle-comparable % (appendicular) are two different DEXA numbers —
+    // plotted as separate markers, never blended together.
     const dexaScan = (typeof DexaCal !== 'undefined' && DexaCal.getScan) ? DexaCal.getScan() : null;
-    let dexaFatArr = null, dexaLeanArr = null;
+    let dexaFatArr = null, dexaLeanArr = null, dexaMuscleArr = null;
     if (dexaScan) {
       const dexaTime = new Date(dexaScan.date + 'T12:00:00').getTime();
       let bestIdx = -1, bestDiff = Infinity;
@@ -219,8 +227,11 @@
         if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
       });
       if (bestIdx >= 0) {
-        dexaFatArr  = filtered.map((_, i) => i === bestIdx ? dexaScan.fatPct  : null);
-        dexaLeanArr = filtered.map((_, i) => i === bestIdx ? dexaScan.leanPct : null);
+        dexaFatArr    = filtered.map((_, i) => i === bestIdx ? dexaScan.fatPct     : null);
+        dexaLeanArr   = filtered.map((_, i) => i === bestIdx ? dexaScan.leanPct    : null);
+        dexaMuscleArr = (dexaScan.musclePct != null)
+          ? filtered.map((_, i) => i === bestIdx ? dexaScan.musclePct : null)
+          : null;
       }
     }
 
@@ -275,10 +286,20 @@
             pointHoverRadius: 9,
           }] : []),
           ...(dexaLeanArr ? [{
-            label: 'DEXA Lean %',
+            label: 'DEXA Lean % (whole-body)',
             data: dexaLeanArr,
             borderColor: '#38bdf8',
             backgroundColor: '#38bdf8',
+            showLine: false,
+            pointRadius: 7,
+            pointStyle: 'star',
+            pointHoverRadius: 9,
+          }] : []),
+          ...(dexaMuscleArr ? [{
+            label: 'DEXA Muscle-comparable %',
+            data: dexaMuscleArr,
+            borderColor: '#a3e635',
+            backgroundColor: '#a3e635',
             showLine: false,
             pointRadius: 7,
             pointStyle: 'star',

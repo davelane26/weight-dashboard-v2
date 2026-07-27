@@ -26,12 +26,18 @@ function renderKPIs(latest, prev) {
     }
   }
 
-  // Same DEXA calibration offset the Charts tab's Body Composition section
+  // Same DEXA calibration offsets the Charts tab's Body Composition section
   // uses (see dexa.js) — applied here too so the Weight tab's headline
-  // Body Fat KPI doesn't disagree with the Charts tab on the same reading.
-  const fatOffset  = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
-  const latestFat  = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
-  const prevFat    = prev?.bodyFat  != null ? prev.bodyFat  + fatOffset : null;
+  // Body Fat / Muscle KPIs don't disagree with the Charts tab on the same
+  // reading. Fat compares against the report's whole-body %Fat; muscle
+  // compares against appendicular lean mass, not the report's raw
+  // whole-body Lean Mass (a broader, non-comparable category).
+  const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
+  const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
+  const latestFat    = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
+  const prevFat      = prev?.bodyFat  != null ? prev.bodyFat  + fatOffset : null;
+  const latestMuscle = latest.muscle  != null ? latest.muscle + muscleOffset : null;
+  const prevMuscle   = prev?.muscle   != null ? prev.muscle   + muscleOffset : null;
 
   latestFat != null ? countUp('kpi-fat', latestFat, 1, '%') : setText('kpi-fat', '—');
   const fd = prevFat != null && latestFat != null ? latestFat - prevFat : null;
@@ -43,12 +49,12 @@ function renderKPIs(latest, prev) {
   const fld = fatLbs != null && pFatLbs != null ? +(fatLbs - pFatLbs).toFixed(1) : null;
   setHTML('kpi-fat-lbs-sub', fld != null ? delta(fld) + ' lbs from last' : '');
 
-  latest.muscle ? countUp('kpi-muscle', latest.muscle, 1, '%') : setText('kpi-muscle', '—');
-  const md = prev?.muscle ? latest.muscle - prev.muscle : null;
+  latestMuscle != null ? countUp('kpi-muscle', latestMuscle, 1, '%') : setText('kpi-muscle', '—');
+  const md = prevMuscle != null && latestMuscle != null ? latestMuscle - prevMuscle : null;
   setHTML('kpi-muscle-sub', md != null ? delta(md, false) + '% from last' : '');
 
-  const muscleLbs  = latest.muscle && latest.weight ? +(latest.weight * latest.muscle / 100).toFixed(1) : null;
-  const pMuscleLbs = prev?.muscle  && prev?.weight  ? +(prev.weight  * prev.muscle  / 100).toFixed(1) : null;
+  const muscleLbs  = latestMuscle != null && latest.weight ? +(latest.weight * latestMuscle / 100).toFixed(1) : null;
+  const pMuscleLbs = prevMuscle   != null && prev?.weight  ? +(prev.weight  * prevMuscle   / 100).toFixed(1) : null;
   muscleLbs != null ? countUp('kpi-muscle-lbs', muscleLbs, 1) : setText('kpi-muscle-lbs', '—');
   const mld = muscleLbs != null && pMuscleLbs != null ? +(muscleLbs - pMuscleLbs).toFixed(1) : null;
   setHTML('kpi-muscle-lbs-sub', mld != null ? delta(mld, false) + ' lbs from last' : '');
