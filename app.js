@@ -90,7 +90,7 @@ async function loadData() {
     const raw = await fetchWeightRaw();
     if (!raw.length) throw new Error('empty');
     const parsed = raw
-      .map(r => ({ ...r, date: parseDate(r.date) }))
+      .map(r => ({ ...r, date: parseDate(r.date), bmi: correctedBmi(r.weight) }))
       .filter(r => r.date && r.weight)
       .sort((a, b) => a.date - b.date);
     // Only re-render if the data actually changed (new reading or different latest weight)
@@ -151,7 +151,7 @@ async function init() {
       const saved = localStorage.getItem('wt_v2_data');
       if (saved) {
         allData = JSON.parse(saved)
-          .map(r => ({ ...r, date: new Date(r.date) }))
+          .map(r => ({ ...r, date: new Date(r.date), bmi: correctedBmi(r.weight) }))
           .filter(r => r.weight);
         renderAll();
         restoreTab();
