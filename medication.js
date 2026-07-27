@@ -293,7 +293,6 @@
     updateReminder(elapsed);
     drawPkChart(elapsed);
     renderProgressCharts();
-    renderBodyCompChart();
   }
 
   function drawPkChart(elapsed) {
@@ -382,66 +381,6 @@
   }
 
   // ── Body composition chart ────────────────────────────────────────────────
-  let g1BodyCompChart = null;
-
-  function getDailyReadings() {
-    if (!window.allWeightData || !window.allWeightData.length) return [];
-    const byDay = {};
-    window.allWeightData.forEach(r => {
-      const day = new Date(r.date).toISOString().slice(0, 10);
-      if (!byDay[day] || new Date(r.date) > new Date(byDay[day].date)) {
-        byDay[day] = r;
-      }
-    });
-    return Object.values(byDay).sort((a, b) => new Date(a.date) - new Date(b.date));
-  }
-
-  function renderBodyCompChart() {
-    const canvas = document.getElementById('g1BodyCompChart');
-    if (!canvas || typeof Chart === 'undefined') return;
-
-    const daily = getDailyReadings();
-    if (daily.length < 2) return;
-
-    const labels = daily.map(r => {
-      const d = new Date(r.date);
-      return (d.getMonth() + 1) + '/' + d.getDate();
-    });
-    const fatData    = daily.map(r => r.bodyFat  != null ? +Number(r.bodyFat).toFixed(1)  : null);
-    const muscleData = daily.map(r => r.muscle    != null ? +Number(r.muscle).toFixed(1)   : null);
-    const waterData  = daily.map(r => r.water     != null ? +Number(r.water).toFixed(1)    : null);
-
-    if (g1BodyCompChart) { g1BodyCompChart.destroy(); g1BodyCompChart = null; }
-
-    g1BodyCompChart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label:'Body Fat %', data:fatData,    borderColor:'#e03131', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:true },
-          { label:'Muscle %',   data:muscleData, borderColor:'#2f9e44', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:true },
-          { label:'Water %',    data:waterData,  borderColor:'#1971c2', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:true },
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '%' } }
-        },
-        scales: {
-          x: { ticks: { font:{ size:9 }, color:'#9aa5b4', maxRotation:45, autoSkip:true, maxTicksLimit:10 }, grid:{ display:false } },
-          y: {
-            ticks: { font:{ size:9 }, color:'#9aa5b4', callback: v => v + '%' },
-            grid:  { color:'#f0f1f5' },
-            suggestedMin: 28,
-            suggestedMax: 55,
-          }
-        }
-      }
-    });
-  }
-
   // ── Progress charts ───────────────────────────────────────────────────────
   let g1WeightTrendChart = null;
   let g1WeightChangeChart = null;
