@@ -73,7 +73,8 @@
 <script src="photos.js?v=3" defer></script>
 <script src="photo-picker.js?v=1" defer></script>
 <script src="charts-tab.js?v=1" defer></script>
-<script src="rate-analysis.js?v=2" defer></script>
+<script src="dexa.js?v=1" defer></script>
+<script src="rate-analysis.js?v=3" defer></script>
 <script src="titration-utils.js?v=3" defer></script>
 <script src="events.js?v=2" defer></script>
 <script src="titration-trajectory.js?v=7" defer></script>
@@ -711,6 +712,48 @@
         <canvas id="ra-bodycomp-chart" aria-label="Body fat percent and skeletal muscle percent over time"></canvas>
       </div>
       <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Body fat ↓ + muscle ↑ = losing fat, not muscle. 🎯</p>
+
+      <!-- ── DEXA Scan Calibration ── -->
+      <div style="margin-top:1.5rem;background:#1e293b;border-radius:12px;padding:1rem 1.1rem;border:1px solid #334155">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <h3 style="color:#f1f5f9;font-size:0.85rem;font-weight:800;margin:0">🎯 DEXA Scan Calibration</h3>
+          <button onclick="toggleDexaForm()" id="dexa-toggle-btn" style="background:none;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:0.25rem 0.6rem;font-size:0.65rem;font-weight:700;cursor:pointer">+ Add scan</button>
+        </div>
+        <p style="font-size:0.68rem;color:#64748b;line-height:1.5;margin-bottom:0.75rem">
+          DEXA is the gold-standard body-comp measurement. Log a scan here and the scale's Body Fat above gets calibrated against it going forward. Lean mass is shown as a separate reference point on the chart, not blended into Muscle % — DEXA lean mass includes bone/organs/water, a broader category than the scale's isolated muscle estimate.
+        </p>
+        <div id="dexa-form" style="display:none;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.75rem">
+          <div>
+            <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:0.25rem">Scan date</label>
+            <input type="date" id="dexa-date" style="width:100%;padding:0.45rem 0.6rem;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.8rem" />
+          </div>
+          <div>
+            <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:0.25rem">Body fat %</label>
+            <input type="number" step="0.1" id="dexa-fat" style="width:100%;padding:0.45rem 0.6rem;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.8rem" />
+          </div>
+          <div>
+            <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:0.25rem">Lean mass %</label>
+            <input type="number" step="0.1" id="dexa-lean" style="width:100%;padding:0.45rem 0.6rem;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.8rem" />
+          </div>
+          <div>
+            <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:0.25rem">Scan weight (lbs, optional)</label>
+            <input type="number" step="0.1" id="dexa-weight" style="width:100%;padding:0.45rem 0.6rem;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:0.8rem" />
+          </div>
+          <div style="grid-column:1/-1;display:flex;gap:0.5rem">
+            <button onclick="saveDexaScan()" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.55rem;font-size:0.75rem;font-weight:700;cursor:pointer">Save scan</button>
+            <button onclick="toggleDexaForm()" style="background:none;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:0.55rem 0.9rem;font-size:0.75rem;font-weight:700;cursor:pointer">Cancel</button>
+          </div>
+        </div>
+        <div id="dexa-summary" style="display:none">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.55rem;margin-bottom:0.65rem">
+            <div><p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;margin-bottom:0.2rem">DEXA Date</p><p id="dexa-sum-date" style="font-size:0.85rem;font-weight:800;color:#f1f5f9">—</p></div>
+            <div><p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;margin-bottom:0.2rem">DEXA Fat %</p><p id="dexa-sum-fat" style="font-size:0.85rem;font-weight:800;color:#f1f5f9">—</p></div>
+            <div><p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;margin-bottom:0.2rem">DEXA Lean %</p><p id="dexa-sum-lean" style="font-size:0.85rem;font-weight:800;color:#f1f5f9">—</p></div>
+          </div>
+          <p id="dexa-sum-note" style="font-size:0.7rem;color:#94a3b8;line-height:1.5"></p>
+          <button onclick="clearDexaScan()" style="margin-top:0.6rem;background:none;border:none;color:#ef4444;font-size:0.65rem;font-weight:700;cursor:pointer;padding:0">Remove scan</button>
+        </div>
+      </div>
     </div>
   </div><!-- /tab-charts -->
 
