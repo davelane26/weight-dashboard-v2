@@ -13,12 +13,31 @@
   'use strict';
   const STORAGE_KEY = 'wt_v2_dexa_v1';
 
+  // Shipped default: David's July 27, 2026 DEXA scan at HPCRL (Colorado
+  // State). Fat % (31.5) and offset (vs the nearest scale reading, July 25
+  // at 28.81%) are straight off the report. Lean % (31.4) is the
+  // appendicular-lean-mass figure — arms+legs lean mass only, the standard
+  // muscle-comparable proxy — NOT the report's raw whole-body Lean Mass
+  // (65.6%), which includes organs/water and isn't comparable to the
+  // scale's isolated muscle estimate. This is only a fallback: any scan
+  // logged via the form (localStorage) takes precedence permanently once
+  // saved, and an explicit "Remove scan" is respected rather than
+  // reverting to this default.
+  const SHIPPED_DEFAULT = [{
+    date: '2026-07-27', fatPct: 31.5, leanPct: 31.4, weight: null,
+    nearestScaleDate: '2026-07-25', nearestScaleFat: 28.81, fatOffset: 2.69,
+  }];
+
   function loadScans() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
+      // null means the key was never set — safe to use the shipped
+      // default. Any stored value (including "[]" from an explicit
+      // Remove) must be respected as-is, not overridden.
+      if (raw === null) return SHIPPED_DEFAULT;
+      const arr = JSON.parse(raw);
       return Array.isArray(arr) ? arr : [];
-    } catch (e) { return []; }
+    } catch (e) { return SHIPPED_DEFAULT; }
   }
 
   function saveScans(scans) {
