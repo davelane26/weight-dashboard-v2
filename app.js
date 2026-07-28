@@ -34,6 +34,7 @@ function renderAll() {
   renderWeightChart(allData);
   renderWeeklyStats(allData);
   renderGoal(latest, allData);
+  if (typeof renderBodyFatTargets === 'function') renderBodyFatTargets(latest);
 
   updateSnapshot();
 

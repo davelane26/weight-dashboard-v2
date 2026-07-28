@@ -56,6 +56,59 @@ function renderGoal(latest, data = []) {
   setText('goal-eta', `${rangeStr} (currently ${weeklyRate.toFixed(1)} lbs/wk)`);
 }
 
+// -- Body-Fat Targets -------------------------------------------------
+// For each target body-fat %, the weight you'd hit it at ASSUMING lean
+// mass stays constant: targetWeight = leanMass / (1 - target/100).
+// Lean mass is derived from the latest DEXA-calibrated body fat, so the
+// whole table stays anchored to the scan, not the raw BIA reading.
+function renderBodyFatTargets(latest) {
+  const host = el('bf-targets');
+  if (!host) return;
+  if (!latest || latest.bodyFat == null || !latest.weight) {
+    host.innerHTML = '<p style="font-size:0.8rem;color:#6d7a95">No body-fat reading yet.</p>';
+    return;
+  }
+
+  const fatOffset = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
+  const calFat    = latest.bodyFat + fatOffset;              // DEXA-calibrated %
+  const lean      = latest.weight * (1 - calFat / 100);      // lbs of lean, held constant
+  const curW      = latest.weight;
+
+  const TARGETS = [25, 20, 15];
+  const rows = TARGETS.map(t => {
+    const w      = lean / (1 - t / 100);
+    const toLose = curW - w;
+    const done   = toLose <= 0;
+    const color  = t >= 25 ? '#995213' : t >= 20 ? '#0053e2' : '#2a8703';
+    const status = done
+      ? '<span style="color:#2a8703;font-weight:700">reached</span>'
+      : `${fmt(toLose)} lbs to go`;
+    return `<tr>
+      <td style="padding:0.4rem 0.5rem;font-weight:800;color:${color}">${t}%</td>
+      <td style="padding:0.4rem 0.5rem;font-weight:700;color:#f1f5f9">${fmt(w)} lbs</td>
+      <td style="padding:0.4rem 0.5rem;color:#94a3b8;font-size:0.8rem">${status}</td>
+    </tr>`;
+  }).join('');
+
+  host.innerHTML = `
+    <p style="font-size:0.7rem;color:#6d7a95;margin-bottom:0.5rem">
+      Now: <strong style="color:#f1f5f9">${fmt(calFat)}% body fat</strong> at ${fmt(curW)} lbs
+      &middot; lean mass held at <strong style="color:#f1f5f9">~${fmt(lean)} lbs</strong>
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+      <thead><tr style="text-align:left;color:#64748b;font-size:0.62rem;text-transform:uppercase">
+        <th style="padding:0.3rem 0.5rem;font-weight:700">Body Fat</th>
+        <th style="padding:0.3rem 0.5rem;font-weight:700">Target Weight</th>
+        <th style="padding:0.3rem 0.5rem;font-weight:700">From Now</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="font-size:0.62rem;color:#475569;margin-top:0.55rem;line-height:1.5">
+      Assumes you keep every pound of lean mass — real loss usually shaves a little off, which would put each target at a slightly lower weight. A follow-up DEXA keeps this honest.
+    </p>`;
+}
+window.renderBodyFatTargets = renderBodyFatTargets;
+
 // ── Goal persistence ─────────────────────────────────────────────────
 function loadGoal() {
   try {
