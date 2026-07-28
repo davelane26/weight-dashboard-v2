@@ -82,7 +82,30 @@
     if (!form) return;
     form.style.display = form.style.display === 'grid' ? 'none' : 'grid';
   }
-  window.toggleDexaForm = toggleDexaForm;
+window.toggleDexaForm = toggleDexaForm;
+
+  // Convert a DEXA report's appendicular lean mass (ALM, lb) into an
+  // estimated TOTAL skeletal muscle % of body weight, so the Muscle %
+  // field stays on the total-skeletal-muscle basis the dashboard uses
+  // (not raw appendicular lean). Kim-2002 equation:
+  //   TSM(kg) = 1.19 x ALM(kg) - 1.65
+  // then TSM% = TSM(lb) / scan weight (lb) x 100.
+  const LB_PER_KG = 2.20462;
+  function convertAlmToMuscle() {
+    const alm = parseFloat(document.getElementById('dexa-alm')?.value);
+    const wt  = parseFloat(document.getElementById('dexa-weight')?.value);
+    if (isNaN(alm) || isNaN(wt) || wt <= 0) {
+      alert('Enter both appendicular lean mass (lb) and scan weight (lb) first.');
+      return;
+    }
+    const almKg = alm / LB_PER_KG;
+    const tsmKg = 1.19 * almKg - 1.65;   // Kim-2002
+    const tsmLb = tsmKg * LB_PER_KG;
+    const pct   = +(tsmLb / wt * 100).toFixed(1);
+    const field = document.getElementById('dexa-muscle');
+    if (field) field.value = pct;
+  }
+  window.convertAlmToMuscle = convertAlmToMuscle;
 
   function saveDexaScan() {
     const date    = document.getElementById('dexa-date')?.value;
