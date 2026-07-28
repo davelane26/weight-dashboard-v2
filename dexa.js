@@ -21,18 +21,24 @@
   // Shipped default: David's July 27, 2026 DEXA scan at HPCRL (Colorado
   // State). Fat % (31.5) and its offset (vs the nearest scale reading,
   // July 25 at 28.81%) are straight off the report. Lean % (31.4) is the
-  // appendicular-lean-mass figure — arms+legs lean mass only — NOT the
-  // report's raw whole-body Lean Mass (65.6%), which includes
-  // organs/water and isn't comparable to the scale's isolated muscle
-  // estimate; musclePct/muscleOffset use that same 31.4 figure against
-  // the scale's muscle reading that same day (33.21%). This is only a
+  // appendicular-lean-mass figure — arms+legs lean mass only — kept here
+  // purely as a secondary reference marker.
+  //
+  // musclePct/muscleOffset instead target ESTIMATED TOTAL SKELETAL MUSCLE
+  // (36.8% = 92.8 lb ÷ 252.4 lb scan weight), derived from the DXA
+  // appendicular lean mass via Kim-2002 and cross-checked by the Lee-2000
+  // anthropometric equation (93.9 lb). This is the number David wants
+  // surfaced — the scale's BIA muscle low-balls true skeletal muscle, so
+  // the offset is POSITIVE: 36.8 − 33.21 (scale that day) = +3.59 pp.
+  // NOTE: total skeletal muscle is an ESTIMATE (formula-derived), not a
+  // direct DXA measurement; only serial DXAs track true muscle change.
   // fallback: any scan logged via the form (localStorage) takes
   // precedence permanently once saved, and an explicit "Remove scan" is
   // respected rather than reverting to this default.
   const SHIPPED_DEFAULT = [{
-    date: '2026-07-27', fatPct: 31.5, leanPct: 31.4, musclePct: 31.4, weight: null,
+    date: '2026-07-27', fatPct: 31.5, leanPct: 31.4, musclePct: 36.8, weight: null,
     nearestScaleDate: '2026-07-25', nearestScaleFat: 28.81, fatOffset: 2.69,
-    nearestScaleMuscle: 33.21, muscleOffset: -1.81,
+    nearestScaleMuscle: 33.21, muscleOffset: 3.59,
   }];
 
   function loadScans() {
@@ -145,7 +151,7 @@
       }
       if (scan.musclePct != null && scan.nearestScaleMuscle != null) {
         const mdir = scan.muscleOffset > 0 ? 'understated' : 'overstated';
-        parts.push(`Scale read ${scan.nearestScaleMuscle.toFixed(1)}% muscle that day — the scale ${mdir} muscle (vs this scan's appendicular lean mass) by ${Math.abs(scan.muscleOffset).toFixed(1)}pp. Muscle % is now corrected by that offset too.`);
+        parts.push(`Scale read ${scan.nearestScaleMuscle.toFixed(1)}% muscle that day — the scale ${mdir} muscle (vs this scan's estimated total skeletal muscle) by ${Math.abs(scan.muscleOffset).toFixed(1)}pp. Muscle % is now corrected by that offset too.`);
       }
       note.textContent = parts.join(' ');
     }

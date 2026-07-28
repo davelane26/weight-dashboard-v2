@@ -61,6 +61,14 @@ let _lastDataKey = null;
 // Once you delete the public JSON, the fallback simply stops working
 // for anyone who isn't signed in as an allowed user — which is the goal.
 async function fetchWeightRaw() {
+  // DEV: on localhost, load the local snapshot so the dashboard renders
+  // without the token-gated worker or a Firebase login. Inert in prod.
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+    const resp = await fetch('./data.json?t=' + Date.now());
+    if (resp.ok) return await resp.json();
+    console.warn('[weight] local data.json not found, falling through');
+  }
+
   const workerUrl = window.WEIGHT_WORKER_URL;
   if (workerUrl) {
     try {

@@ -49,6 +49,11 @@ const app      = initializeApp(FIREBASE_CONFIG);
 const auth     = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// DEV: when served from localhost we skip the Google login gate so the
+// dashboard can be previewed with a local data.json. Completely inert in
+// production (any real hostname) — the allow-list still fully applies there.
+const DEV_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+
 window.fbUser = null;
 
 window.fbSignIn = async () => {
@@ -91,8 +96,17 @@ onAuthStateChanged(auth, user => {
 
   const overlay    = document.getElementById('auth-overlay');
   const signOutBtn = document.getElementById('header-signout-btn');
-  if (overlay)    overlay.style.display    = authed ? 'none' : 'flex';
+  if (overlay)    overlay.style.display    = (authed || DEV_LOCAL) ? 'none' : 'flex';
   if (signOutBtn) signOutBtn.style.display = authed ? '' : 'none';
 
   document.dispatchEvent(new CustomEvent('firebase-auth-changed', { detail: { user: window.fbUser } }));
 });
+
+// DEV localhost: hide the overlay immediately and resolve auth-ready so
+// data loading (which reads ./data.json locally) proceeds without a login.
+if (DEV_LOCAL) {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (window._resolveAuthReady) { window._resolveAuthReady(null); window._resolveAuthReady = null; }
+  console.info('[auth] DEV_LOCAL: login gate bypassed for localhost preview.');
+}

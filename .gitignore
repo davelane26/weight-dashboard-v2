@@ -28,3 +28,7 @@ shots/
 shots-v2/ 
 server.log 
 _*.py
+
+# Local dev-only data snapshot (generated from openScale CSV for localhost
+# preview). Production fetches from the token-gated worker / remote data.json.
+data.json
