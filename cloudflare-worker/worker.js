@@ -191,6 +191,17 @@ function parseEntry(e) {
 // ── Handler ───────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
+    try {
+      return await handle(request, env);
+    } catch (err) {
+      // Surface the real error instead of an opaque 500 with no body —
+      // callers (sync jobs, curl -f) only ever see the status + this text.
+      return cors(JSON.stringify({ error: 'Internal error', message: String(err && err.message || err) }), 500);
+    }
+  },
+};
+
+async function handle(request, env) {
     const url    = new URL(request.url);
     const method = request.method.toUpperCase();
 
@@ -506,8 +517,7 @@ export default {
     }
 
     return cors('{"error":"Not found"}', 404);
-  },
-};
+}
 
 // ── Normalise a raw health payload into a stored entry ──────────────────────
 function buildHealthEntry(body) {
