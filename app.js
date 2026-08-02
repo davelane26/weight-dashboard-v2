@@ -94,9 +94,28 @@ async function fetchWeightRaw() {
   return await resp.json();
 }
 
+// Manual override entries for days the automated sync hasn't landed yet
+// (e.g. the mirror-to-Worker job failing on a KV write-quota day). Add
+// entries to manual-overrides.json; once the real synced data catches up
+// for that date, delete the entry here — this only fills gaps, it never
+// replaces a date the fetched data already has.
+async function applyManualOverrides(raw) {
+  try {
+    const resp = await fetch('./manual-overrides.json?t=' + Date.now());
+    if (!resp.ok) return raw;
+    const overrides = await resp.json();
+    if (!Array.isArray(overrides) || !overrides.length) return raw;
+    const haveDays = new Set(raw.map(r => String(r.date).slice(0, 10)));
+    const extra = overrides.filter(o => !haveDays.has(String(o.date).slice(0, 10)));
+    return extra.length ? [...raw, ...extra] : raw;
+  } catch {
+    return raw;
+  }
+}
+
 async function loadData() {
   try {
-    const raw = await fetchWeightRaw();
+    const raw = await applyManualOverrides(await fetchWeightRaw());
     if (!raw.length) throw new Error('empty');
     const parsed = raw
       .map(r => ({ ...r, date: parseDate(r.date), bmi: correctedBmi(r.weight) }))
