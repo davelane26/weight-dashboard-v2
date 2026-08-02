@@ -244,19 +244,30 @@ async function handle(request, env) {
       await env.GLUCOSE_KV.put('payload', JSON.stringify(payload));
 
       // Fold the deduped 24h window into the rolling 14-day archive.
-      // Merging `sorted` (not just this upload) means the archive seeds
-      // itself from existing data on first run and self-heals gaps.
-      const archive = await env.GLUCOSE_KV.get('archive', { type: 'json' }) ?? [];
-      const archMap = new Map();
-      for (const r of archive) archMap.set(r.time, r.value);
-      for (const r of sorted)  archMap.set(r.time, r.value);
-      const cutoff = Date.now() - ARCHIVE_DAYS * 86400000;
-      const archSorted = [...archMap.entries()]
-        .map(([time, value]) => ({ time, value }))
-        .filter(r => new Date(r.time).getTime() >= cutoff)
-        .sort((a, b) => new Date(a.time) - new Date(b.time));
-      await env.GLUCOSE_KV.put('archive', JSON.stringify(archSorted));
-      await env.GLUCOSE_KV.put('gmi', JSON.stringify(buildGmiPayload(archSorted)));
+      // Throttled to once per hour: archive/GMI are a 14-day rolling
+      // average, so sub-hourly freshness buys nothing, and at a 5-min
+      // upload cadence writing this pair on every upload alone burns the
+      // Free plan's 1,000 KV writes/day budget (this caused the mirror
+      // job's POST /weight to start failing with 500s once the daily
+      // write quota was exhausted).
+      const ARCHIVE_THROTTLE_MS = 60 * 60 * 1000;
+      const lastArchiveUpdate = await env.GLUCOSE_KV.get('archiveUpdatedAt');
+      if (!lastArchiveUpdate || Date.now() - Number(lastArchiveUpdate) >= ARCHIVE_THROTTLE_MS) {
+        // Merging `sorted` (not just this upload) means the archive seeds
+        // itself from existing data on first run and self-heals gaps.
+        const archive = await env.GLUCOSE_KV.get('archive', { type: 'json' }) ?? [];
+        const archMap = new Map();
+        for (const r of archive) archMap.set(r.time, r.value);
+        for (const r of sorted)  archMap.set(r.time, r.value);
+        const cutoff = Date.now() - ARCHIVE_DAYS * 86400000;
+        const archSorted = [...archMap.entries()]
+          .map(([time, value]) => ({ time, value }))
+          .filter(r => new Date(r.time).getTime() >= cutoff)
+          .sort((a, b) => new Date(a.time) - new Date(b.time));
+        await env.GLUCOSE_KV.put('archive', JSON.stringify(archSorted));
+        await env.GLUCOSE_KV.put('gmi', JSON.stringify(buildGmiPayload(archSorted)));
+        await env.GLUCOSE_KV.put('archiveUpdatedAt', String(Date.now()));
+      }
 
       return cors(JSON.stringify({ ok: true, saved: parsed.length }));
     }
