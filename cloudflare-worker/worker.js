@@ -474,10 +474,14 @@ async function handle(request, env) {
     // ── GET /weight.json  (token-gated dashboard fetch) ────────────────
     // The private replacement for the public data.json. Requires a valid
     // Firebase ID token whose email is on ALLOWED_EMAILS.
+    // Stored in D1 (WEIGHT_DB), not GLUCOSE_KV — the once-daily weight
+    // write must never compete with glucose/health KV traffic for the
+    // Free plan's shared 1,000-writes/day quota.
     if (method === 'GET' && url.pathname === '/weight.json') {
       const user = await requireUser(request, env);
       if (!user) return cors('{"error":"Unauthorized"}', 401);
-      const data = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
+      const row  = await env.WEIGHT_DB.prepare('SELECT data FROM weight WHERE id = 1').first();
+      const data = row ? JSON.parse(row.data) : [];
       return cors(JSON.stringify(data));
     }
 
@@ -523,7 +527,10 @@ async function handle(request, env) {
       const rows = Array.isArray(body) ? body
                  : (Array.isArray(body.data) ? body.data : null);
       if (!rows) return cors('{"error":"expected an array of readings or {data:[...]}"}', 400);
-      await env.GLUCOSE_KV.put('weight', JSON.stringify(rows));
+      await env.WEIGHT_DB.prepare(
+        'INSERT INTO weight (id, data, updated_at) VALUES (1, ?, ?) ' +
+        'ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'
+      ).bind(JSON.stringify(rows), new Date().toISOString()).run();
       return cors(JSON.stringify({ ok: true, count: rows.length }));
     }
 
