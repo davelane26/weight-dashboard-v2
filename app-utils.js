@@ -115,48 +115,152 @@ function computeWeightSlowdown(data, windowDays = 28) {
   return { currentRate, priorRate, slowdownPct, windowDays };
 }
 
-// ── Slowdown-adjusted projection model ───────────────────────────────
-// Extrapolates the observed deceleration: the weekly rate starts at the
-// current 4-wk regression rate and keeps easing by the same amount it
-// eased between the two windows. Units are lbs/WEEK; decel > 0 = slowing
-// by that many lbs/wk each week. When the pace is steady or speeding up
-// we do NOT extrapolate the acceleration — we project linearly at the
-// current rate (the conservative choice).
-function slowdownModel(sd) {
-  if (!sd || sd.currentRate == null || sd.priorRate == null) return null;
-  const r0    = sd.currentRate;
-  const decel = (sd.priorRate - sd.currentRate) / (sd.windowDays / 7);
-  return { r0, decel };
+// ── Exponential-decay projection model ───────────────────────────────
+// The old model eased the weekly rate down *linearly* to zero, which
+// meant the projected weight flatlined at whatever value the rate hit
+// zero — any date past that point gave the same answer. This model
+// instead fits an exponential decay toward an asymptote, so the curve
+// eases smoothly and never hard-stops.
+//
+// Step 1: estimate the weekly rate in overlapping trailing windows
+// (21 days, stepped every 7 days) across the whole weigh-in history.
+// Step 2: fit ln(rate) = a + b*x by least squares, where x is "weeks
+// toward now" (0 = today, negative further back). Each window's rate
+// is anchored at its time-*centroid* (the mean date of its readings),
+// not its end date — a window's regression slope is the best estimate
+// of the rate at its centroid, not its edge, and anchoring at the edge
+// would bias every window's x by ~windowDays/2, which biases the
+// extrapolated intercept (and so R0) while leaving the slope (k)
+// unaffected. Because x=0 is "now" by construction, a = ln(R0)
+// directly and the decay constant is k = -b.
+function computeWeeklyRateWindows(data, windowDays = 21, stepDays = 7) {
+  if (!data || data.length < 3) return [];
+  const byDay = {};
+  data.forEach(r => { byDay[r.date.toDateString()] = r; });
+  const daily = Object.values(byDay).sort((a, b) => a.date - b.date);
+  if (daily.length < 3) return [];
+
+  const dayMs   = 86_400_000;
+  const firstMs = daily[0].date.getTime();
+  const lastMs  = daily[daily.length - 1].date.getTime();
+  const windows = [];
+  for (let endMs = lastMs; endMs - windowDays * dayMs >= firstMs; endMs -= stepDays * dayMs) {
+    const startMs = endMs - windowDays * dayMs;
+    const win = daily.filter(r => r.date.getTime() >= startMs && r.date.getTime() <= endMs);
+    if (win.length < 3) continue;
+    const t0  = win[0].date.getTime();
+    const pts = win.map(r => [(r.date.getTime() - t0) / dayMs, r.weight]);
+    const n   = pts.length;
+    const sx  = pts.reduce((s, p) => s + p[0], 0);
+    const sy  = pts.reduce((s, p) => s + p[1], 0);
+    const sxy = pts.reduce((s, p) => s + p[0] * p[1], 0);
+    const sx2 = pts.reduce((s, p) => s + p[0] * p[0], 0);
+    const den = n * sx2 - sx * sx;
+    if (den === 0) continue;
+    const slopePerDay = (n * sxy - sx * sy) / den;
+    const centroidMs   = t0 + (sx / n) * dayMs;
+    windows.push({
+      x:    (centroidMs - lastMs) / (7 * dayMs), // weeks toward now: 0 = today, negative = further back
+      rate: -slopePerDay * 7,                     // lbs/week, positive = losing
+    });
+  }
+  return windows;
 }
 
-// Projected lbs lost after `weeks` under the decelerating model.
-// Once the extrapolated rate reaches zero the curve flattens — we never
-// project regain out of a decaying loss rate.
-function slowdownLossAt(model, weeks) {
-  const { r0, decel } = model;
-  if (r0 <= 0 || weeks <= 0) return 0;
-  if (decel <= 0) return r0 * weeks;
-  const w = Math.min(weeks, r0 / decel);
-  return r0 * w - (decel / 2) * w * w;
+// Fits ln(rate) = a + b*x on the positive-rate windows (a negative or
+// zero rate can't be logged, so those windows are dropped). Returns
+// null when there aren't at least 3 usable windows. Also returns the
+// standard error of b (== standard error of k) for the uncertainty band.
+function fitExponentialDecay(data) {
+  const pts = computeWeeklyRateWindows(data)
+    .filter(w => w.rate > 0.01)
+    .map(w => [w.x, Math.log(w.rate)]);
+  const n = pts.length;
+  if (n < 3) return null;
+
+  const sx  = pts.reduce((s, p) => s + p[0], 0);
+  const sy  = pts.reduce((s, p) => s + p[1], 0);
+  const sxy = pts.reduce((s, p) => s + p[0] * p[1], 0);
+  const sx2 = pts.reduce((s, p) => s + p[0] * p[0], 0);
+  const den = n * sx2 - sx * sx;
+  if (den === 0) return null;
+
+  const b = (n * sxy - sx * sy) / den;
+  const a = (sy - b * sx) / n;
+
+  const meanX = sx / n;
+  const sxx   = pts.reduce((s, p) => s + (p[0] - meanX) ** 2, 0);
+  const resSS = pts.reduce((s, p) => s + (p[1] - (a + b * p[0])) ** 2, 0);
+  const dof   = n - 2;
+  const seB   = (dof > 0 && sxx > 0) ? Math.sqrt(resSS / dof / sxx) : null;
+
+  return { k: -b, r0: Math.exp(a), seB, n };
 }
 
-// Weeks needed to lose `lbs` under the model, or null if the pace is
-// projected to stall before getting there.
-function slowdownWeeksToLose(model, lbs) {
-  const { r0, decel } = model;
-  if (r0 <= 0 || lbs <= 0) return lbs <= 0 ? 0 : null;
-  if (decel <= 0) return lbs / r0;
-  const disc = r0 * r0 - 2 * decel * lbs;
-  if (disc < 0) return null;
-  return (r0 - Math.sqrt(disc)) / decel;
+// Minimum decay constant treated as "real" deceleration. Guards against
+// floating-point noise around zero (a steady rate can fit k as a tiny
+// positive number) blowing up r0/k into an absurd asymptote.
+const MIN_DECAY_K = 1e-4;
+
+// Builds the usable projection model, or null when the fit doesn't show
+// real deceleration (k <= MIN_DECAY_K) or there isn't enough data (< 3
+// usable rate windows). Callers should fall back to plain linear
+// extrapolation at the current rate in that case, rather than dividing
+// by a near-zero or negative k. kLow/kHigh (one standard error either
+// side of k) give callers a range instead of a single point estimate.
+function computeExponentialDecayModel(data) {
+  const fit = fitExponentialDecay(data);
+  if (!fit || !(fit.k > MIN_DECAY_K) || !(fit.r0 > 0.05)) return null;
+  const se    = fit.seB;
+  const kLow  = se != null ? Math.max(MIN_DECAY_K, fit.k - se) : fit.k;
+  const kHigh = se != null ? fit.k + se : fit.k;
+  return { r0: fit.r0, k: fit.k, kLow, kHigh, n: fit.n };
 }
 
-// Where the extrapolated pace hits zero: { weeks, loss } of additional
-// loss remaining before the stall, or null when there's no deceleration.
-function slowdownPlateau(model) {
-  const { r0, decel } = model;
-  if (r0 <= 0 || decel <= 0) return null;
-  return { weeks: r0 / decel, loss: (r0 * r0) / (2 * decel) };
+// Lbs lost after `weeks` under weight(t) = W_now - (r0/k)(1 - e^-kt).
+function exponentialLossAt(r0, k, weeks) {
+  if (weeks <= 0) return 0;
+  return (r0 / k) * (1 - Math.exp(-k * weeks));
+}
+
+// { loss, lossLow, lossHigh }: point estimate plus the range implied by
+// the k_low/k_high uncertainty band.
+function exponentialLossRange(model, weeks) {
+  const loss = exponentialLossAt(model.r0, model.k, weeks);
+  const a    = exponentialLossAt(model.r0, model.kHigh, weeks);
+  const b    = exponentialLossAt(model.r0, model.kLow,  weeks);
+  return { loss, lossLow: Math.min(a, b), lossHigh: Math.max(a, b) };
+}
+
+// The model's long-run floor: total additional loss as t → ∞. Unlike
+// the old linear-decay model, this is a smooth asymptote, not a hard
+// stop at a specific date.
+function exponentialAsymptote(model) {
+  return model.r0 / model.k;
+}
+
+// Weeks needed to lose `lbs` at decay constant k, or null if `lbs`
+// exceeds the asymptote (r0/k) and so is never reached in finite time.
+function exponentialWeeksToLoseAtK(r0, k, lbs) {
+  if (lbs <= 0) return 0;
+  if (lbs >= r0 / k) return null;
+  return -Math.log(1 - (lbs * k) / r0) / k;
+}
+
+// { weeks, weeksLow, weeksHigh } for the k_low/k_high band. `weeks` is
+// null when the point-estimate k can't reach `lbs`; weeksLow/weeksHigh
+// are null only when *neither* bound of the band can reach it.
+function exponentialWeeksToLoseRange(model, lbs) {
+  const weeks = exponentialWeeksToLoseAtK(model.r0, model.k, lbs);
+  const vals  = [
+    exponentialWeeksToLoseAtK(model.r0, model.kLow,  lbs),
+    exponentialWeeksToLoseAtK(model.r0, model.kHigh, lbs),
+  ].filter(w => w != null);
+  return {
+    weeks,
+    weeksLow:  vals.length ? Math.min(...vals) : null,
+    weeksHigh: vals.length ? Math.max(...vals) : null,
+  };
 }
 
 // ── Streak counter (consecutive calendar-day readings) ───────────────
