@@ -167,15 +167,15 @@ function renderProjectorSlowdown() {
   } else if (sd.slowdownPct >= 15) {
     pctTxt   = `▼ ${Math.round(sd.slowdownPct)}% slower`;
     pctColor = '#ea1100';
-    note = `Pace has slowed ${Math.round(sd.slowdownPct)}% vs the prior 4 weeks. The projections above bake this in — the rate starts at your recent pace and keeps easing at the observed slowdown.`;
+    note = `Pace has slowed ${Math.round(sd.slowdownPct)}% vs the prior 4 weeks. The exponential decay model above accounts for this — the fitted rate eases smoothly toward an asymptote instead of extrapolating a straight line.`;
   } else if (sd.slowdownPct <= -15) {
     pctTxt   = `▲ ${Math.round(Math.abs(sd.slowdownPct))}% faster`;
     pctColor = '#2a8703';
-    note = `Pace has picked up ${Math.round(Math.abs(sd.slowdownPct))}% vs the prior 4 weeks. Projections use your current rate without extrapolating the speed-up, so they may be conservative.`;
+    note = `Pace has picked up ${Math.round(Math.abs(sd.slowdownPct))}% vs the prior 4 weeks. The model only extrapolates deceleration, not speed-ups, so its projections may be conservative.`;
   } else {
     pctTxt   = `${sd.slowdownPct >= 0 ? '▼' : '▲'} ${Math.round(Math.abs(sd.slowdownPct))}%`;
     pctColor = '#6d7a95';
-    note = 'Pace is holding roughly steady vs the prior 4 weeks — the slowdown-adjusted projection is close to linear at your recent rate.';
+    note = 'Pace is holding roughly steady vs the prior 4 weeks — the modeled projection stays close to a straight line at your recent rate.';
   }
   set('proj-sd-pct', pctTxt, pctColor);
   set('proj-sd-note', note);
@@ -183,12 +183,21 @@ function renderProjectorSlowdown() {
 }
 
 // ── Weight Projector ─────────────────────────────────────────────────
+// Headline numbers come from the exponential-decay model when there's
+// enough data to fit one: weight(t) = W_now - (R0/k)(1 - e^-kt), t in
+// weeks from today. R0 (current rate) and k (decay constant) are fit
+// from overlapping trailing rate windows across the whole history — see
+// computeExponentialDecayModel in app-utils.js. When k <= 0 (pace isn't
+// decelerating) or there isn't enough data, everything falls back to
+// plain linear extrapolation at the current rate, same as before.
+// This is a modeled scenario, not a guaranteed forecast — it assumes
+// deceleration continues at the current trend.
 function computeProjection() {
   const dateInput   = document.getElementById('proj-date-input');
   const weightInput = document.getElementById('proj-weight-input');
   const dateResult  = document.getElementById('proj-date-result');
   const weightResult= document.getElementById('proj-weight-result');
-  const slowdown    = renderProjectorSlowdown();
+  renderProjectorSlowdown();
 
   const noTrend = () => {
     if (dateResult)   dateResult.textContent   = 'Need more data (< 30 days of readings)';
@@ -201,19 +210,20 @@ function computeProjection() {
 
   const MS_PER_DAY = 86_400_000;
 
-  // Slowdown-adjusted model drives the headline numbers when we have a
-  // usable recent rate; otherwise everything falls back to the linear
-  // de-skewed average exactly as before.
-  const model    = slowdown ? slowdownModel(slowdown) : null;
-  const useModel = !!(model && model.r0 > 0.05);
+  const data     = (typeof allData !== 'undefined' && allData.length) ? allData : null;
+  const model    = data ? computeExponentialDecayModel(data) : null;
+  const useModel = !!model;
   const fmtLongDate = d => d.toLocaleDateString('en-US',
     { month: 'long', day: 'numeric', year: 'numeric' });
 
   const blurb = document.getElementById('proj-trend-blurb');
-  if (blurb && useModel) {
-    blurb.textContent = model.decel > 0.01
-      ? `Slowdown-adjusted: losing ~${model.r0.toFixed(2)} lbs/wk now, easing ~${model.decel.toFixed(2)} lbs/wk each week (from your last 8 weeks)`
-      : `Recent 4-wk pace ~${model.r0.toFixed(2)} lbs/wk · no slowdown detected — projecting linearly`;
+  if (blurb) {
+    if (useModel) {
+      const floorWeight = projLatestWeight - exponentialAsymptote(model);
+      blurb.textContent = `Modeled scenario: losing ~${model.r0.toFixed(2)} lbs/wk now, easing toward a long-run floor around ~${fmt(floorWeight)} lbs (decay constant ${model.k.toFixed(3)}/wk, fit from ${model.n} trailing rate windows). Assumes deceleration continues at the current trend — not a guaranteed forecast.`;
+    } else {
+      blurb.textContent = `Recent pace ~${Math.abs(projSlopeLbsPerDay * 7).toFixed(2)} lbs/wk · not enough deceleration signal to model easing — projecting linearly at the current rate.`;
+    }
   }
 
   // ── Date → Projected weight ──
@@ -226,10 +236,17 @@ function computeProjection() {
     } else {
       const daysDiff = (targetDate - projLatestDate) / MS_PER_DAY;
       const isFuture = daysDiff > 0;
+      const weeks    = daysDiff / 7;
       const linear   = projLatestWeight + projSlopeLbsPerDay * daysDiff;
-      const projected = useModel
-        ? projLatestWeight - slowdownLossAt(model, daysDiff / 7)
-        : linear;
+
+      let projected = linear, projLow = null, projHigh = null;
+      if (useModel) {
+        const range = exponentialLossRange(model, weeks);
+        projected = projLatestWeight - range.loss;
+        projLow   = projLatestWeight - range.lossHigh; // more loss => lower weight
+        projHigh  = projLatestWeight - range.lossLow;
+      }
+
       const rounded = Math.round(projected * 10) / 10;
       if (!isFuture) {
         dateResult.textContent = 'Pick a future date';
@@ -242,23 +259,24 @@ function computeProjection() {
         const lostNowStr = lostNow > 0
           ? `▼ ${fmt(lostNow)} lbs from now`
           : `▲ ${fmt(Math.abs(lostNow))} lbs from now`;
-        let main = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
-        const plateau = useModel ? slowdownPlateau(model) : null;
-        if (plateau && daysDiff / 7 > plateau.weeks) {
-          const stallDate = new Date(projLatestDate.getTime() + plateau.weeks * 7 * MS_PER_DAY);
-          main += ` · ⚠ pace projected to stall ~${stallDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-        }
+        const rangeStr = (useModel && projLow != null && projHigh != null)
+          ? ` (range ${fmt(Math.round(projLow * 10) / 10)}–${fmt(Math.round(projHigh * 10) / 10)} lbs)`
+          : '';
+        const main = `~${fmt(rounded)} lbs${rangeStr} on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
         dateResult.textContent = main;
         dateResult.style.color = lostNow > 0 ? '#2a8703' : '#ea1100';
 
-        // Comparison line: what the plain linear average would have said.
+        // Comparison line: what plain linear extrapolation would have said,
+        // plus a reminder this is a modeled scenario, not a guarantee.
         if (recentEl && useModel) {
           const linRounded = Math.round(linear * 10) / 10;
           const diff = linRounded - rounded;
-          recentEl.textContent = `⚖ At steady long-run average: ~${fmt(linRounded)} lbs` +
+          recentEl.textContent = `Assumes deceleration continues at the current trend. ⚖ Steady long-run average: ~${fmt(linRounded)} lbs` +
             (Math.abs(diff) >= 0.1
-              ? ` (${diff > 0 ? '+' : ''}${fmt(diff)} lbs vs slowdown-adjusted)`
-              : ' (same as slowdown-adjusted)');
+              ? ` (${diff > 0 ? '+' : ''}${fmt(diff)} lbs vs the modeled scenario).`
+              : ' (about the same).');
+        } else if (recentEl) {
+          recentEl.textContent = '';
         }
       }
     }
@@ -290,20 +308,22 @@ function computeProjection() {
       const avgDays   = projSlopeLbsPerDay < 0
         ? stillToGo / Math.abs(projSlopeLbsPerDay) : null;
 
-      let daysNeeded = null;
+      let daysNeeded = null, daysLow = null, daysHigh = null;
       if (useModel) {
-        const weeks = slowdownWeeksToLose(model, stillToGo);
-        if (weeks != null) daysNeeded = weeks * 7;
+        const wr = exponentialWeeksToLoseRange(model, stillToGo);
+        if (wr.weeks     != null) daysNeeded = wr.weeks * 7;
+        if (wr.weeksLow  != null) daysLow    = wr.weeksLow  * 7;
+        if (wr.weeksHigh != null) daysHigh   = wr.weeksHigh * 7;
       } else {
         daysNeeded = avgDays;
       }
 
       if (daysNeeded == null) {
-        // Extrapolated pace hits zero before the target.
-        const plateau   = slowdownPlateau(model);
-        const stallDate = new Date(projLatestDate.getTime() + plateau.weeks * 7 * MS_PER_DAY);
-        const short     = stillToGo - plateau.loss;
-        let msg = `⚠ At the current slowdown, pace is projected to stall ~${fmt(short)} lbs short of ${fmt(targetW)} (around ${fmtLongDate(stallDate)}).`;
+        // Target lies beyond the model's asymptote — under this decay
+        // trend it's never reached in finite time (a smooth floor, not
+        // a hard stall like the old linear model).
+        const floorWeight = projLatestWeight - exponentialAsymptote(model);
+        let msg = `⚠ At the current decay trend, the model eases toward a floor around ~${fmt(floorWeight)} lbs and doesn't reach ${fmt(targetW)} lbs in this scenario (assumes deceleration continues at the current trend).`;
         if (avgDays != null) {
           msg += ` At your steady long-run average you'd arrive ${fmtLongDate(new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY))}.`;
         }
@@ -322,17 +342,18 @@ function computeProjection() {
           document.getElementById('proj-cd-togo').textContent  =
             `${fmt(stillToGo)} lbs`;
 
-          // Comparison row: arrival at the steady long-run average.
+          // Range row: arrival date span implied by the decay-rate
+          // uncertainty band, not a "same model, different average" comparison.
           const adjWrap = document.getElementById('proj-cd-adjusted-wrap');
           const adjEl   = document.getElementById('proj-cd-adjusted');
           if (adjWrap && adjEl) {
-            if (useModel && avgDays != null) {
-              const avgDate   = new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY);
-              const deltaDays = Math.round(avgDays - daysNeeded);
-              const deltaStr  = deltaDays === 0 ? 'same as slowdown-adjusted'
-                : deltaDays > 0 ? `+${deltaDays} days later`
-                : `${Math.abs(deltaDays)} days sooner`;
-              adjEl.textContent = `${fmtLongDate(avgDate)} · ${deltaStr}`;
+            if (useModel && daysLow != null && daysHigh != null) {
+              const dateA = new Date(projLatestDate.getTime() + Math.min(daysLow, daysHigh) * MS_PER_DAY);
+              const dateB = new Date(projLatestDate.getTime() + Math.max(daysLow, daysHigh) * MS_PER_DAY);
+              adjEl.textContent = `${fmtLongDate(dateA)} – ${fmtLongDate(dateB)}`;
+              adjWrap.style.display = 'block';
+            } else if (useModel) {
+              adjEl.textContent = 'Range unavailable at this target';
               adjWrap.style.display = 'block';
             } else {
               adjWrap.style.display = 'none';
