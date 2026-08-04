@@ -20,61 +20,67 @@
     {
       id: 'upperA', dow: 3, name: 'Upper A',
       focus: 'Horizontal push / pull',
+      warmup: ['5 min easy cardio', '1-3 lighter prep sets before bench & rows'],
       exercises: [
-        { m: 'Barbell or DB Bench Press',        s: '4 x 6-8',  rir: '2 RIR' },
-        { m: 'Barbell or Chest-Supported Row',   s: '4 x 8-10', rir: '2 RIR' },
-        { m: 'Incline DB Press',                 s: '3 x 8-12', rir: '1-2 RIR' },
+        { m: 'Machine Chest Press',              s: '4 x 6-8',  rir: '2 RIR' },
+        { m: 'Chest-Supported Machine Row',      s: '4 x 8-10', rir: '2 RIR' },
+        { m: 'Incline Machine Press',            s: '3 x 8-12', rir: '1-2 RIR' },
         { m: 'Lat Pulldown (or Pull-up)',        s: '3 x 10-12', rir: '1-2 RIR' },
-        { m: 'DB Lateral Raise',                 s: '3 x 12-15', rir: '1 RIR' },
+        { m: 'Machine Lateral Raise',            s: '3 x 12-15', rir: '1 RIR' },
         { m: 'Triceps Pushdown',                 s: '3 x 10-15', rir: '1 RIR' },
       ],
     },
     {
       id: 'lowerA', dow: 4, name: 'Lower A',
-      focus: 'Squat / quad emphasis',
+      focus: 'Knee-aware lower body',
+      warmup: ['5 min easy pain-free cardio', '1-3 lighter prep sets before squat/leg-press'],
+      knee: true,
       exercises: [
-        { m: 'Back Squat (or Leg Press)',        s: '4 x 6-8',  rir: '2 RIR' },
-        { m: 'Romanian Deadlift',                s: '3 x 8-10', rir: '2 RIR' },
-        { m: 'Leg Press or Hack Squat',          s: '3 x 10-12', rir: '1-2 RIR' },
-        { m: 'Leg Curl (hamstrings)',            s: '3 x 10-12', rir: '1 RIR' },
-        { m: 'Standing Calf Raise',              s: '4 x 10-15', rir: '1 RIR' },
-        { m: 'Hanging Leg Raise / Abs',          s: '3 x 10-15', rir: '1 RIR' },
+        { m: 'Leg Press',                        s: '3 x 5-8', rir: '2 RIR' },
+        { m: 'Back Extension (45-degree Hyper)', s: '2 x 10-15', rir: '1-2 RIR' },
+        { m: 'Seated Leg Curl',                  s: '3 x 8-12', rir: '1 RIR' },
+        { m: 'Standing Calf Raise',              s: '3 x 8-15', rir: '1 RIR' },
+        { m: 'Machine Crunch',                   s: '3 x 10-15', rir: '1 RIR' },
       ],
     },
     {
       id: 'upperB', dow: 5, name: 'Upper B',
       focus: 'Vertical push / pull',
+      warmup: ['5 min easy cardio', '1-3 lighter prep sets before overhead press & pulldown'],
       exercises: [
-        { m: 'Overhead Press (barbell or DB)',   s: '4 x 6-8',  rir: '2 RIR' },
-        { m: 'Weighted Pull-up or Lat Pulldown', s: '4 x 8-10', rir: '2 RIR' },
-        { m: 'Flat/Incline Machine or DB Press', s: '3 x 10-12', rir: '1-2 RIR' },
-        { m: 'Seated Cable Row',                 s: '3 x 10-12', rir: '1-2 RIR' },
-        { m: 'DB Curl',                          s: '3 x 10-12', rir: '1 RIR' },
-        { m: 'Overhead Triceps Extension',       s: '3 x 10-15', rir: '1 RIR' },
+        { m: 'Machine Shoulder Press',           s: '3 x 5-8',  rir: '1-3 RIR' },
+        { m: 'Neutral-grip Lat Pulldown',        s: '3 x 8-12', rir: '1-3 RIR' },
+        { m: 'Machine Chest Press',              s: '2 x 8-12', rir: '1-3 RIR' },
+        { m: 'Seated Cable Row',                 s: '2 x 8-12', rir: '1-3 RIR' },
+        { m: 'Rear-delt Fly',                    s: '2 x 12-20', rir: '1-3 RIR' },
+        { m: 'Machine Preacher Curl',            s: '2 x 10-15', rir: '1-3 RIR' },
       ],
     },
     {
       id: 'lowerB', dow: 6, name: 'Lower B',
-      focus: 'Hinge / posterior emphasis',
+      focus: 'Knee-aware lower body',
+      warmup: ['5 min easy pain-free cardio', '1-3 lighter prep sets before leg press'],
+      knee: true,
       exercises: [
-        { m: 'Deadlift (conventional or trap bar)', s: '3 x 5-6', rir: '2-3 RIR' },
-        { m: 'Bulgarian Split Squat',            s: '3 x 8-10/leg', rir: '2 RIR' },
-        { m: 'Leg Extension (quads)',            s: '3 x 12-15', rir: '1 RIR' },
-        { m: 'Seated or Lying Leg Curl',         s: '3 x 10-12', rir: '1 RIR' },
-        { m: 'Seated Calf Raise',                s: '4 x 12-15', rir: '1 RIR' },
-        { m: 'Cable Crunch / Abs',               s: '3 x 12-15', rir: '1 RIR' },
+        { m: 'Leg Press',                        s: '3 x 8-12', rir: '1-3 RIR' },
+        { m: 'Back Extension (45-degree Hyper)', s: '3 x 10-15', rir: '1-3 RIR' },
+        { m: 'Leg Extension (pain-free)',        s: '2 x 10-15', rir: '1-3 RIR' },
+        { m: 'Seated Leg Curl',                  s: '2 x 10-15', rir: '1-3 RIR' },
+        { m: 'Calf Raise',                       s: '3 x 10-15', rir: '1-3 RIR' },
       ],
     },
     {
-      id: 'optional', dow: 0, name: 'Optional (Sun)',
-      focus: 'Pump / weak-point / longer walk / rest',
+      id: 'optional', dow: 0, name: 'Wing It (Sun)',
+      focus: 'Free day - your call',
       exercises: [
-        { m: 'Weak-point or arm/shoulder pump', s: 'Auto-regulate', rir: 'Optional' },
+        { m: 'Chase a pump / hit a weak point (arms?)', s: 'Auto-regulate', rir: 'Your call' },
         { m: 'OR longer incline walk',           s: '20-40 min',    rir: 'Easy' },
         { m: 'OR full rest',                     s: '--',           rir: 'Recovery' },
       ],
     },
   ];
+
+  const KNEE_RULE = 'Knee rule: use a pain-free range & controlled tempo. Skip or swap any movement that aggravates the knee.';
 
   // Every lifting day finishes with the incline walk.
   const WALK = '15-20 min incline walk after lifting (skip before leg day).';
@@ -221,6 +227,15 @@
         ? ''
         : `<div class="wo-walk">Finish: ${esc(WALK)}</div>`;
 
+      const warmupHtml = (day.warmup && day.warmup.length)
+        ? `<div class="wo-warmup"><b>Warm-up</b>${
+            day.warmup.map(w => `<span>&bull; ${esc(w)}</span>`).join('')}</div>`
+        : '';
+
+      const kneeHtml = day.knee
+        ? `<div class="wo-knee">${esc(KNEE_RULE)}</div>`
+        : '';
+
       html += `
         <div class="wo-day${isToday ? ' is-today open' : ''}" data-day="${day.id}">
           <div class="wo-day-head">
@@ -236,7 +251,9 @@
             <span class="wo-caret">&#9656;</span>
           </div>
           <div class="wo-ex-list">
+            ${warmupHtml}
             ${exHtml}
+            ${kneeHtml}
             ${walkLine}
             <button class="wo-reset" data-reset="${day.id}">Reset this day</button>
           </div>
