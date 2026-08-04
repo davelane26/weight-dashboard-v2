@@ -1,0 +1,294 @@
+/* ════════════════════════════════════════════════════════════════════
+   workout.js — Workout tab for the health dashboard.
+
+   David's 4-day Upper/Lower program (Wed-Sun), built for muscle
+   preservation during the Mounjaro cut. Renders into #tab-workout.
+
+   Features:
+   - Auto-highlights TODAY's session based on the Wed-Sun schedule.
+   - Tap-able per-exercise checkboxes, saved to localStorage.
+   - Progress bars per day; checkmarks auto-reset each new week.
+   - Zero dependencies, dark-mode aware. No charts, no network.
+   ──────────────────────────────────────────────────────────────────── */
+
+(function () {
+  'use strict';
+
+  // ── The program ────────────────────────────────────────────────────
+  // dow = JS getDay() index (0=Sun .. 6=Sat). Sunday's session is optional.
+  const PROGRAM = [
+    {
+      id: 'upperA', dow: 3, name: 'Upper A',
+      focus: 'Horizontal push / pull',
+      exercises: [
+        { m: 'Barbell or DB Bench Press',        s: '4 x 6-8',  rir: '2 RIR' },
+        { m: 'Barbell or Chest-Supported Row',   s: '4 x 8-10', rir: '2 RIR' },
+        { m: 'Incline DB Press',                 s: '3 x 8-12', rir: '1-2 RIR' },
+        { m: 'Lat Pulldown (or Pull-up)',        s: '3 x 10-12', rir: '1-2 RIR' },
+        { m: 'DB Lateral Raise',                 s: '3 x 12-15', rir: '1 RIR' },
+        { m: 'Triceps Pushdown',                 s: '3 x 10-15', rir: '1 RIR' },
+      ],
+    },
+    {
+      id: 'lowerA', dow: 4, name: 'Lower A',
+      focus: 'Squat / quad emphasis',
+      exercises: [
+        { m: 'Back Squat (or Leg Press)',        s: '4 x 6-8',  rir: '2 RIR' },
+        { m: 'Romanian Deadlift',                s: '3 x 8-10', rir: '2 RIR' },
+        { m: 'Leg Press or Hack Squat',          s: '3 x 10-12', rir: '1-2 RIR' },
+        { m: 'Leg Curl (hamstrings)',            s: '3 x 10-12', rir: '1 RIR' },
+        { m: 'Standing Calf Raise',              s: '4 x 10-15', rir: '1 RIR' },
+        { m: 'Hanging Leg Raise / Abs',          s: '3 x 10-15', rir: '1 RIR' },
+      ],
+    },
+    {
+      id: 'upperB', dow: 5, name: 'Upper B',
+      focus: 'Vertical push / pull',
+      exercises: [
+        { m: 'Overhead Press (barbell or DB)',   s: '4 x 6-8',  rir: '2 RIR' },
+        { m: 'Weighted Pull-up or Lat Pulldown', s: '4 x 8-10', rir: '2 RIR' },
+        { m: 'Flat/Incline Machine or DB Press', s: '3 x 10-12', rir: '1-2 RIR' },
+        { m: 'Seated Cable Row',                 s: '3 x 10-12', rir: '1-2 RIR' },
+        { m: 'DB Curl',                          s: '3 x 10-12', rir: '1 RIR' },
+        { m: 'Overhead Triceps Extension',       s: '3 x 10-15', rir: '1 RIR' },
+      ],
+    },
+    {
+      id: 'lowerB', dow: 6, name: 'Lower B',
+      focus: 'Hinge / posterior emphasis',
+      exercises: [
+        { m: 'Deadlift (conventional or trap bar)', s: '3 x 5-6', rir: '2-3 RIR' },
+        { m: 'Bulgarian Split Squat',            s: '3 x 8-10/leg', rir: '2 RIR' },
+        { m: 'Leg Extension (quads)',            s: '3 x 12-15', rir: '1 RIR' },
+        { m: 'Seated or Lying Leg Curl',         s: '3 x 10-12', rir: '1 RIR' },
+        { m: 'Seated Calf Raise',                s: '4 x 12-15', rir: '1 RIR' },
+        { m: 'Cable Crunch / Abs',               s: '3 x 12-15', rir: '1 RIR' },
+      ],
+    },
+    {
+      id: 'optional', dow: 0, name: 'Optional (Sun)',
+      focus: 'Pump / weak-point / longer walk / rest',
+      exercises: [
+        { m: 'Weak-point or arm/shoulder pump', s: 'Auto-regulate', rir: 'Optional' },
+        { m: 'OR longer incline walk',           s: '20-40 min',    rir: 'Easy' },
+        { m: 'OR full rest',                     s: '--',           rir: 'Recovery' },
+      ],
+    },
+  ];
+
+  // Every lifting day finishes with the incline walk.
+  const WALK = '15-20 min incline walk after lifting (skip before leg day).';
+
+  // ── Week-scoped localStorage key (auto-resets each new week) ─────────
+  function weekKey() {
+    const d = new Date();
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    return 'wt_v2_workout_' + d.getFullYear() + '_w' + week;
+  }
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(weekKey()) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function saveState(state) {
+    localStorage.setItem(weekKey(), JSON.stringify(state));
+  }
+
+  const esc = s => String(s).replace(/[&<>"]/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ── One-time style injection (dark-mode aware) ──────────────────────
+  function injectStyles() {
+    if (document.getElementById('workout-styles')) return;
+    const css = `
+      #tab-workout { padding: 0.5rem 0 4rem; }
+      .wo-hero { background: linear-gradient(135deg,#0053e2,#2563eb); color:#fff;
+        border-radius:14px; padding:1.1rem 1.25rem; margin:0 0 1rem; }
+      .wo-hero .lbl { font-size:.66rem; font-weight:700; letter-spacing:.09em;
+        text-transform:uppercase; opacity:.85; }
+      .wo-hero .today { font-size:1.5rem; font-weight:800; margin:.15rem 0 .1rem; }
+      .wo-hero .sub { font-size:.85rem; opacity:.9; }
+      .wo-rules { display:flex; gap:.6rem; flex-wrap:wrap; margin:0 0 1.1rem; }
+      .wo-rule { flex:1; min-width:180px; background:#fff7ed; border:1.5px solid #fdba74;
+        border-radius:10px; padding:.7rem .85rem; }
+      .wo-rule b { display:block; font-size:.7rem; text-transform:uppercase;
+        letter-spacing:.06em; color:#9a3412; margin-bottom:.2rem; }
+      .wo-rule span { font-size:.82rem; color:#7c2d12; }
+      .wo-day { border:1.5px solid #d0d5e8; border-radius:12px; margin:0 0 .9rem;
+        overflow:hidden; background:#fff; }
+      .wo-day.is-today { border-color:#0053e2; box-shadow:0 0 0 2px rgba(0,83,226,.15); }
+      .wo-day-head { display:flex; align-items:center; gap:.6rem; padding:.75rem .95rem;
+        cursor:pointer; user-select:none; }
+      .wo-badge { font-size:.6rem; font-weight:800; letter-spacing:.06em; padding:.15rem .45rem;
+        border-radius:6px; text-transform:uppercase; }
+      .wo-badge.today { background:#0053e2; color:#fff; }
+      .wo-badge.dow { background:#eef2ff; color:#3730a3; }
+      .wo-day-title { font-size:1rem; font-weight:800; color:#1a2340; }
+      .wo-day-focus { font-size:.75rem; color:#6d7a95; }
+      .wo-prog { margin-left:auto; text-align:right; min-width:74px; }
+      .wo-prog .num { font-size:.72rem; font-weight:700; color:#6d7a95; }
+      .wo-bar { height:6px; border-radius:4px; background:#e5e9f5; overflow:hidden; margin-top:.25rem; }
+      .wo-bar i { display:block; height:100%; background:#16a34a; width:0; transition:width .2s; }
+      .wo-caret { font-size:.8rem; color:#9aa4bf; transition:transform .2s; }
+      .wo-day.open .wo-caret { transform:rotate(90deg); }
+      .wo-ex-list { display:none; padding:.25rem .55rem .7rem; }
+      .wo-day.open .wo-ex-list { display:block; }
+      .wo-ex { display:flex; align-items:center; gap:.7rem; padding:.55rem .5rem;
+        border-top:1px solid #eef1f8; }
+      .wo-ex:first-child { border-top:none; }
+      .wo-ex label { display:flex; align-items:center; gap:.7rem; cursor:pointer; flex:1; }
+      .wo-ex input { width:22px; height:22px; accent-color:#16a34a; flex:none; cursor:pointer; }
+      .wo-ex .m { font-size:.86rem; font-weight:600; color:#1a2340; }
+      .wo-ex.done .m { text-decoration:line-through; color:#9aa4bf; }
+      .wo-ex .meta { font-size:.72rem; color:#6d7a95; white-space:nowrap; }
+      .wo-walk { font-size:.75rem; color:#0053e2; padding:.55rem .55rem .1rem; font-weight:600; }
+      .wo-reset { background:none; border:1px solid #d0d5e8; color:#6d7a95; font-size:.7rem;
+        border-radius:7px; padding:.3rem .6rem; cursor:pointer; margin:.5rem .55rem 0; }
+      .wo-reset:hover { border-color:#ef4444; color:#ef4444; }
+      /* dark mode */
+      #root.dark .wo-rule { background:#3a2a12; border-color:#a86a2a; }
+      #root.dark .wo-rule b { color:#fdba74; }
+      #root.dark .wo-rule span { color:#f5d0a9; }
+      #root.dark .wo-day { background:#1a2236; border-color:#2c3550; }
+      #root.dark .wo-day-title { color:#e6ebf5; }
+      #root.dark .wo-badge.dow { background:#28304a; color:#a5b4fc; }
+      #root.dark .wo-ex { border-color:#252d44; }
+      #root.dark .wo-ex .m { color:#e6ebf5; }
+      #root.dark .wo-bar { background:#2c3550; }
+    `;
+    const style = document.createElement('style');
+    style.id = 'workout-styles';
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────
+  function render() {
+    const panel = document.getElementById('tab-workout');
+    if (!panel) return;
+    injectStyles();
+
+    const state = loadState();
+    const todayDow = new Date().getDay();
+    const todayDay = PROGRAM.find(d => d.dow === todayDow);
+    const isRestDay = !todayDay;         // Mon (1) / Tue (2) = rest
+
+    const heroToday = isRestDay
+      ? 'Rest day'
+      : todayDay.name + ' - ' + todayDay.focus;
+    const heroSub = isRestDay
+      ? 'Recover, hit your protein, easy walk if you like. Next up: Upper A (Wed).'
+      : (todayDay.id === 'optional'
+          ? 'Optional day - train if fresh, otherwise walk or rest.'
+          : WALK);
+
+    let html = `
+      <div class="wo-hero">
+        <div class="lbl">Today</div>
+        <div class="today">${esc(heroToday)}</div>
+        <div class="sub">${esc(heroSub)}</div>
+      </div>
+      <div class="wo-rules">
+        <div class="wo-rule"><b>Protein first</b><span>~175-215 g/day. Front-load it early - Mounjaro fills you up fast.</span></div>
+        <div class="wo-rule"><b>Keep it heavy</b><span>Maintain your loads. Cut sets before you ever cut weight.</span></div>
+      </div>
+    `;
+
+    const DOW_LABEL = { 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' };
+
+    PROGRAM.forEach(day => {
+      const isToday = day.dow === todayDow;
+      const done = day.exercises.filter(
+        (_, i) => state[day.id + ':' + i]).length;
+      const total = day.exercises.length;
+      const pct = Math.round((done / total) * 100);
+
+      let exHtml = '';
+      day.exercises.forEach((ex, i) => {
+        const key = day.id + ':' + i;
+        const checked = !!state[key];
+        exHtml += `
+          <div class="wo-ex${checked ? ' done' : ''}">
+            <label>
+              <input type="checkbox" data-key="${key}"${checked ? ' checked' : ''}>
+              <span class="m">${esc(ex.m)}</span>
+            </label>
+            <span class="meta">${esc(ex.s)} &middot; ${esc(ex.rir)}</span>
+          </div>`;
+      });
+
+      const walkLine = (day.id === 'optional')
+        ? ''
+        : `<div class="wo-walk">Finish: ${esc(WALK)}</div>`;
+
+      html += `
+        <div class="wo-day${isToday ? ' is-today open' : ''}" data-day="${day.id}">
+          <div class="wo-day-head">
+            <span class="wo-badge ${isToday ? 'today' : 'dow'}">${isToday ? 'TODAY' : DOW_LABEL[day.dow]}</span>
+            <div>
+              <div class="wo-day-title">${esc(day.name)}</div>
+              <div class="wo-day-focus">${esc(day.focus)}</div>
+            </div>
+            <div class="wo-prog">
+              <div class="num">${done}/${total}</div>
+              <div class="wo-bar"><i style="width:${pct}%"></i></div>
+            </div>
+            <span class="wo-caret">&#9656;</span>
+          </div>
+          <div class="wo-ex-list">
+            ${exHtml}
+            ${walkLine}
+            <button class="wo-reset" data-reset="${day.id}">Reset this day</button>
+          </div>
+        </div>`;
+    });
+
+    panel.innerHTML = html;
+    wire(panel);
+  }
+
+  // ── Event wiring ────────────────────────────────────────────────────
+  function wire(panel) {
+    // Toggle expand/collapse on header click
+    panel.querySelectorAll('.wo-day-head').forEach(head => {
+      head.addEventListener('click', () => {
+        head.parentElement.classList.toggle('open');
+      });
+    });
+
+    // Checkbox toggles (stopPropagation so clicking doesn't collapse card)
+    panel.querySelectorAll('.wo-ex input').forEach(box => {
+      box.addEventListener('click', e => e.stopPropagation());
+      box.addEventListener('change', () => {
+        const state = loadState();
+        if (box.checked) state[box.dataset.key] = 1;
+        else delete state[box.dataset.key];
+        saveState(state);
+        render();
+      });
+    });
+
+    // Per-day reset
+    panel.querySelectorAll('[data-reset]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = btn.dataset.reset;
+        const state = loadState();
+        Object.keys(state).forEach(k => {
+          if (k.indexOf(id + ':') === 0) delete state[k];
+        });
+        saveState(state);
+        render();
+      });
+    });
+  }
+
+  // ── Boot ────────────────────────────────────────────────────────────
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', render);
+  } else {
+    render();
+  }
+  // Expose for switchTab() if it ever wants to force a refresh.
+  window.renderWorkout = render;
+})();

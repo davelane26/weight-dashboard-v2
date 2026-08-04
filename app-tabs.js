@@ -104,6 +104,9 @@ function switchTab(name) {
       if (allData.length && typeof renderChartsTab === 'function') renderChartsTab(allData);
     }, 0);
   }
+  if (name === 'workout') {
+    if (typeof window.renderWorkout === 'function') window.renderWorkout();
+  }
   document.querySelectorAll('.mob-tab').forEach(b => {
     const isActive = b.dataset.tab === name;
     b.classList.toggle('active', isActive);
