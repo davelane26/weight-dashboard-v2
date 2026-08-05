@@ -599,19 +599,17 @@
     // Auto-rotate injection site
     const shots = loadShots();
     // Kept in sync with the <option> list in index.html (#g1-shot-site).
-    // Order is geographic (walks abdomen -> thighs -> arms) so rotation
-    // steps to a genuinely different spot each shot instead of jumping
-    // around. All 17 stay within the 3 sites tirzepatide is actually
-    // labeled for (abdomen, thigh, upper arm) — just finer-grained within
-    // each so no exact spot gets reused too often.
+    // Abdomen-only by request. Order walks a ring around the navel
+    // (upper strip -> sides -> lower strip) so rotation steps to a
+    // genuinely different spot each shot. "Center Left/Right" pairs
+    // flank the navel rather than sitting on it, respecting the usual
+    // ~2" exclusion zone around it.
     const sites = [
       'Abdomen Upper Left', 'Abdomen Upper Right',
+      'Abdomen Upper Center Left', 'Abdomen Upper Center Right',
       'Abdomen Left Side', 'Abdomen Right Side',
-      'Abdomen Lower Left', 'Abdomen Lower Right', 'Lower Mid',
-      'Left Thigh Upper', 'Left Thigh Front', 'Left Thigh Outer',
-      'Right Thigh Upper', 'Right Thigh Front', 'Right Thigh Outer',
-      'Left Upper Arm Outer', 'Left Upper Arm Back',
-      'Right Upper Arm Outer', 'Right Upper Arm Back'
+      'Abdomen Lower Center Left', 'Abdomen Lower Center Right',
+      'Abdomen Lower Left', 'Abdomen Lower Right'
     ];
     if (shots.length) {
       const last    = shots[shots.length - 1];
