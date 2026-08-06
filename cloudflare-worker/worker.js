@@ -378,6 +378,9 @@ export default {
       const msgContent = type === 'image'
         ? [ { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: content } },
             { type: 'text', text: prompt } ]
+        : type === 'pdf'
+        ? [ { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: content } },
+            { type: 'text', text: prompt } ]
         : prompt + '\n\nDocument:\n' + content;
 
       const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -387,7 +390,7 @@ export default {
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500,
+        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 1500,
           messages: [{ role: 'user', content: msgContent }] }),
       });
 
@@ -439,7 +442,7 @@ export default {
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300,
+        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 300,
           messages: [{ role: 'user', content: prompt }] }),
       });
 

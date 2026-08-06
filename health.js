@@ -73,12 +73,21 @@ function healthHandleUpload(input) {
   const nameEl = document.getElementById('health-upload-name');
   if (nameEl) { nameEl.textContent = file.name; nameEl.style.display = 'inline'; }
   const ta = document.getElementById('health-doc-paste');
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
   if (file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = e => {
       const b64 = e.target.result.split(',')[1];
-      _healthImagePayload = { media_type: file.type, data: b64 };
-      if (ta) ta.value = '[Image: ' + file.name + ' — will be analyzed by Claude]';
+      _healthImagePayload = { kind: 'image', media_type: file.type, data: b64 };
+      if (ta) ta.value = '[Image: ' + file.name + ' - will be analyzed by Claude]';
+    };
+    reader.readAsDataURL(file);
+  } else if (isPdf) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const b64 = e.target.result.split(',')[1];
+      _healthImagePayload = { kind: 'pdf', media_type: 'application/pdf', data: b64 };
+      if (ta) ta.value = '[PDF: ' + file.name + ' - will be analyzed by Claude]';
     };
     reader.readAsDataURL(file);
   } else {
@@ -102,7 +111,9 @@ async function healthAnalyzeDoc() {
   const btn = document.getElementById('health-analyze-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing...'; }
   const body = _healthImagePayload
-    ? { type: 'image', content: _healthImagePayload.data, mediaType: _healthImagePayload.media_type }
+    ? (_healthImagePayload.kind === 'pdf'
+        ? { type: 'pdf', content: _healthImagePayload.data }
+        : { type: 'image', content: _healthImagePayload.data, mediaType: _healthImagePayload.media_type })
     : { type: 'text',  content: docText };
   try {
     const resp = await fetch(workerUrl, {
