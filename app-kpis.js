@@ -124,12 +124,17 @@ function renderJourney(latest, data) {
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
   // Compute & expose true (de-skewed) rate for projector + ETA math.
-  const slopePerDay = weightTrendSlope(data);
-  const _ph1Loss  = 19;
-  const _ph1Wks   = 4;
-  const _totWks   = (latest.date - new Date(START_DATE)) / 86400000 / 7;
-  const _trueRate = (lost - _ph1Loss) / Math.max(0.1, _totWks - _ph1Wks);
-  projSlopeLbsPerDay = -(_trueRate / 7);
+  // Delegates to computeCurrentDoseRate in app-utils.js: a 28-day linear
+  // regression on within-current-dose readings. The old lifetime-average
+  // formula (lost - 19) / (totWks - 4) drifted further from reality
+  // every week and pooled across dose regimes. This matches the
+  // Slowdown Check card's "last 4 wks" number so the two cards agree.
+  // Falls back to a whole-history 28-day regression when we don't yet
+  // have enough within-dose data or TitrationUtils isn't loaded.
+  const slopePerDay = computeCurrentDoseRate(data, 28);
+  if (slopePerDay != null && !isNaN(slopePerDay)) {
+    projSlopeLbsPerDay = slopePerDay;   // already lbs/day, negative = losing
+  }
   projLatestWeight   = latest.weight;
   projLatestDate     = latest.date;
 
