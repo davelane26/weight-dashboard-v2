@@ -263,6 +263,47 @@ function exponentialWeeksToLoseRange(model, lbs) {
   };
 }
 
+// ── Current-dose projection rate ──────────────────────────────────────────────
+// The number the Weight Projector uses as its "current pace." Both
+// app-kpis.js and rate-analysis.js used to fill this from a lifetime
+// average with a hardcoded 19-lb / 4-week phase-1 fudge, which drifts
+// further from reality every week (early fast losses keep dragging the
+// average up long after those losses are ancient history) and pooled
+// across dose changes to boot.
+//
+// The honest answer is: linear regression through the last `windowDays`
+// of readings, restricted to the current dose window when we have shot
+// data. Same math as the Slowdown Check card's "last 4 wks" number, so
+// the two cards now tell the same story. Falls back to full history
+// when TitrationUtils isn't loaded or shot data is missing, and to
+// unrestricted last-N-days when the current dose window is too fresh
+// (< 3 readings) to fit a line.
+//
+// Returns lbs/day (NEGATIVE = losing), matching the sign convention
+// projSlopeLbsPerDay callers already expect. Null when there simply
+// aren't enough readings to fit anything.
+function computeCurrentDoseRate(data, windowDays = 28) {
+  if (!data || data.length < 2) return null;
+
+  let scoped = data;
+  try {
+    const shots = JSON.parse(localStorage.getItem('glp1_v4')) || [];
+    const norm  = shots
+      .map(s => ({ ...s, _dt: new Date(s.date) }))
+      .filter(s => !isNaN(s._dt) && typeof s.dose === 'number')
+      .sort((a, b) => a._dt - b._dt);
+    if (norm.length && window.TitrationUtils) {
+      const start = window.TitrationUtils.currentDoseStart(norm);
+      if (start) {
+        const doseData = window.TitrationUtils.readingsSince(start, data);
+        if (doseData.length >= 3) scoped = doseData;
+      }
+    }
+  } catch (e) { /* keep full-history fallback */ }
+
+  return regressionSlopeLbsPerDay(scoped, windowDays);
+}
+
 // ── Streak counter (consecutive calendar-day readings) ───────────────
 function calcStreak(data) {
   if (!data.length) return 0;
