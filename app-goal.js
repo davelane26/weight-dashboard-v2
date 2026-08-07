@@ -186,12 +186,20 @@ function renderProjectorSlowdown() {
 // Headline numbers come from the exponential-decay model when there's
 // enough data to fit one: weight(t) = W_now - (R0/k)(1 - e^-kt), t in
 // weeks from today. R0 (current rate) and k (decay constant) are fit
-// from overlapping trailing rate windows across the whole history — see
-// computeExponentialDecayModel in app-utils.js. When k <= 0 (pace isn't
-// decelerating) or there isn't enough data, everything falls back to
-// plain linear extrapolation at the current rate, same as before.
-// This is a modeled scenario, not a guaranteed forecast — it assumes
-// deceleration continues at the current trend.
+// from overlapping trailing rate windows — see computeExponentialDecayModel
+// in app-utils.js.
+//
+// IMPORTANT: the fit is confined to the CURRENT dose window (mirrors
+// plateau-radar.js / titration-readiness.js). Pooling across a dose
+// transition would treat the post-titration loss burst as part of a
+// single decelerating trend, silently inflating R0 on the early side
+// and biasing k. Confining to the current dose makes R0 and k mean
+// what their labels say. The moment a new dose is logged, the fit
+// resets — which is correct: all pre-titration projections are stale.
+//
+// When k <= 0 (no deceleration signal), too few windows, or too little
+// data in the current dose, everything falls back to plain linear
+// extrapolation at the current rate.
 function computeProjection() {
   const dateInput   = document.getElementById('proj-date-input');
   const weightInput = document.getElementById('proj-weight-input');
@@ -210,19 +218,46 @@ function computeProjection() {
 
   const MS_PER_DAY = 86_400_000;
 
-  const data     = (typeof allData !== 'undefined' && allData.length) ? allData : null;
-  const model    = data ? computeExponentialDecayModel(data) : null;
+  const data = (typeof allData !== 'undefined' && allData.length) ? allData : null;
+
+  // Restrict the fit to the current dose window so a titration step
+  // can't pollute the deceleration read. Falls back to full history
+  // when we have no shot data or TitrationUtils isn't loaded yet.
+  let doseData = data, doseStart = null, currentDose = null;
+  try {
+    const shots = JSON.parse(localStorage.getItem('glp1_v4')) || [];
+    const norm  = shots
+      .map(s => ({ ...s, _dt: new Date(s.date) }))
+      .filter(s => !isNaN(s._dt) && typeof s.dose === 'number')
+      .sort((a, b) => a._dt - b._dt);
+    if (norm.length && window.TitrationUtils) {
+      currentDose = norm[norm.length - 1].dose;
+      doseStart   = window.TitrationUtils.currentDoseStart(norm);
+      if (doseStart && data) {
+        doseData = window.TitrationUtils.readingsSince(doseStart, data);
+      }
+    }
+  } catch (e) { /* keep full-history fallback */ }
+
+  const model    = (doseData && doseData.length)
+    ? computeExponentialDecayModel(doseData) : null;
   const useModel = !!model;
   const fmtLongDate = d => d.toLocaleDateString('en-US',
     { month: 'long', day: 'numeric', year: 'numeric' });
 
+  const doseLabel = currentDose != null ? `${currentDose}mg` : 'this dose';
+  const sinceLabel = doseStart
+    ? ` since ${doseStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    : '';
+
   const blurb = document.getElementById('proj-trend-blurb');
   if (blurb) {
     if (useModel) {
-      const floorWeight = projLatestWeight - exponentialAsymptote(model);
-      blurb.textContent = `Modeled scenario: losing ~${model.r0.toFixed(2)} lbs/wk now, easing toward a long-run floor around ~${fmt(floorWeight)} lbs (decay constant ${model.k.toFixed(3)}/wk, fit from ${model.n} trailing rate windows). Assumes deceleration continues at the current trend — not a guaranteed forecast.`;
+      const halfLifeWk = Math.log(2) / model.k;
+      const easePctWk  = model.k * 100;
+      blurb.textContent = `On ${doseLabel}${sinceLabel}. Losing ~${model.r0.toFixed(2)} lbs/wk right now, with adaptation slowing the pace ~${easePctWk.toFixed(1)}% per week (rate half-life ~${halfLifeWk.toFixed(0)} wk, fit from ${model.n} windows in the current dose). Pick a date or target below to see what this pace projects — assumes you stay on ${doseLabel}.`;
     } else {
-      blurb.textContent = `Recent pace ~${Math.abs(projSlopeLbsPerDay * 7).toFixed(2)} lbs/wk · not enough deceleration signal to model easing — projecting linearly at the current rate.`;
+      blurb.textContent = `On ${doseLabel}${sinceLabel} — not enough within-dose data yet to model deceleration, so projecting linearly at your current pace of ~${Math.abs(projSlopeLbsPerDay * 7).toFixed(2)} lbs/wk. Fit will improve as more ${doseLabel} readings accrue.`;
     }
   }
 
@@ -319,13 +354,15 @@ function computeProjection() {
       }
 
       if (daysNeeded == null) {
-        // Target lies beyond the model's asymptote — under this decay
-        // trend it's never reached in finite time (a smooth floor, not
-        // a hard stall like the old linear model).
-        const floorWeight = projLatestWeight - exponentialAsymptote(model);
-        let msg = `⚠ At the current decay trend, the model eases toward a floor around ~${fmt(floorWeight)} lbs and doesn't reach ${fmt(targetW)} lbs in this scenario (assumes deceleration continues at the current trend).`;
+        // Target lies beyond what the within-dose deceleration reaches
+        // in finite time. Don't leak the asymptote as a headline number
+        // — it's a curve-fit artifact that swings wildly with water
+        // cycling. Just tell the user the target isn't reachable at
+        // the current within-dose pace and offer the linear estimate
+        // as a reference.
+        let msg = ` At the current within-dose pace, ${fmt(targetW)} lbs isn't reached before the model's deceleration flattens out. A dose change (or an intentional pace bump) would restart the projection.`;
         if (avgDays != null) {
-          msg += ` At your steady long-run average you'd arrive ${fmtLongDate(new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY))}.`;
+          msg += ` For reference, at your steady long-run average you'd arrive ${fmtLongDate(new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY))}.`;
         }
         hide(msg, '#995213');
       } else {
