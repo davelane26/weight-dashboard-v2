@@ -85,6 +85,9 @@
   // Every lifting day finishes with the incline walk.
   const WALK = '15-20 min incline walk after lifting (skip before leg day).';
 
+  const DOW_LABEL = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
+  const DOW_FULL  = { 0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
+
   // ── Week-scoped localStorage key (auto-resets each new week) ─────────
   function weekKey() {
     const d = new Date();
@@ -98,6 +101,23 @@
   }
   function saveState(state) {
     localStorage.setItem(weekKey(), JSON.stringify(state));
+  }
+
+  // ── Schedule overrides — lets the user move each session to a different
+  //    day of the week instead of the hardcoded Wed-Sun layout. Persists
+  //    across weeks (unlike the checkbox state above). ──────────────────
+  const SCHEDULE_KEY = 'wt_v2_workout_schedule';
+  function loadSchedule() {
+    try { return JSON.parse(localStorage.getItem(SCHEDULE_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function saveSchedule(map) {
+    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(map));
+  }
+  function dowOf(day) {
+    const overrides = loadSchedule();
+    const v = overrides[day.id];
+    return (v === 0 || v) ? v : day.dow;
   }
 
   const esc = s => String(s).replace(/[&<>"]/g,
@@ -114,6 +134,23 @@
         text-transform:uppercase; opacity:.85; }
       .wo-hero .today { font-size:1.5rem; font-weight:800; margin:.15rem 0 .1rem; }
       .wo-hero .sub { font-size:.85rem; opacity:.9; }
+      .wo-edit-days-btn { margin-top:.6rem; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.35);
+        color:#fff; font-size:.75rem; font-weight:600; border-radius:8px; padding:.35rem .7rem; cursor:pointer; }
+      .wo-edit-days-btn:hover { background:rgba(255,255,255,.28); }
+      .wo-edit-panel { background:#fff; border:1.5px solid #d0d5e8; border-radius:12px;
+        padding:.9rem 1rem; margin:0 0 1rem; }
+      .wo-edit-hint { font-size:.78rem; color:#6d7a95; margin-bottom:.7rem; }
+      .wo-edit-row { display:flex; align-items:center; justify-content:space-between;
+        gap:.75rem; padding:.4rem 0; border-top:1px solid #eef1f8; }
+      .wo-edit-row:first-of-type { border-top:none; }
+      .wo-edit-name { font-size:.85rem; font-weight:600; color:#1a2340; }
+      .wo-edit-row select { font-size:.85rem; padding:.3rem .5rem; border-radius:7px;
+        border:1px solid #d0d5e8; background:#fff; color:#1a2340; }
+      .wo-edit-actions { display:flex; gap:.5rem; margin-top:.85rem; flex-wrap:wrap; }
+      .wo-edit-actions button { font-size:.78rem; font-weight:600; border-radius:8px;
+        padding:.4rem .75rem; cursor:pointer; border:1px solid #d0d5e8; background:#fff; color:#1a2340; }
+      .wo-edit-save { background:#0053e2 !important; border-color:#0053e2 !important; color:#fff !important; }
+      .wo-edit-defaults:hover { border-color:#ef4444; color:#ef4444; }
       .wo-rules { display:flex; gap:.6rem; flex-wrap:wrap; margin:0 0 1.1rem; }
       .wo-rule { flex:1; min-width:180px; background:#fff7ed; border:1.5px solid #fdba74;
         border-radius:10px; padding:.7rem .85rem; }
@@ -152,6 +189,13 @@
         border-radius:7px; padding:.3rem .6rem; cursor:pointer; margin:.5rem .55rem 0; }
       .wo-reset:hover { border-color:#ef4444; color:#ef4444; }
       /* dark mode */
+      #root.dark .wo-edit-panel { background:#1a2236; border-color:#2c3550; }
+      #root.dark .wo-edit-hint { color:#9aa4bf; }
+      #root.dark .wo-edit-row { border-color:#252d44; }
+      #root.dark .wo-edit-name { color:#e6ebf5; }
+      #root.dark .wo-edit-row select { background:#1a2236; border-color:#2c3550; color:#e6ebf5; }
+      #root.dark .wo-edit-actions button { background:#1a2236; border-color:#2c3550; color:#e6ebf5; }
+      #root.dark .wo-edit-save { background:#0053e2 !important; border-color:#0053e2 !important; color:#fff !important; }
       #root.dark .wo-rule { background:#3a2a12; border-color:#a86a2a; }
       #root.dark .wo-rule b { color:#fdba74; }
       #root.dark .wo-rule span { color:#f5d0a9; }
@@ -176,34 +220,61 @@
 
     const state = loadState();
     const todayDow = new Date().getDay();
-    const todayDay = PROGRAM.find(d => d.dow === todayDow);
-    const isRestDay = !todayDay;         // Mon (1) / Tue (2) = rest
+    const todayDay = PROGRAM.find(d => dowOf(d) === todayDow);
+    const isRestDay = !todayDay;         // days with no session assigned = rest
+
+    const firstDay = PROGRAM.slice().sort((a, b) => {
+      const da = dowOf(a), db = dowOf(b);
+      return ((da - todayDow + 7) % 7) - ((db - todayDow + 7) % 7);
+    })[0];
 
     const heroToday = isRestDay
       ? 'Rest day'
       : todayDay.name + ' - ' + todayDay.focus;
     const heroSub = isRestDay
-      ? 'Recover, hit your protein, easy walk if you like. Next up: Upper A (Wed).'
+      ? `Recover, hit your protein, easy walk if you like. Next up: ${esc(firstDay.name)} (${DOW_FULL[dowOf(firstDay)]}).`
       : (todayDay.id === 'optional'
           ? 'Optional day - train if fresh, otherwise walk or rest.'
           : WALK);
+
+    const daySelectOptions = sel => [0, 1, 2, 3, 4, 5, 6].map(
+      d => `<option value="${d}"${d === sel ? ' selected' : ''}>${DOW_FULL[d]}</option>`
+    ).join('');
+
+    const editRows = PROGRAM.map(day => `
+      <div class="wo-edit-row">
+        <span class="wo-edit-name">${esc(day.name)}</span>
+        <select data-schedule="${day.id}">${daySelectOptions(dowOf(day))}</select>
+      </div>`).join('');
+
+    const editPanelHtml = `
+      <div class="wo-edit-inner">
+        <div class="wo-edit-hint">Move each session to whatever day fits your week. Changes are saved on this device.</div>
+        ${editRows}
+        <div class="wo-edit-actions">
+          <button class="wo-edit-save" type="button">Save</button>
+          <button class="wo-edit-defaults" type="button">Reset to default</button>
+          <button class="wo-edit-cancel" type="button">Cancel</button>
+        </div>
+      </div>`;
 
     let html = `
       <div class="wo-hero">
         <div class="lbl">Today</div>
         <div class="today">${esc(heroToday)}</div>
         <div class="sub">${esc(heroSub)}</div>
+        <button class="wo-edit-days-btn" type="button">&#9998; Edit schedule</button>
       </div>
+      <div id="wo-edit-panel" class="wo-edit-panel" hidden>${editPanelHtml}</div>
       <div class="wo-rules">
         <div class="wo-rule"><b>Protein first</b><span>~175-215 g/day. Front-load it early - Mounjaro fills you up fast.</span></div>
         <div class="wo-rule"><b>Keep it heavy</b><span>Maintain your loads. Cut sets before you ever cut weight.</span></div>
       </div>
     `;
 
-    const DOW_LABEL = { 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' };
-
     PROGRAM.forEach(day => {
-      const isToday = day.dow === todayDow;
+      const dayDow = dowOf(day);
+      const isToday = dayDow === todayDow;
       const done = day.exercises.filter(
         (_, i) => state[day.id + ':' + i]).length;
       const total = day.exercises.length;
@@ -239,7 +310,7 @@
       html += `
         <div class="wo-day${isToday ? ' is-today open' : ''}" data-day="${day.id}">
           <div class="wo-day-head">
-            <span class="wo-badge ${isToday ? 'today' : 'dow'}">${isToday ? 'TODAY' : DOW_LABEL[day.dow]}</span>
+            <span class="wo-badge ${isToday ? 'today' : 'dow'}">${isToday ? 'TODAY' : DOW_LABEL[dayDow]}</span>
             <div>
               <div class="wo-day-title">${esc(day.name)}</div>
               <div class="wo-day-focus">${esc(day.focus)}</div>
@@ -298,6 +369,39 @@
         render();
       });
     });
+
+    // ── Edit-schedule panel ─────────────────────────────────────────────
+    const editPanel = panel.querySelector('#wo-edit-panel');
+    const editBtn = panel.querySelector('.wo-edit-days-btn');
+    if (editBtn && editPanel) {
+      editBtn.addEventListener('click', () => {
+        editPanel.hidden = !editPanel.hidden;
+      });
+    }
+    const saveBtn = panel.querySelector('.wo-edit-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const map = {};
+        panel.querySelectorAll('[data-schedule]').forEach(sel => {
+          map[sel.dataset.schedule] = parseInt(sel.value, 10);
+        });
+        saveSchedule(map);
+        render();
+      });
+    }
+    const defaultsBtn = panel.querySelector('.wo-edit-defaults');
+    if (defaultsBtn) {
+      defaultsBtn.addEventListener('click', () => {
+        localStorage.removeItem(SCHEDULE_KEY);
+        render();
+      });
+    }
+    const cancelBtn = panel.querySelector('.wo-edit-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        if (editPanel) editPanel.hidden = true;
+      });
+    }
   }
 
   // ── Boot ────────────────────────────────────────────────────────────
