@@ -1,10 +1,12 @@
 /* ════════════════════════════════════════════════════════════════════
-   calm-mode.js — Two toggles for anxiety-friendly viewing:
+   calm-mode.js — Calm Mode: 7-day rolling avg instead of raw daily.
 
-   1. Calm Mode      — 7-day rolling avg instead of raw daily
-   2. Sunday View    — chart + KPI show ONLY Sunday readings
+   Sunday View (a second toggle that filtered everything to Sunday-only
+   readings) was retired — its header button is gone and isSundayOn()
+   is hardwired to false below, which keeps every Sunday-gated branch
+   in this file permanently dormant without having to touch each one.
 
-   Both persist in localStorage and can be enabled independently.
+   Persists in localStorage.
    ════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -17,7 +19,7 @@
   const getFlag = k => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
   const setFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch {} };
   const isCalmOn   = () => getFlag(CALM_KEY);
-  const isSundayOn = () => getFlag(SUNDAY_KEY);
+  const isSundayOn = () => false; // Sunday View retired — see header note
 
   // ── Data helpers ─────────────────────────────────────────────────
   function toMs(d) {
@@ -359,32 +361,6 @@
       insertHeader(header, btn);
       injected = true;
     }
-    if (!document.getElementById('sunday-mode-btn')) {
-      const btn = mkBtn('sunday-mode-btn', 'Toggle Sunday View',
-        'Sunday View - chart + KPI show only Sunday readings', () => {
-          setFlag(SUNDAY_KEY, !isSundayOn());
-          LOG('sunday toggle ->', isSundayOn() ? 'ON' : 'OFF');
-          if (!isSundayOn()) {
-            unapplySundayKPI();
-          }
-          // Trigger full re-render so renderKPIs picks up Sunday-swap
-          // and chart re-renders through the hooked path
-          if (typeof window.renderAll === 'function') {
-            try { window.renderAll(); } catch (e) { LOG('renderAll on sunday-toggle', e); }
-          }
-          // Post-render label tweaks
-          setTimeout(() => {
-            if (isSundayOn()) {
-              if (isCalmOn()) applyCalm(); else applySundayKPI();
-            } else if (isCalmOn()) {
-              applyCalm();
-            }
-            updateBadges();
-          }, 60);
-        });
-      insertHeader(header, btn);
-      injected = true;
-    }
     if (injected) updateBadges();
     return true;
   }
@@ -416,14 +392,6 @@
       cbtn.style.background = on ? 'rgba(147,197,253,0.45)' : 'rgba(255,255,255,0.15)';
       cbtn.style.boxShadow  = on ? '0 0 0 2px rgba(147,197,253,0.6)' : 'none';
     }
-    const sbtn = document.getElementById('sunday-mode-btn');
-    if (sbtn) {
-      const on = isSundayOn();
-      sbtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      sbtn.textContent = on ? 'Sunday: ON' : 'Sunday View';
-      sbtn.style.background = on ? 'rgba(250,204,21,0.45)' : 'rgba(255,255,255,0.15)';
-      sbtn.style.boxShadow  = on ? '0 0 0 2px rgba(250,204,21,0.6)' : 'none';
-    }
   }
 
   // ── CSS ──────────────────────────────────────────────────────────
@@ -436,15 +404,10 @@
       'body.calm-mode #kpi-fat-lbs-sub,',
       'body.calm-mode #kpi-muscle-sub,',
       'body.calm-mode #kpi-muscle-lbs-sub,',
-      'body.calm-mode #kpi-water-sub,',
-      'body.sunday-mode #kpi-fat-sub,',
-      'body.sunday-mode #kpi-fat-lbs-sub,',
-      'body.sunday-mode #kpi-muscle-sub,',
-      'body.sunday-mode #kpi-muscle-lbs-sub,',
-      'body.sunday-mode #kpi-water-sub { opacity: 0.35; }',
+      'body.calm-mode #kpi-water-sub { opacity: 0.35; }',
       '.calm-good { color: #10b981; font-weight: 700; }',
       '.calm-warn { color: #f59e0b; font-weight: 700; }',
-      '#calm-mode-btn:hover, #sunday-mode-btn:hover { filter: brightness(1.2); }',
+      '#calm-mode-btn:hover { filter: brightness(1.2); }',
     ].join('\n');
     document.head.appendChild(s);
   }
