@@ -86,11 +86,6 @@ footer {
   height: 44px;
   font-size: 1.2rem;
 }
-#export-card-btn {
-  min-height: 44px;
-  padding: 0.5rem 0.9rem !important;
-}
-
 /* ── A11y + Visual: tab nav — sticky shadow + fade indicators ─── */
 .tab-nav {
   /* subtle shadow when content scrolls under it */
@@ -224,7 +219,6 @@ footer { padding-top: 2rem; }
   .mobile-tab-bar,
   .scroll-top-btn,
   .skip-link,
-  #export-card-btn,
   .dark-toggle,
   .collapse-toggle,
   #status-bar,

@@ -4,11 +4,10 @@
 
    Modules (kept tiny + self-contained, none mutate app.js globals):
      1. Visibility-aware refresh (pause polling when tab hidden)
-     2. Lazy-load tab JS on first activation
-     3. Confetti on milestone unlock
-     4. Data export (CSV + JSON) menu
-     5. Compact density toggle
-     6. PWA install banner + service-worker registration
+     2. Confetti on milestone unlock
+     3. PWA install banner + service-worker registration
+     4. Lazy-load tab JS on first activation
+     5. Keyboard tab reorder (a11y equivalent for mouse drag)
    ──────────────────────────────────────────────────────────────────── */
 (() => {
   'use strict';
@@ -139,164 +138,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 3. Data export (CSV + JSON)
-  //    Sources (whatever's loaded at click time):
-  //      • window.allWeightData — weight readings (date,weight,bmi,...)
-  //      • window.glucoseHistory — ~24h CGM readings (if Glucose tab visited)
-  //      • window.snapActivityDays — Garmin daily summaries
-  //    Renders a dropdown next to the Export Card button.
-  // ─────────────────────────────────────────────────────────────
-  function downloadFile(filename, content, mime) {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
-  }
-  function fmtIsoDate(d) {
-    const dt = d instanceof Date ? d : new Date(d);
-    return dt.toISOString().slice(0, 10);
-  }
-  function getWeightRows() {
-    return window.allWeightData || window.allData || [];
-  }
-  function csvCell(v) {
-    if (v == null) return '';
-    const s = String(v);
-    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  }
-  function exportCSV() {
-    const data = getWeightRows();
-    if (!data.length) { alert('No weight data loaded yet — try again in a sec.'); return; }
-    const cols = ['date', 'weight', 'bmi', 'bodyFat', 'muscle', 'water', 'bone', 'bmr', 'tdee'];
-    const header = cols.join(',');
-    const rows = data.map(r =>
-      cols.map(c => csvCell(c === 'date' ? fmtIsoDate(r[c]) : r[c])).join(',')
-    );
-    downloadFile(
-      `weight-data-${fmtIsoDate(new Date())}.csv`,
-      [header, ...rows].join('\n'),
-      'text/csv'
-    );
-  }
-  function exportJSON() {
-    const weight = getWeightRows();
-    if (!weight.length) { alert('No weight data loaded yet — try again in a sec.'); return; }
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      counts: {
-        weightReadings: weight.length,
-        glucoseReadings: (window.glucoseHistory   || []).length,
-        activityDays:    (window.snapActivityDays || []).length,
-      },
-      weight: weight.map(r => ({ ...r, date: fmtIsoDate(r.date) })),
-      glucose:  window.glucoseHistory   || null,
-      activity: window.snapActivityDays || null,
-    };
-    downloadFile(
-      `health-data-${fmtIsoDate(new Date())}.json`,
-      JSON.stringify(payload, null, 2),
-      'application/json'
-    );
-  }
-  function mountExportMenu() {
-    const exportBtn = document.getElementById('export-card-btn');
-    if (!exportBtn || !exportBtn.parentElement) return;
-
-    // Trigger button lives in the header.
-    const trigger = document.createElement('button');
-    trigger.id = 'data-export-btn';
-    trigger.className = 'data-export-btn';
-    trigger.type = 'button';
-    trigger.setAttribute('aria-label', 'Export data');
-    trigger.setAttribute('aria-haspopup', 'menu');
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.textContent = '💾 Export';
-    exportBtn.parentElement.insertBefore(trigger, exportBtn);
-
-    // Menu lives in <body> so the header's overflow:hidden can't clip it.
-    const menu = document.createElement('div');
-    menu.className = 'data-export-menu';
-    menu.setAttribute('role', 'menu');
-    menu.hidden = true;
-    menu.innerHTML = `
-      <button role="menuitem" type="button" data-fmt="csv">📊 Download CSV</button>
-      <button role="menuitem" type="button" data-fmt="json">📋 Download JSON</button>`;
-    document.body.appendChild(menu);
-
-    function positionMenu() {
-      const r = trigger.getBoundingClientRect();
-      // align menu's right edge with trigger's right edge, drop below.
-      menu.style.top  = (r.bottom + 6) + 'px';
-      menu.style.left = Math.max(8, r.right - 180) + 'px'; // 180 = min-width
-    }
-    function open() {
-      positionMenu();
-      menu.hidden = false;
-      trigger.setAttribute('aria-expanded', 'true');
-      window.addEventListener('scroll', positionMenu, { passive: true });
-      window.addEventListener('resize', positionMenu);
-    }
-    function close() {
-      menu.hidden = true;
-      trigger.setAttribute('aria-expanded', 'false');
-      window.removeEventListener('scroll', positionMenu);
-      window.removeEventListener('resize', positionMenu);
-    }
-    trigger.addEventListener('click', e => {
-      e.stopPropagation();
-      menu.hidden ? open() : close();
-    });
-    menu.addEventListener('click', e => {
-      e.stopPropagation();
-      const btn = e.target.closest('button[data-fmt]');
-      if (!btn) return;
-      if (btn.dataset.fmt === 'csv')  exportCSV();
-      if (btn.dataset.fmt === 'json') exportJSON();
-      close();
-    });
-    document.addEventListener('click', () => { if (!menu.hidden) close(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // 4. Compact density toggle
-  //    Adds a `.density-compact` class to <html> that polish.css
-  //    interprets. Persisted in localStorage.
-  // ─────────────────────────────────────────────────────────────
-  const DENSITY_KEY = 'wt_v2_density';
-  function applyDensity(mode) {
-    document.documentElement.classList.toggle('density-compact', mode === 'compact');
-    const btn = document.getElementById('density-toggle');
-    if (btn) {
-      btn.textContent = mode === 'compact' ? '🔍 Cozy' : '🔍 Compact';
-      btn.setAttribute('aria-pressed', mode === 'compact' ? 'true' : 'false');
-    }
-  }
-  function mountDensityToggle() {
-    const exportBtn = document.getElementById('export-card-btn');
-    if (!exportBtn || !exportBtn.parentElement) return;
-    const btn = document.createElement('button');
-    btn.id = 'density-toggle';
-    btn.className = 'header-utility-btn';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'Toggle compact density');
-    btn.setAttribute('aria-pressed', 'false');
-    btn.textContent = '🔍 Compact';
-    btn.addEventListener('click', () => {
-      const next = document.documentElement.classList.contains('density-compact') ? 'cozy' : 'compact';
-      localStorage.setItem(DENSITY_KEY, next);
-      applyDensity(next);
-    });
-    exportBtn.parentElement.insertBefore(btn, exportBtn);
-    applyDensity(localStorage.getItem(DENSITY_KEY) || 'cozy');
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // 5. PWA install banner + SW registration
+  // 3. PWA install banner + SW registration
   //    Browsers fire `beforeinstallprompt`; we stash the event and
   //    show a non-intrusive banner the user can accept or dismiss.
   // ─────────────────────────────────────────────────────────────
@@ -371,7 +213,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 6. Lazy-load tab JS
+  // 4. Lazy-load tab JS
   //    Heavy tab modules now load on first activation instead of
   //    on every page hit. Reduces cold-load JS by ~150KB.
   //    Note: this requires removing those <script> tags from
@@ -418,7 +260,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 7. Keyboard tab reorder (a11y equivalent for mouse drag)
+  // 5. Keyboard tab reorder (a11y equivalent for mouse drag)
   //    With a tab focused: Ctrl/Cmd + Shift + ArrowLeft/Right
   //    swaps it with its neighbour. Fires saveTabOrder if exposed.
   // ─────────────────────────────────────────────────────────────
@@ -444,8 +286,6 @@
   // Bootstrap
   // ─────────────────────────────────────────────────────────────
   function boot() {
-    mountExportMenu();
-    mountDensityToggle();
     watchMilestones();
     tryPatch();
     // Eagerly load whichever tab is actually selected on first paint
