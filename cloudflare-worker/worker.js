@@ -7,8 +7,10 @@
  * Set secret: API_SECRET (matches xDrip+ API_SECRET setting)
  *
  * Endpoints:
- *   POST /api/v1/entries     ← xDrip+ uploads here
- *   GET  /glucose.json       ← dashboard reads from here
+ *   POST /api/v1/entries       ← xDrip+ uploads here
+ *   GET  /glucose.json         ← dashboard reads from here
+ *   GET  /workout-schedule     ← dashboard reads day-of-week overrides (token-gated)
+ *   POST /workout-schedule     ← dashboard writes day-of-week overrides (token-gated)
  */
 
 const MAX_READINGS = 288; // 24h at 5-min intervals
@@ -492,6 +494,45 @@ export default {
       }
       await env.GLUCOSE_KV.put('photo:' + key, dataUrl);
       return cors(JSON.stringify({ ok: true, key, bytes: dataUrl.length }));
+    }
+
+    // ── GET /workout-schedule  (token-gated day-of-week overrides) ─────
+    // Returns { schedule: { <dayId>: <0-6>, ... } }. Empty object means
+    // "use the built-in defaults" — the dashboard fills those in client-side.
+    if (method === 'GET' && url.pathname === '/workout-schedule') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const schedule = await env.GLUCOSE_KV.get('workout_schedule', { type: 'json' }) ?? {};
+      return cors(JSON.stringify({ schedule }));
+    }
+
+    // ── POST /workout-schedule  (token-gated day-of-week overrides) ────
+    // Body: { schedule: { <dayId>: <0-6>, ... } }. Send {} to clear back
+    // to defaults on every device.
+    if (method === 'POST' && url.pathname === '/workout-schedule') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const schedule = body && typeof body.schedule === 'object'
+        && body.schedule !== null && !Array.isArray(body.schedule)
+        ? body.schedule : null;
+      if (!schedule) return cors('{"error":"expected {schedule: {...}}"}', 400);
+      const entries = Object.entries(schedule);
+      if (entries.length > 20) return cors('{"error":"too many entries"}', 400);
+      const clean = {};
+      for (const [dayId, dow] of entries) {
+        if (typeof dayId !== 'string' || !dayId || dayId.length > 40) {
+          return cors('{"error":"invalid day id"}', 400);
+        }
+        const n = Number(dow);
+        if (!Number.isInteger(n) || n < 0 || n > 6) {
+          return cors('{"error":"weekday must be an integer 0-6"}', 400);
+        }
+        clean[dayId] = n;
+      }
+      await env.GLUCOSE_KV.put('workout_schedule', JSON.stringify(clean));
+      return cors(JSON.stringify({ ok: true, schedule: clean }));
     }
 
     // ── POST /weight  (sync job pushes the full weight array) ──────────

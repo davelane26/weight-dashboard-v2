@@ -120,6 +120,56 @@
     return (v === 0 || v) ? v : day.dow;
   }
 
+  // ── Cloud sync (Cloudflare Worker, Firebase-token gated) ─────────────
+  // Same pattern as photos.js: local write is instant and always works;
+  // the cloud push is best-effort so the schedule follows you to other
+  // signed-in devices too. Silently no-ops if signed out or offline.
+  const SCHEDULE_WORKER_URL = window.HEALTH_WORKER_URL || '';
+  let scheduleSyncNote = '';
+
+  async function _woAuthHeaders() {
+    if (!window.fbUser || typeof window.fbUser.getIdToken !== 'function') return null;
+    const token = await window.fbUser.getIdToken();
+    return { Authorization: 'Bearer ' + token };
+  }
+
+  async function pushScheduleToCloud(map) {
+    if (!SCHEDULE_WORKER_URL) return false;
+    const auth = await _woAuthHeaders();
+    if (!auth) return false;
+    try {
+      const resp = await fetch(SCHEDULE_WORKER_URL + '/workout-schedule', {
+        method: 'POST',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schedule: map }),
+      });
+      return resp.ok;
+    } catch (e) { return false; }
+  }
+
+  // Pulls the cloud schedule on load. If the cloud already has a schedule
+  // (set from another device), it wins and overwrites local. If the cloud
+  // is empty but this device has local overrides, seed the cloud from
+  // those instead — so the first signed-in device "wins" on first sync.
+  async function syncScheduleFromCloud() {
+    if (!SCHEDULE_WORKER_URL) return;
+    const auth = await _woAuthHeaders();
+    if (!auth) return;
+    try {
+      const resp = await fetch(SCHEDULE_WORKER_URL + '/workout-schedule', { headers: auth });
+      if (!resp.ok) return; // 404 = worker not deployed yet, etc — local still works
+      const body = await resp.json();
+      const cloud = (body && typeof body.schedule === 'object' && body.schedule) || {};
+      if (Object.keys(cloud).length) {
+        saveSchedule(cloud);
+        render();
+      } else {
+        const local = loadSchedule();
+        if (Object.keys(local).length) await pushScheduleToCloud(local);
+      }
+    } catch (e) { /* offline — local-only still works */ }
+  }
+
   const esc = s => String(s).replace(/[&<>"]/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -137,6 +187,7 @@
       .wo-edit-days-btn { margin-top:.6rem; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.35);
         color:#fff; font-size:.75rem; font-weight:600; border-radius:8px; padding:.35rem .7rem; cursor:pointer; }
       .wo-edit-days-btn:hover { background:rgba(255,255,255,.28); }
+      .wo-sync-note { font-size:.72rem; opacity:.85; margin-top:.4rem; }
       .wo-edit-panel { background:#fff; border:1.5px solid #d0d5e8; border-radius:12px;
         padding:.9rem 1rem; margin:0 0 1rem; }
       .wo-edit-hint { font-size:.78rem; color:#6d7a95; margin-bottom:.7rem; }
@@ -264,6 +315,7 @@
         <div class="today">${esc(heroToday)}</div>
         <div class="sub">${esc(heroSub)}</div>
         <button class="wo-edit-days-btn" type="button">&#9998; Edit schedule</button>
+        ${scheduleSyncNote ? `<div class="wo-sync-note">${esc(scheduleSyncNote)}</div>` : ''}
       </div>
       <div id="wo-edit-panel" class="wo-edit-panel" hidden>${editPanelHtml}</div>
       <div class="wo-rules">
@@ -380,19 +432,25 @@
     }
     const saveBtn = panel.querySelector('.wo-edit-save');
     if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
+      saveBtn.addEventListener('click', async () => {
         const map = {};
         panel.querySelectorAll('[data-schedule]').forEach(sel => {
           map[sel.dataset.schedule] = parseInt(sel.value, 10);
         });
-        saveSchedule(map);
+        saveSchedule(map);                       // local save is instant
+        saveBtn.disabled = true;
+        const ok = await pushScheduleToCloud(map);
+        scheduleSyncNote = ok ? 'Synced across devices' : 'Saved on this device only';
         render();
       });
     }
     const defaultsBtn = panel.querySelector('.wo-edit-defaults');
     if (defaultsBtn) {
-      defaultsBtn.addEventListener('click', () => {
+      defaultsBtn.addEventListener('click', async () => {
         localStorage.removeItem(SCHEDULE_KEY);
+        defaultsBtn.disabled = true;
+        const ok = await pushScheduleToCloud({});  // clear cloud too, so it resets everywhere
+        scheduleSyncNote = ok ? 'Reset everywhere' : 'Reset on this device only';
         render();
       });
     }
@@ -410,6 +468,18 @@
   } else {
     render();
   }
+
+  // Pull the schedule from the cloud once we know who's signed in.
+  // Auth resolves asynchronously (Firebase), so wait for it if it hasn't
+  // fired yet — mirrors the pattern used in photos.js.
+  if (window.fbUser) {
+    syncScheduleFromCloud();
+  } else {
+    document.addEventListener('firebase-auth-changed', e => {
+      if (e.detail && e.detail.user) syncScheduleFromCloud();
+    }, { once: true });
+  }
+
   // Expose for switchTab() if it ever wants to force a refresh.
   window.renderWorkout = render;
 })();
