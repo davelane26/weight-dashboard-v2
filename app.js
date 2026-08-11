@@ -41,6 +41,7 @@ function renderAll() {
   // Optional renderers from sibling feature scripts (heatmap.js etc).
   // Use feature-detection so we never crash if a script hasn't loaded.
   if (typeof renderHeatmap      === 'function') renderHeatmap(allData);
+  if (typeof renderMultiWindowTrends === 'function') renderMultiWindowTrends(allData);
   if (typeof renderReportCard   === 'function') renderReportCard();
   if (typeof refreshHealthScore === 'function') refreshHealthScore();
   if (typeof renderRoadTo220    === 'function') renderRoadTo220();

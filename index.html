@@ -55,6 +55,7 @@
 <script src="app-tabs.js?v=3"     defer></script>
 <script src="app-kpis.js?v=2"     defer></script>
 <script src="app-charts.js?v=1"   defer></script>
+<script src="multi-window-trends.js?v=1" defer></script>
 <script src="app-goal.js?v=4"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
 <script src="app.js?v=102"        defer></script>
@@ -312,11 +313,25 @@
       <h2 class="card-title" style="margin-bottom:0.75rem">Week-Over-Week</h2>
       <div class="kpi-grid">
         <div class="kpi kpi--blue" id="weekly-avg-card">
-          <p class="kpi-label">📊 7-Day Avg vs Last Week</p>
+          <p class="kpi-label">&#128202; 7-Day Avg vs Last Week</p>
           <p class="kpi-value" style="color:var(--gray-50)">—</p>
           <p class="kpi-unit">lbs difference</p>
           <p class="kpi-sub"></p>
         </div>
+      </div>
+    </section>
+
+    <section class="fade-in" aria-label="Multi-window trends">
+      <h2 class="card-title" style="margin-bottom:0.75rem">Rolling Trend Windows</h2>
+      <p style="font-size:0.75rem;color:#6d7a95;margin:-0.4rem 0 0.6rem 0">
+        Shorter windows faster than longer = accelerating. Shorter slower than longer = plateau warning.
+        Rate is a linear regression fit inside each window; delta compares window-avg to the immediately-prior same-length window.
+      </p>
+      <div class="kpi-grid">
+        <div class="kpi kpi--blue"   id="mwt-card-7"  data-days="7"><p class="kpi-label">&#128200; 7-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--cyan"   id="mwt-card-14" data-days="14"><p class="kpi-label">&#128200; 14-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--purple" id="mwt-card-21" data-days="21"><p class="kpi-label">&#128200; 21-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--green"  id="mwt-card-28" data-days="28"><p class="kpi-label">&#128200; 28-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
       </div>
     </section>
 
