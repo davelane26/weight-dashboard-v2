@@ -82,6 +82,7 @@
 <script src="titration-trajectory.js?v=7" defer></script>
 <script src="titration-readiness.js?v=12" defer></script>
 <script src="plateau-radar.js?v=2" defer></script>
+<script src="stall-radar.js?v=1" defer></script>
 <script src="dose-comparison.js?v=5" defer></script>
 <script src="health.js?v=12"  defer></script>
 <script src="calm-mode.js?v=7" defer></script>
@@ -187,7 +188,19 @@
         Early warning: is your 4-week pace itself <em>decelerating</em>, and how many weeks of runway before it hits the trigger? The 5mg lesson &mdash; catch the plateau while it's forming, not after.
       </p>
       <div id="pr-card-body">
-        <p style="color:#6d7a95;font-size:0.8rem">Loading…</p>
+        <p style="color:#6d7a95;font-size:0.8rem">Loading&hellip;</p>
+      </div>
+    </section>
+
+    <!-- Stall Radar Card: right-now stall discriminator -->
+    <section class="card fade-in" aria-label="Current stall radar"
+      style="margin-top:1.25rem;border-top:3px solid #0d9488">
+      <h2 class="card-title">&#128300; Stall Radar</h2>
+      <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
+        Right-now diagnosis: are you in a stall <em>this moment</em>, and if so is it a whoosh-hold (fat leaving, water hiding it) or a real ceiling (energy balance actually neutral)? Uses body-comp signals + your own historical stall distribution to answer the question the scale alone can't.
+      </p>
+      <div id="sr-card-body">
+        <p style="color:#6d7a95;font-size:0.8rem">Loading&hellip;</p>
       </div>
     </section>
 
