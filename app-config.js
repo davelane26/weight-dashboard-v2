@@ -9,12 +9,15 @@ const START_WEIGHT = 315.0;
 const START_DATE   = 'Jan 29, 2026';
 const REFRESH_MS   = 30_000;
 
-// Clinically measured at the July 27, 2026 DEXA scan (74.0 in). openScale's
-// on-file height was 75.0 in, which understated BMI by ~0.85 points at any
-// given weight — every synced reading's `bmi` field is recomputed against
-// this constant in loadData() rather than trusted as-is, so the correction
-// applies consistently across all history, not just new readings.
-const HEIGHT_IN = 74.0;
+// Reconciled Aug 12, 2026: doctor's office stadiometer reads 74.8 in
+// across multiple visits, which supersedes both openScale's default
+// (75.0 in, self-reported) and the Jul 27, 2026 DEXA one-off (74.0 in).
+// Recurring stadiometer measurements beat a single lab snapshot; the
+// 0.8 in gap between them is well within diurnal spinal-compression
+// variation (~0.5-1 in through the day). BMI is recomputed against
+// this constant in loadData() so the correction applies across all
+// history, not just new readings.
+const HEIGHT_IN = 74.8;
 
 const ACTIVITY_LEVELS = {
   sedentary:   { label: 'Sedentary',   desc: 'Desk job, little or no exercise',       multiplier: 1.2   },
