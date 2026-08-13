@@ -82,7 +82,7 @@
 <script src="titration-trajectory.js?v=7" defer></script>
 <script src="titration-readiness.js?v=12" defer></script>
 <script src="plateau-radar.js?v=2" defer></script>
-<script src="stall-radar.js?v=1" defer></script>
+<script src="trend-check.js?v=1" defer></script>
 <script src="dose-comparison.js?v=5" defer></script>
 <script src="health.js?v=12"  defer></script>
 <script src="calm-mode.js?v=7" defer></script>
@@ -192,12 +192,12 @@
       </div>
     </section>
 
-    <!-- Stall Radar Card: right-now stall discriminator -->
-    <section class="card fade-in" aria-label="Current stall radar"
-      style="margin-top:1.25rem;border-top:3px solid #0d9488">
-      <h2 class="card-title">&#128300; Stall Radar</h2>
+    <!-- Trend Check Card: one question, one answer. -->
+    <section class="card fade-in" aria-label="Trend check"
+      style="margin-top:1.25rem;border-top:3px solid #2a8703">
+      <h2 class="card-title">&#128200; Trend Check</h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
-        Right-now diagnosis: are you in a stall <em>this moment</em>, and if so is it a whoosh-hold (fat leaving, water hiding it) or a real ceiling (energy balance actually neutral)? Uses body-comp signals + your own historical stall distribution to answer the question the scale alone can't.
+        The only question worth asking: <em>is the 14-day slope still negative?</em> Daily readings bounce &plusmn;1.5 lb on water alone -- this card ignores that noise and gives you one of three answers so you never have to interpret a single reading again.
       </p>
       <div id="sr-card-body">
         <p style="color:#6d7a95;font-size:0.8rem">Loading&hellip;</p>
