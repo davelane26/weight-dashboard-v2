@@ -40,7 +40,7 @@ const BMI_CATS = [
 // desktop + mobile nav, tab panel). Doesn't affect the background
 // fetch pipeline -- flip back ON months later and the data is still
 // there, no re-wiring needed.
-const SHOW_GLUCOSE  = true;   // hide with `false` when not tracking
+const SHOW_GLUCOSE  = false;  // flip to true when tracking resumes
 
 const ALL_TABS      = ['weight', 'charts', 'glucose', 'activity', 'workout', 'projector', 'medication', 'photos', 'health'];
 const HIDDEN_TABS   = new Set([
