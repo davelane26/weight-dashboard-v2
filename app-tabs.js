@@ -55,6 +55,34 @@ window.setActivityLevel = setActivityLevel;
   }
 })();
 
+// ── Hide toggled-off modules (see SHOW_* flags in app-config.js) ──────
+// TABS is already filtered by app-config.js so switchTab / restoreTab
+// naturally skip hidden entries. This function nukes the DOM presence
+// too: nav buttons (desktop + mobile), tab panels, and the snapshot
+// chip if the module owns one.
+const SNAP_CELL_BY_TAB = {
+  glucose: 'snap-glucose',
+  // Extend here if we ever wire an activity/sleep snap-cell to a hide flag.
+};
+
+function applyHiddenModules() {
+  HIDDEN_TABS.forEach(name => {
+    const desktopBtn = el('tab-btn-' + name);
+    const panel      = el('tab-'     + name);
+    const mobileBtn  = document.querySelector(`.mob-tab[data-tab="${name}"]`);
+    if (desktopBtn) desktopBtn.hidden = true;
+    if (panel)      panel.hidden      = true;
+    if (mobileBtn)  mobileBtn.hidden  = true;
+
+    const snapId = SNAP_CELL_BY_TAB[name];
+    if (snapId) {
+      const cell = document.getElementById(snapId)?.closest('.snap-cell');
+      if (cell) cell.hidden = true;
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', applyHiddenModules);
+
 // ── Tab switching ────────────────────────────────────────────────────
 function switchTab(name) {
   TABS.forEach(t => {

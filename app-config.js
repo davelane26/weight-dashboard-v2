@@ -35,7 +35,18 @@ const BMI_CATS = [
   { label: 'Obese III',      range: 'BMI ≥ 40',    min: 40,   max: Infinity, icon: '⚫' },
 ];
 
-const TABS          = ['weight', 'charts', 'glucose', 'activity', 'workout', 'projector', 'medication', 'photos', 'health'];
+// ── Module visibility toggles ────────────────────────────────────────
+// Flip a module OFF to hide ALL its UI (snapshot chip, tab button in
+// desktop + mobile nav, tab panel). Doesn't affect the background
+// fetch pipeline -- flip back ON months later and the data is still
+// there, no re-wiring needed.
+const SHOW_GLUCOSE  = true;   // hide with `false` when not tracking
+
+const ALL_TABS      = ['weight', 'charts', 'glucose', 'activity', 'workout', 'projector', 'medication', 'photos', 'health'];
+const HIDDEN_TABS   = new Set([
+  ...(SHOW_GLUCOSE ? [] : ['glucose']),
+]);
+const TABS          = ALL_TABS.filter(t => !HIDDEN_TABS.has(t));
 const TAB_ORDER_KEY = 'wt_v2_tab_order';
 
 // ── Mutable global state ─────────────────────────────────────────────
