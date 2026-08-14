@@ -21,8 +21,13 @@ const MWT_WINDOWS = [7, 14, 21, 28];
 function _mwtWindowStats(data, days) {
   if (!data || !data.length) return null;
   const DAY = 24 * 60 * 60 * 1000;
-  const latestMs = new Date(data[data.length - 1].date).getTime();
-  const cutoff   = latestMs - (days - 1) * DAY;
+  // Anchor windows to NOW (not to the latest reading) so a skipped
+  // weigh-in day doesn't shift the 28-day window backwards. This also
+  // matches plateau-radar's convention exactly, so the two cards
+  // agree on their 28-day number instead of differing by ~0.05 lb/wk
+  // when the latest reading isn't literally today.
+  const nowMs    = Date.now();
+  const cutoff   = nowMs - days * DAY;
   const priorCut = cutoff - days * DAY;
 
   // Dedupe to one reading per calendar day (keep latest, matching
