@@ -25,11 +25,29 @@ function _mwtWindowStats(data, days) {
   const cutoff   = latestMs - (days - 1) * DAY;
   const priorCut = cutoff - days * DAY;
 
-  const win  = data.filter(r => new Date(r.date).getTime() >= cutoff);
-  const prev = data.filter(r => {
+  // Dedupe to one reading per calendar day (keep latest, matching
+  // plateau-radar's convention). Multi-daily weigh-ins otherwise
+  // weight heavy-scale days more than light-scale ones and inject
+  // within-day noise (morning-vs-evening drift) into the slope, which
+  // was the source of the small mismatch between MWT's 28-day rate
+  // and plateau-radar's current-pace number.
+  const dedupeByDay = rows => {
+    const map = {};
+    rows.forEach(r => {
+      const ms = new Date(r.date).getTime();
+      const key = new Date(r.date).toDateString();
+      if (!map[key] || ms > new Date(map[key].date).getTime()) map[key] = r;
+    });
+    return Object.values(map).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
+
+  const win  = dedupeByDay(data.filter(r => new Date(r.date).getTime() >= cutoff));
+  const prev = dedupeByDay(data.filter(r => {
     const ms = new Date(r.date).getTime();
     return ms >= priorCut && ms < cutoff;
-  });
+  }));
   if (!win.length) return null;
 
   const avg = arr => arr.reduce((s, r) => s + r.weight, 0) / arr.length;
