@@ -64,12 +64,22 @@ function movingAvg(arr, window = 7) {
 // Single source of truth used by: journey projector, Charts tab, Road to 220,
 // BMI timeline, goal ETA — everything. Uses a calendar-day window so all
 // consumers compute identically regardless of how dense the readings are.
-function regressionSlopeLbsPerDay(data, calendarDays = 28) {
+function regressionSlopeLbsPerDay(data, calendarDays = 28, opts = {}) {
+  // anchor: 'now' (default) uses Date.now() as the window's right edge
+  //         'latest'         uses the last reading in the passed-in
+  //                          data as the right edge (needed by
+  //                          computeWeightSlowdown, which passes
+  //                          pre-cutoff readings to get the prior
+  //                          window's slope with the same math).
+  const anchor = opts.anchor || 'now';
   const byDay  = {};
   data.forEach(r => { byDay[r.date.toDateString()] = r; });
   const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
   if (!daily.length) return null;
-  const cutoff = daily[daily.length - 1].date.getTime() - calendarDays * 86_400_000;
+  const anchorMs = anchor === 'latest'
+    ? daily[daily.length - 1].date.getTime()
+    : Date.now();
+  const cutoff = anchorMs - calendarDays * 86_400_000;
   const win    = daily.filter(r => r.date.getTime() >= cutoff);
   if (win.length < 3) return null;
   const t0  = win[0].date.getTime();
@@ -96,15 +106,24 @@ function weightTrendSlope(data, days = 28) {
 function computeWeightSlowdown(data, windowDays = 28) {
   if (!data || data.length < 6) return null;
   const sorted = [...data].sort((a, b) => a.date - b.date);
-  const latestMs = sorted[sorted.length - 1].date.getTime();
-  const cutoff   = latestMs - windowDays * 86_400_000;
-  const priorData = sorted.filter(r => r.date.getTime() < cutoff);
 
-  // regressionSlopeLbsPerDay anchors its window on the last reading of
-  // whatever it's given, so passing only pre-cutoff readings yields the
-  // prior window's slope with identical math to the current one.
-  const currentSlope = regressionSlopeLbsPerDay(sorted, windowDays);
-  const priorSlope   = regressionSlopeLbsPerDay(priorData, windowDays);
+  // Explicit adjacent windows anchored to NOW so the LAST-4-WKS rate
+  // matches every other 'current pace' number on the dashboard.
+  //   current = readings in [now - 28d, now]
+  //   prior   = readings in [now - 56d, now - 28d)
+  const nowMs      = Date.now();
+  const currStart  = nowMs - windowDays * 86_400_000;
+  const priorStart = nowMs - 2 * windowDays * 86_400_000;
+  const currData   = sorted.filter(r => r.date.getTime() >= currStart);
+  const priorData  = sorted.filter(r => {
+    const t = r.date.getTime();
+    return t >= priorStart && t < currStart;
+  });
+
+  // Prior window must be anchored to 'latest' since anchor='now' would
+  // filter out everything (its readings all pre-date now-28d).
+  const currentSlope = regressionSlopeLbsPerDay(currData,  windowDays, { anchor: 'now' });
+  const priorSlope   = regressionSlopeLbsPerDay(priorData, windowDays, { anchor: 'latest' });
   if (currentSlope == null || priorSlope == null) return null;
 
   const currentRate = -currentSlope * 7;
