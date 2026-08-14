@@ -35,7 +35,8 @@
   // Key: dose mg value (number). Value: { weight, note }.
   // Assumes only one episode per dose level. Update if corrected.
   const KNOWN_BASELINES = {
-    5: { weight: 296.0, note: 'Verified: actual start weight on 5mg (scale not set up until Mar 21)' },
+    2.5: { weight: 315.0, note: 'Pre-scale starting weight (self-reported)' },
+    5:   { weight: 296.0, note: 'Verified: actual start weight on 5mg (scale not set up until Mar 21)' },
   };
 
   // ── Helpers ────────────────────────────────────────────────
@@ -137,14 +138,26 @@
   // Per-episode stats. Pulls readings between the pre-change baseline
   // (last reading on or before startDate) and the end date (or now).
   // Returns enriched episode with weight + pace numbers.
-  function enrichEpisode(ep, allReadings, allShots) {
+  function enrichEpisode(ep, allReadings, allShots, nextBaselineWeight) {
     const startDay   = ep.startDate;
     const endDay     = ep.endDate || new Date();
     const dayAfter   = TU.addDays(startDay, 1);
     const between    = TU.readingsBetween(dayAfter, endDay, allReadings);
-    const endReading = between.length ? between[between.length - 1] : null;
+    let   endReading = between.length ? between[between.length - 1] : null;
+    let   endpointSource = endReading ? 'weigh-in' : null;
     const baseInfo   = findBaseline(startDay, between, allShots, allReadings, ep.dose);
     const baseline   = baseInfo.weight;
+
+    // If we have no on-dose readings but the NEXT dose has a resolved
+    // baseline, use it as this episode's endpoint. The instant the
+    // next dose starts IS the instant this dose ends, so its baseline
+    // is the honest handoff weight — no fudging. Fires for 2.5mg
+    // (predated the scale), and would also cover any future dose
+    // where a batch of readings goes missing.
+    if (!endReading && nextBaselineWeight != null && ep.endDate) {
+      endReading = { date: ep.endDate, weight: nextBaselineWeight };
+      endpointSource = 'next-dose baseline (est.)';
+    }
 
     const days       = (endDay.getTime() - startDay.getTime()) / 86_400_000;
     const weeks      = days / 7;
@@ -163,6 +176,15 @@
       : weeks;
     const endpointPace = (lostLbs != null && paceWeeks >= 1)
       ? lostLbs / paceWeeks
+      : null;
+
+    // % of bodyweight lost per week — the fair cross-dose comparator.
+    // Absolute lbs/wk mathematically shrinks as you shrink (TDEE drops
+    // with mass), so comparing raw pace across doses penalizes later
+    // doses for doing the same relative work. Normalizing by baseline
+    // weight makes each dose's pace apples-to-apples.
+    const pctPace = (endpointPace != null && baseline > 0)
+      ? (endpointPace / baseline) * 100
       : null;
 
     // Regression: fit a least-squares line through the baseline + all
@@ -187,10 +209,12 @@
       baseline,
       baselineSource: baseInfo.source,
       endReading,
+      endpointSource,
       days, weeks,
       paceWeeks,
       lostLbs,
       endpointPace,
+      pctPace,
       regressionPace,
       readingCount: between.length,
     };
@@ -215,7 +239,22 @@
       return;
     }
 
-    const episodes = buildEpisodes(shots).map(ep => enrichEpisode(ep, window.allWeightData, shots));
+    // Two-pass build so each episode can synthesize its endpoint
+    // from the NEXT episode's baseline when it has no readings of
+    // its own (e.g. 2.5mg predated the scale). Pre-computing every
+    // baseline first keeps the lookahead trivial.
+    const rawEps = buildEpisodes(shots);
+    const baselines = rawEps.map(ep => {
+      const between = TU.readingsBetween(
+        TU.addDays(ep.startDate, 1),
+        ep.endDate || new Date(),
+        window.allWeightData
+      );
+      return findBaseline(ep.startDate, between, shots, window.allWeightData, ep.dose).weight;
+    });
+    const episodes = rawEps.map((ep, i) =>
+      enrichEpisode(ep, window.allWeightData, shots, baselines[i + 1])
+    );
 
     if (episodes.length < 2) {
       const only = episodes[0];
@@ -246,12 +285,25 @@
       return '#ea1100';
     }
 
+    // Thresholds calibrated for % of bodyweight per week. 0.5–1% is
+    // the conventional "healthy sustainable" band; 1%+ is aggressive
+    // (typical of early titration or a fresh dose bump); under 0.3%
+    // means the dose is losing its punch.
+    function pctPaceColor(p) {
+      if (p == null || p <= 0) return '#ea1100';
+      if (p >= 1.0) return '#2a8703';
+      if (p >= 0.6) return '#0053e2';
+      if (p >= 0.3) return '#995213';
+      return '#ea1100';
+    }
+
     const rows = episodes.map((ep, i) => {
       const dur     = ep.weeks != null ? ep.weeks.toFixed(1) : '—';
       const lost    = ep.lostLbs != null
         ? (ep.lostLbs >= 0 ? '−' : '+') + Math.abs(ep.lostLbs).toFixed(1) + ' lbs'
         : '—';
       const endPace = ep.endpointPace != null ? ep.endpointPace.toFixed(2) + ' lbs/wk' : '—';
+      const pctPaceStr = ep.pctPace != null ? ep.pctPace.toFixed(2) + '%' : '—';
       const regPace = ep.regressionPace != null ? ep.regressionPace.toFixed(2) + ' lbs/wk' : '—';
       const rowBg   = ep.isCurrent ? '#dbeafe' : (i % 2 ? '#f8fafc' : 'transparent');
       const tag     = ep.isCurrent
@@ -295,6 +347,9 @@
               ${ep.baselineSource && ep.baselineSource !== 'pre-shot weigh-in'
                 ? `<br><span style="color:#995213;font-style:italic">baseline: ${ep.baselineSource}</span>`
                 : ''}
+              ${ep.endpointSource && ep.endpointSource !== 'weigh-in'
+                ? `<br><span style="color:#995213;font-style:italic">endpoint: ${ep.endpointSource}</span>`
+                : ''}
             </p>
           </td>
           <td style="padding:0.55rem 0.7rem;font-size:0.85rem;font-weight:700;color:#1a2340;white-space:nowrap;vertical-align:top">
@@ -310,36 +365,57 @@
             ${barHTML}
             ${mathHTML}
           </td>
+          <td style="padding:0.55rem 0.7rem;font-size:0.85rem;font-weight:800;color:${pctPaceColor(ep.pctPace)};white-space:nowrap;vertical-align:top">
+            ${pctPaceStr}
+          </td>
           <td style="padding:0.55rem 0.7rem;font-size:0.78rem;color:#6d7a95;white-space:nowrap;vertical-align:top">
             ${regPace}
           </td>
         </tr>`;
     }).join('');
 
-    // Comparison insight: current vs prior dose
+    // Comparison insight: current vs prior dose, using %BW/wk as the
+    // apples-to-apples metric. Raw lbs/wk is misleading here — later
+    // doses start from a lower bodyweight, so their absolute pace
+    // MUST decline even if the drug is working just as hard. Framing
+    // around normalized pace and the regression trend catches the
+    // real story: is the dose sustaining, accelerating, or stalling?
     let insightHTML = '';
     if (episodes.length >= 2) {
-      const cur   = episodes[episodes.length - 1];
-      const prev  = episodes[episodes.length - 2];
-      if (cur.endpointPace != null && prev.endpointPace != null) {
-        const delta = cur.endpointPace - prev.endpointPace;
-        const pct   = prev.endpointPace > 0
-          ? (delta / prev.endpointPace * 100).toFixed(0)
-          : null;
-        const direction = delta >= 0 ? 'faster' : 'slower';
-        const color     = delta >= 0 ? '#2a8703' : '#ea1100';
-        const pctStr    = pct != null ? ` (${delta >= 0 ? '+' : ''}${pct}%)` : '';
+      const cur  = episodes[episodes.length - 1];
+      const prev = episodes[episodes.length - 2];
+      if (cur.pctPace != null && prev.pctPace != null) {
+        const ratio = cur.pctPace / prev.pctPace;
+        // Regression on current dose vs current dose's endpoint tells
+        // us whether pace is accelerating (regression < endpoint) or
+        // decelerating (regression > endpoint). Include when we have
+        // enough on-dose readings for a meaningful line.
+        const regNote = (cur.regressionPace != null && cur.endpointPace != null)
+          ? (cur.regressionPace < cur.endpointPace * 0.92
+              ? ` Regression line is <strong>accelerating</strong> (${cur.regressionPace.toFixed(2)} → ${cur.endpointPace.toFixed(2)} lbs/wk) — later weeks on this dose are trending faster than earlier ones.`
+              : cur.regressionPace > cur.endpointPace * 1.08
+                ? ` Regression line is <strong>decelerating</strong> (${cur.regressionPace.toFixed(2)} → ${cur.endpointPace.toFixed(2)} lbs/wk) — dose may be losing punch.`
+                : ` Regression and endpoint agree closely (${cur.regressionPace.toFixed(2)} vs ${cur.endpointPace.toFixed(2)} lbs/wk) — steady grind, no whoosh or stall.`)
+          : '';
+
+        let verdict, color;
+        if (ratio >= 1.05)      { verdict = 'accelerating';           color = '#2a8703'; }
+        else if (ratio >= 0.90) { verdict = 'sustaining';             color = '#2a8703'; }
+        else if (ratio >= 0.70) { verdict = 'gently slowing';         color = '#995213'; }
+        else                    { verdict = 'materially slowing';     color = '#ea1100'; }
 
         insightHTML = `
           <div style="background:${color}0d;border-left:3px solid ${color};
                       padding:0.7rem 0.9rem;border-radius:0 8px 8px 0;margin-bottom:0.9rem">
             <p style="font-size:0.62rem;font-weight:800;text-transform:uppercase;
-                      letter-spacing:0.08em;color:${color};margin:0 0 0.2rem">Comparison</p>
+                      letter-spacing:0.08em;color:${color};margin:0 0 0.2rem">Verdict</p>
             <p style="font-size:0.85rem;color:#1a2340;line-height:1.5;margin:0">
-              On <strong>${cur.dose}mg</strong> you're losing
-              <strong style="color:${color}">${Math.abs(delta).toFixed(2)} lbs/wk ${direction}</strong>${pctStr}
-              than you did on <strong>${prev.dose}mg</strong>
-              (${cur.endpointPace.toFixed(2)} vs ${prev.endpointPace.toFixed(2)} lbs/wk).
+              On <strong>${cur.dose}mg</strong> you're <strong style="color:${color}">${verdict}</strong>
+              relative to <strong>${prev.dose}mg</strong>
+              (${cur.pctPace.toFixed(2)}% vs ${prev.pctPace.toFixed(2)}% of bodyweight/wk).${regNote}
+            </p>
+            <p style="font-size:0.7rem;color:#6d7a95;line-height:1.4;margin:0.4rem 0 0">
+           Raw lbs/wk shrinks as you shrink (lower TDEE = less absolute loss for the same relative work). Normalizing by bodyweight is the fair cross-dose comparator.
             </p>
           </div>`;
       }
@@ -360,6 +436,8 @@
               <th style="text-align:left;padding:0.5rem 0.7rem;font-size:0.6rem;
                          font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95">Endpoint pace</th>
               <th style="text-align:left;padding:0.5rem 0.7rem;font-size:0.6rem;
+                         font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95" title="% of bodyweight lost per week — fair comparator across doses (raw lbs/wk shrinks with mass)">% BW/wk</th>
+              <th style="text-align:left;padding:0.5rem 0.7rem;font-size:0.6rem;
                          font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95">Regression</th>
             </tr>
           </thead>
@@ -369,10 +447,13 @@
       <p style="font-size:0.65rem;color:#9aa5b4;margin:0.9rem 0 0;line-height:1.5">
         <strong>Endpoint pace</strong> = baseline minus last reading, divided by weeks
         — the headline 2-point number that matches the trajectory card.
+        <strong>% BW/wk</strong> = endpoint pace ÷ baseline weight — the fair
+        cross-dose comparator, since raw lbs/wk mechanically shrinks as you shrink
+        (lower bodyweight = lower TDEE = fewer absolute pounds for the same relative work).
         <strong>Regression</strong> = least-squares line through the baseline plus every
-        on-dose reading — resistant to noise on the endpoints. The two now answer the
-        same question with different math; when they diverge by a lot, your weight
-        was either front-loaded (big week-1 whoosh) or back-loaded (steady acceleration).
+        on-dose reading — resistant to noise on the endpoints. When endpoint and
+        regression diverge a lot, your weight was either front-loaded (big week-1
+        whoosh) or back-loaded (steady acceleration).
       </p>`;
   }
 
