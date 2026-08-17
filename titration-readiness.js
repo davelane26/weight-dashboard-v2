@@ -68,9 +68,20 @@
       .sort((a, b) => a._dt - b._dt);
   }
 
-  // Readings in the last `days` days, sorted ascending.
+  // Latest actual weigh-in date, not real "now" — every window below
+  // anchors here so this card stays frozen (not drifting) on days with
+  // no new reading, matching every other trend card in the app.
+  function latestReadingDate() {
+    const rows = Array.isArray(window.allWeightData) ? window.allWeightData : [];
+    return rows.length
+      ? new Date(Math.max(...rows.map(r => new Date(r.date).getTime())))
+      : new Date();
+  }
+
+  // Readings in the last `days` days (counting back from your latest
+  // weigh-in), sorted ascending.
   function recentReadings(days) {
-    const cutoff = new Date(Date.now() - days * TU.MS_PER_DAY);
+    const cutoff = new Date(latestReadingDate().getTime() - days * TU.MS_PER_DAY);
     return TU.readingsSince(cutoff);
   }
 
@@ -210,9 +221,12 @@
 
     // Pull any events overlapping the 28-day pace window so we can
     // tell the user "hey, this trend might be lifestyle, not pharmacology"
-    const winStart = new Date(Date.now() - PACE_WINDOW_DAYS * TU.MS_PER_DAY);
+    // — anchored to the same latest-reading boundary as window28 above,
+    // so the event range always matches the window it's annotating.
+    const winEnd   = latestReadingDate();
+    const winStart = new Date(winEnd.getTime() - PACE_WINDOW_DAYS * TU.MS_PER_DAY);
     const ctxEvents = (typeof window.getEventsInRange === 'function')
-      ? window.getEventsInRange(winStart, new Date())
+      ? window.getEventsInRange(winStart, winEnd)
       : [];
 
     // Clean trend = same regression with flagged days (plus tail)
