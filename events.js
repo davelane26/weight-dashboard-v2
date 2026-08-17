@@ -16,7 +16,13 @@
      - window.getEventsInRange(start,end) → events overlapping range
      - window.renderEvents()              → re-render the card
 
-   Renders into #events-card-body (form + chronological list).
+   No visible card anymore (removed by request) — this now runs
+   headless, purely as a data source. render()/#events-card-body
+   still exist internally and no-op safely since that element is
+   gone, but the query API (getEventsInRange, getEventTypeByKey) is
+   still live and still feeds the Titration Readiness "context flags"
+   callout and the bands on the main weight chart. Events already
+   logged keep working; there's just no UI left to log new ones.
    ─────────────────────────────────────────────────────────────────── */
 (function () {
   'use strict';
@@ -343,14 +349,3 @@
     }
   });
 })();
-
-// ── Collapse toggle (global — matches toggleMilestones/toggleBMI pattern) ──
-function toggleContextEvents() {
-  const content = document.getElementById('events-content');
-  const chevron = document.getElementById('events-chevron');
-  const toggle  = document.getElementById('events-toggle');
-  const isOpen  = toggle.getAttribute('aria-expanded') === 'true';
-  content.style.display = isOpen ? 'none' : '';
-  toggle.setAttribute('aria-expanded', !isOpen);
-  chevron.classList.toggle('closed', isOpen);
-}
