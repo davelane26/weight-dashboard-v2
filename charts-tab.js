@@ -33,7 +33,9 @@ function renderChartsTab(data) {
   const totalLost  = START_WEIGHT - latest.weight;
   const pctLost    = ((totalLost / START_WEIGHT) * 100).toFixed(1);
 
-  const fourWeeksAgo = new Date(Date.now() - 28 * 86400000);
+  // Anchored to latest reading, not real "now" — stays frozen (not
+  // drifting) on days with no new weigh-in, matching every other card.
+  const fourWeeksAgo = new Date(latest.date.getTime() - 28 * 86400000);
   const recent = sorted.filter(r => r.date >= fourWeeksAgo);
   let weeklyAvg = '—';
   if (recent.length >= 2) {

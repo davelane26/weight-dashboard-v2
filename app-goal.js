@@ -31,29 +31,32 @@ function renderGoal(latest, data = []) {
     return;
   }
 
-  // Rate scenarios for range-based projections
-  const RATES = { conservative: 2.0, baseCase: 2.4, optimistic: 2.8 };
-  
+  // Rate scenarios for range-based projections. Previously hardcoded
+  // placeholder numbers (2.0/2.4/2.8) unrelated to actual trend data —
+  // replaced with real regression rates off the shared engine so this
+  // range reflects what's actually happening, not a guess. Conservative
+  // = the slower 28-day trend, optimistic = the faster 14-day trend;
+  // anchored 'now' like every other regression card for consistency.
+  const rate14 = regressionSlopeLbsPerDay(data, 14);
+  const rate28 = regressionSlopeLbsPerDay(data, 28);
+  const optimisticRate   = rate14 != null ? Math.abs(rate14) : null;
+  const conservativeRate = rate28 != null ? Math.abs(rate28) : null;
+
   const calcEta = (rate) => {
     const weeksLeft = remaining / rate;
-    return new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
+    return new Date(Date.now() + weeksLeft * 7 * 86400000);
   };
-  
+
   const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  
-  const etaOpt  = calcEta(RATES.optimistic);
-  const etaCons = calcEta(RATES.conservative);
-  
-  // Show range: "Oct 2026 - Jan 2027"
-  const rangeStr = `${fmtShort(etaOpt)} - ${fmtShort(etaCons)}`;
-  
-  // Also calculate journey average for context
-  const startDate        = new Date(START_DATE);
-  const totalDaysElapsed = (latest.date - startDate) / 86400000;
-  const totalLostJourney = START_WEIGHT - latest.weight;
-  const weeklyRate       = totalDaysElapsed > 0 ? (totalLostJourney / totalDaysElapsed) * 7 : 0;
-  
-  setText('goal-eta', `${rangeStr} (currently ${weeklyRate.toFixed(1)} lbs/wk)`);
+
+  if (optimisticRate && conservativeRate) {
+    const etaOpt  = calcEta(optimisticRate);
+    const etaCons = calcEta(conservativeRate);
+    const rangeStr = `${fmtShort(etaOpt)} - ${fmtShort(etaCons)}`;
+    setText('goal-eta', `${rangeStr} (currently ${conservativeRate.toFixed(2)} lbs/wk, 28-day)`);
+  } else {
+    setText('goal-eta', 'Not enough recent data to project a range yet');
+  }
 }
 
 // -- Body-Fat Targets -------------------------------------------------

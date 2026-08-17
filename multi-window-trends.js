@@ -21,21 +21,20 @@ const MWT_WINDOWS = [7, 14, 21, 28];
 function _mwtWindowStats(data, days) {
   if (!data || !data.length) return null;
   const DAY = 24 * 60 * 60 * 1000;
-  // Anchor windows to NOW (not to the latest reading) so a skipped
-  // weigh-in day doesn't shift the 28-day window backwards. This also
-  // matches plateau-radar's convention exactly, so the two cards
-  // agree on their 28-day number instead of differing by ~0.05 lb/wk
-  // when the latest reading isn't literally today.
-  const nowMs    = Date.now();
-  const cutoff   = nowMs - days * DAY;
+  // Anchor windows to your LATEST reading, not real "now" — a skipped
+  // weigh-in day just leaves the window frozen instead of drifting.
+  // Rate comes from the shared regressionSlopeLbsPerDay() engine (same
+  // one Projector/Goal ETA/Slowdown Check use) instead of a separate
+  // copy of the same math, so this card can't disagree with the others.
+  const sorted   = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const latestMs = new Date(sorted[sorted.length - 1].date).getTime();
+  const cutoff   = latestMs - days * DAY;
   const priorCut = cutoff - days * DAY;
 
-  // Dedupe to one reading per calendar day (keep latest, matching
-  // plateau-radar's convention). Multi-daily weigh-ins otherwise
-  // weight heavy-scale days more than light-scale ones and inject
-  // within-day noise (morning-vs-evening drift) into the slope, which
-  // was the source of the small mismatch between MWT's 28-day rate
-  // and plateau-radar's current-pace number.
+  // Dedupe to one reading per calendar day (keep latest). Multi-daily
+  // weigh-ins otherwise weight heavy-scale days more than light-scale
+  // ones and inject within-day noise (morning-vs-evening drift) into
+  // the avg/range display.
   const dedupeByDay = rows => {
     const map = {};
     rows.forEach(r => {
@@ -56,24 +55,8 @@ function _mwtWindowStats(data, days) {
   if (!win.length) return null;
 
   const avg = arr => arr.reduce((s, r) => s + r.weight, 0) / arr.length;
-
-  // Least-squares slope of weight-vs-day-offset, converted to lbs/wk.
-  // Guards against a degenerate window with a single reading.
-  let ratePerWk = null;
-  if (win.length >= 2) {
-    const base = new Date(win[0].date).getTime();
-    const xs = win.map(r => (new Date(r.date).getTime() - base) / DAY);
-    const ys = win.map(r => r.weight);
-    const n  = xs.length;
-    const mx = xs.reduce((a, b) => a + b, 0) / n;
-    const my = ys.reduce((a, b) => a + b, 0) / n;
-    let num = 0, den = 0;
-    for (let i = 0; i < n; i++) {
-      num += (xs[i] - mx) * (ys[i] - my);
-      den += (xs[i] - mx) ** 2;
-    }
-    if (den > 0) ratePerWk = (num / den) * 7;
-  }
+  const slopePerDay = regressionSlopeLbsPerDay(win, days, { anchor: 'latest' });
+  const ratePerWk   = slopePerDay != null ? slopePerDay * 7 : null;
 
   return {
     days,

@@ -65,20 +65,22 @@ function movingAvg(arr, window = 7) {
 // BMI timeline, goal ETA — everything. Uses a calendar-day window so all
 // consumers compute identically regardless of how dense the readings are.
 function regressionSlopeLbsPerDay(data, calendarDays = 28, opts = {}) {
-  // anchor: 'now' (default) uses Date.now() as the window's right edge
-  //         'latest'         uses the last reading in the passed-in
-  //                          data as the right edge (needed by
-  //                          computeWeightSlowdown, which passes
-  //                          pre-cutoff readings to get the prior
-  //                          window's slope with the same math).
-  const anchor = opts.anchor || 'now';
+  // anchor: 'latest' (default) uses the last reading in the passed-in
+  //         data as the window's right edge, so every card stays frozen
+  //         — not silently drifting — on days with no new weigh-in.
+  //         'now' uses Date.now() instead; tried briefly (Aug 14) to
+  //         make every card agree with each other, but the tradeoff
+  //         (numbers changing daily with zero new data) was worse than
+  //         the problem it solved. Reverted — 'latest' is now the only
+  //         anchor every caller in this app actually uses.
+  const anchor = opts.anchor || 'latest';
   const byDay  = {};
   data.forEach(r => { byDay[r.date.toDateString()] = r; });
   const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
   if (!daily.length) return null;
-  const anchorMs = anchor === 'latest'
-    ? daily[daily.length - 1].date.getTime()
-    : Date.now();
+  const anchorMs = anchor === 'now'
+    ? Date.now()
+    : daily[daily.length - 1].date.getTime();
   const cutoff = anchorMs - calendarDays * 86_400_000;
   const win    = daily.filter(r => r.date.getTime() >= cutoff);
   if (win.length < 3) return null;
@@ -107,22 +109,21 @@ function computeWeightSlowdown(data, windowDays = 28) {
   if (!data || data.length < 6) return null;
   const sorted = [...data].sort((a, b) => a.date - b.date);
 
-  // Explicit adjacent windows anchored to NOW so the LAST-4-WKS rate
-  // matches every other 'current pace' number on the dashboard.
-  //   current = readings in [now - 28d, now]
-  //   prior   = readings in [now - 56d, now - 28d)
-  const nowMs      = Date.now();
-  const currStart  = nowMs - windowDays * 86_400_000;
-  const priorStart = nowMs - 2 * windowDays * 86_400_000;
+  // Adjacent windows anchored to your LATEST reading, not real "now" —
+  // so this stays frozen (not drifting) on days with no new weigh-in,
+  // same as every other card.
+  //   current = readings in [latest - 28d, latest]
+  //   prior   = readings in [latest - 56d, latest - 28d)
+  const latestMs   = sorted[sorted.length - 1].date.getTime();
+  const currStart  = latestMs - windowDays * 86_400_000;
+  const priorStart = latestMs - 2 * windowDays * 86_400_000;
   const currData   = sorted.filter(r => r.date.getTime() >= currStart);
   const priorData  = sorted.filter(r => {
     const t = r.date.getTime();
     return t >= priorStart && t < currStart;
   });
 
-  // Prior window must be anchored to 'latest' since anchor='now' would
-  // filter out everything (its readings all pre-date now-28d).
-  const currentSlope = regressionSlopeLbsPerDay(currData,  windowDays, { anchor: 'now' });
+  const currentSlope = regressionSlopeLbsPerDay(currData,  windowDays, { anchor: 'latest' });
   const priorSlope   = regressionSlopeLbsPerDay(priorData, windowDays, { anchor: 'latest' });
   if (currentSlope == null || priorSlope == null) return null;
 
