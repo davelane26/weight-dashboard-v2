@@ -95,7 +95,13 @@
       : new Date(Date.now() - 70 * TU.MS_PER_DAY);
     if (!doseStart) return { anchors: [], doseStart: null, currentDose };
 
-    const now = new Date();
+    // Anchor the most-recent pace sample to your latest weigh-in, not
+    // real "now" — so this radar stays frozen (not drifting) on days
+    // with no new reading, same convention as every other trend card.
+    const weightRows = Array.isArray(window.allWeightData) ? window.allWeightData : [];
+    const now = weightRows.length
+      ? new Date(Math.max(...weightRows.map(r => new Date(r.date).getTime())))
+      : new Date();
     // Earliest anchor whose 28-day window sits ENTIRELY inside the dose.
     const earliestAnchorMs = doseStart.getTime() + PACE_WINDOW_DAYS * TU.MS_PER_DAY;
 
