@@ -36,15 +36,17 @@ function renderGoal(latest, data = []) {
   // replaced with real regression rates off the shared engine so this
   // range reflects what's actually happening, not a guess. Conservative
   // = the slower 28-day trend, optimistic = the faster 14-day trend;
-  // anchored 'now' like every other regression card for consistency.
+  // anchored to your latest reading (the engine's default) so this
+  // freezes cleanly on days with no new weigh-in, like every other card.
+  // regressionSlopeLbsPerDay returns lbs/DAY — must convert to lbs/wk.
   const rate14 = regressionSlopeLbsPerDay(data, 14);
   const rate28 = regressionSlopeLbsPerDay(data, 28);
-  const optimisticRate   = rate14 != null ? Math.abs(rate14) : null;
-  const conservativeRate = rate28 != null ? Math.abs(rate28) : null;
+  const optimisticRate   = rate14 != null ? Math.abs(rate14) * 7 : null;
+  const conservativeRate = rate28 != null ? Math.abs(rate28) * 7 : null;
 
   const calcEta = (rate) => {
     const weeksLeft = remaining / rate;
-    return new Date(Date.now() + weeksLeft * 7 * 86400000);
+    return new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
   };
 
   const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
