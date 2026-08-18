@@ -66,6 +66,15 @@ function renderGoal(latest, data = []) {
 // mass stays constant: targetWeight = leanMass / (1 - target/100).
 // Lean mass is derived from the latest DEXA-calibrated body fat, so the
 // whole table stays anchored to the scan, not the raw BIA reading.
+//
+// Calibration method: prefer the RATIO METHOD (propagate the DEXA
+// anchor forward via the tracked fat-loss ratio) to match the Body Fat
+// KPI card. Falls back to the constant-offset method (raw scale +
+// fatOffset) when the anchor scan lacks a scan weight and the ratio
+// method can't run. Justified by David's 5x/week resistance training,
+// which makes the "lean mass held constant" assumption defensible —
+// so the slightly more optimistic ratio-method lean estimate is fair
+// game rather than double-optimism.
 function renderBodyFatTargets(latest) {
   const host = el('bf-targets');
   if (!host) return;
@@ -74,10 +83,14 @@ function renderBodyFatTargets(latest) {
     return;
   }
 
-  const fatOffset = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
-  const calFat    = latest.bodyFat + fatOffset;              // DEXA-calibrated %
-  const lean      = latest.weight * (1 - calFat / 100);      // lbs of lean, held constant
-  const curW      = latest.weight;
+  const fatOffset  = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
+  const ratioFat   = (typeof DexaCal !== 'undefined' && DexaCal.getRatioMethodFat)
+    ? DexaCal.getRatioMethodFat(latest.weight) : null;
+  const offsetFat  = latest.bodyFat + fatOffset;
+  const calFat     = ratioFat != null ? ratioFat : offsetFat;  // primary: ratio method
+  const lean       = latest.weight * (1 - calFat / 100);       // lbs of lean, held constant
+  const curW       = latest.weight;
+  const methodTag  = ratioFat != null ? 'DEXA ratio method' : 'DEXA offset method';
 
   const TARGETS = [25, 20, 15];
   const rows = TARGETS.map(t => {
@@ -99,6 +112,7 @@ function renderBodyFatTargets(latest) {
     <p style="font-size:0.7rem;color:#6d7a95;margin-bottom:0.5rem">
       Now: <strong style="color:#f1f5f9">${fmt(calFat)}% body fat</strong> at ${fmt(curW)} lbs
       &middot; lean mass held at <strong style="color:#f1f5f9">~${fmt(lean)} lbs</strong>
+      &middot; <span style="opacity:0.75">${methodTag}</span>
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
       <thead><tr style="text-align:left;color:#64748b;font-size:0.62rem;text-transform:uppercase">

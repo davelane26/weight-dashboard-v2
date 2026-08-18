@@ -26,22 +26,53 @@ function renderKPIs(latest, prev) {
     }
   }
 
-  // Same DEXA calibration offsets the Charts tab's Body Composition section
-  // uses (see dexa.js) — applied here too so the Weight tab's headline
-  // Body Fat / Muscle KPIs don't disagree with the Charts tab on the same
-  // reading. Fat compares against the report's whole-body %Fat; muscle
-  // compares against appendicular lean mass, not the report's raw
-  // whole-body Lean Mass (a broader, non-comparable category).
+  // Body-fat display: prefer the RATIO METHOD (propagate from DEXA anchor
+  // via the tracked fat-loss ratio) when we have a DEXA scan with a
+  // recorded scan weight. It's more stable day-to-day (no BIA hydration
+  // noise) and anchors to the DEXA's absolute fat mass. Falls back to
+  // the constant-offset method (raw scale + fatOffset) when the ratio
+  // method can't run — e.g. no scan logged, or the stored scan lacks a
+  // weight anchor. The constant-offset value is ALSO surfaced in a small
+  // "sanity check" line below so we can spot method drift (a >2pp gap
+  // between the two is the "time for another DEXA" signal).
   const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
   const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
-  const latestFat    = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
-  const prevFat      = prev?.bodyFat  != null ? prev.bodyFat  + fatOffset : null;
+
+  const ratioFatLatest = (typeof DexaCal !== 'undefined' && DexaCal.getRatioMethodFat)
+    ? DexaCal.getRatioMethodFat(latest.weight) : null;
+  const ratioFatPrev   = (typeof DexaCal !== 'undefined' && DexaCal.getRatioMethodFat && prev?.weight)
+    ? DexaCal.getRatioMethodFat(prev.weight) : null;
+
+  // Constant-offset numbers — always computed so we can show them as the
+  // sanity check regardless of which method is primary.
+  const offsetFatLatest = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
+  const offsetFatPrev   = prev?.bodyFat  != null ? prev.bodyFat  + fatOffset : null;
+
+  // Primary = ratio when available, else fall back to constant-offset.
+  const latestFat = ratioFatLatest != null ? ratioFatLatest : offsetFatLatest;
+  const prevFat   = ratioFatPrev   != null ? ratioFatPrev   : offsetFatPrev;
+
   const latestMuscle = latest.muscle  != null ? latest.muscle + muscleOffset : null;
   const prevMuscle   = prev?.muscle   != null ? prev.muscle   + muscleOffset : null;
 
   latestFat != null ? countUp('kpi-fat', latestFat, 1, '%') : setText('kpi-fat', '—');
   const fd = prevFat != null && latestFat != null ? latestFat - prevFat : null;
   setHTML('kpi-fat-sub', fd != null ? delta(fd) + '% from last' : '');
+
+  // Sanity-check line: only show it when the ratio method is the primary
+  // (otherwise the sanity number IS the primary and there's nothing to
+  // compare). Flags divergence >2pp as a "schedule another DEXA" hint.
+  const sanityEl = document.getElementById('kpi-fat-sanity');
+  if (sanityEl) {
+    if (ratioFatLatest != null && offsetFatLatest != null) {
+      const gap = Math.abs(ratioFatLatest - offsetFatLatest);
+      const flag = gap > 2 ? ' - drift >2pp, recalibrate' : '';
+      sanityEl.textContent = 'sanity: ' + offsetFatLatest.toFixed(1) + '% (offset method)' + flag;
+      sanityEl.style.display = '';
+    } else {
+      sanityEl.style.display = 'none';
+    }
+  }
 
   const fatLbs  = latestFat != null && latest.weight ? +(latest.weight * latestFat / 100).toFixed(1) : null;
   const pFatLbs = prevFat   != null && prev?.weight  ? +(prev.weight  * prevFat   / 100).toFixed(1) : null;

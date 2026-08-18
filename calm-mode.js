@@ -401,6 +401,7 @@
     s.id = 'calm-mode-styles';
     s.textContent = [
       'body.calm-mode #kpi-fat-sub,',
+      'body.calm-mode #kpi-fat-sanity,',
       'body.calm-mode #kpi-fat-lbs-sub,',
       'body.calm-mode #kpi-muscle-sub,',
       'body.calm-mode #kpi-muscle-lbs-sub,',

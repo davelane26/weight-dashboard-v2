@@ -18,11 +18,18 @@
   'use strict';
   const STORAGE_KEY = 'wt_v2_dexa_v1';
 
+  // Fat-loss ratio used by the RATIO METHOD (see getRatioMethodFat below).
+  // Empirically ~80% from Mar→Aug scale trend and ~83% when the endpoints
+  // are DEXA-calibrated first. 0.82 is the honest middle. Only a second
+  // DEXA can pin this down for real — until then it's a working number.
+  const FAT_LOSS_RATIO = 0.82;
+
   // Shipped default: David's July 27, 2026 DEXA scan at HPCRL (Colorado
   // State). Fat % (31.5) and its offset (vs the nearest scale reading,
   // July 25 at 28.81%) are straight off the report. Lean % (31.4) is the
   // appendicular-lean-mass figure — arms+legs lean mass only — kept here
-  // purely as a secondary reference marker.
+  // purely as a secondary reference marker. Scan weight is 252.4 lb,
+  // which the ratio method needs as its anchor point.
   //
   // musclePct/muscleOffset instead target ESTIMATED TOTAL SKELETAL MUSCLE
   // (36.8% = 92.8 lb ÷ 252.4 lb scan weight), derived from the DXA
@@ -36,7 +43,7 @@
   // precedence permanently once saved, and an explicit "Remove scan" is
   // respected rather than reverting to this default.
   const SHIPPED_DEFAULT = [{
-    date: '2026-07-27', fatPct: 31.5, leanPct: 31.4, musclePct: 36.8, weight: null,
+    date: '2026-07-27', fatPct: 31.5, leanPct: 31.4, musclePct: 36.8, weight: 252.4,
     nearestScaleDate: '2026-07-25', nearestScaleFat: 28.81, fatOffset: 2.69,
     nearestScaleMuscle: 33.21, muscleOffset: 3.59,
   }];
@@ -49,7 +56,19 @@
       // Remove) must be respected as-is, not overridden.
       if (raw === null) return SHIPPED_DEFAULT;
       const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
+      if (!Array.isArray(arr)) return [];
+      // Migration: earlier shipped defaults stored the July 27 anchor
+      // with weight:null, which disables the ratio method. If we find
+      // that exact shape, backfill the known scan weight (252.4 lb) so
+      // existing users get the ratio method without having to re-enter.
+      return arr.map(scan => {
+        if (scan && scan.date === '2026-07-27'
+            && (scan.weight == null || scan.weight === 0)
+            && Math.abs((scan.fatPct || 0) - 31.5) < 0.01) {
+          return Object.assign({}, scan, { weight: 252.4 });
+        }
+        return scan;
+      });
     } catch (e) { return SHIPPED_DEFAULT; }
   }
 
@@ -181,6 +200,29 @@ window.toggleDexaForm = toggleDexaForm;
   }
   window.renderDexaPanel = renderDexaPanel;
 
+  // RATIO METHOD: propagate body-fat % forward from the DEXA anchor
+  // using the known fat-loss ratio. Answers "if I've been losing at
+  // FAT_LOSS_RATIO fat quality, what MUST my BF be at today's weight?"
+  //
+  // Math:
+  //   anchorFatLbs = scan.weight * scan.fatPct / 100
+  //   weightDelta  = scan.weight - currentWeight   (positive when losing)
+  //   currentFatLbs = anchorFatLbs - weightDelta * FAT_LOSS_RATIO
+  //   currentBF%   = currentFatLbs / currentWeight * 100
+  //
+  // Returns null if the anchor scan has no weight, or currentWeight is
+  // missing/invalid. Callers should fall back to the constant-offset
+  // method in that case.
+  function getRatioMethodFat(currentWeight) {
+    const scan = latestScan();
+    if (!scan || !scan.weight || !currentWeight || currentWeight <= 0) return null;
+    const anchorFatLbs  = scan.weight * scan.fatPct / 100;
+    const weightDelta   = scan.weight - currentWeight;
+    const currentFatLbs = anchorFatLbs - weightDelta * FAT_LOSS_RATIO;
+    if (currentFatLbs < 0) return null;   // pathological — bail
+    return currentFatLbs / currentWeight * 100;
+  }
+
   // Public API consumed by rate-analysis.js / app-kpis.js
   window.DexaCal = {
     getFatOffset: function () {
@@ -191,6 +233,8 @@ window.toggleDexaForm = toggleDexaForm;
       const scan = latestScan();
       return scan ? (scan.muscleOffset || 0) : 0;
     },
+    getRatioMethodFat: getRatioMethodFat,
+    getFatLossRatio: function () { return FAT_LOSS_RATIO; },
     getScan: latestScan,
   };
 

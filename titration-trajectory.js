@@ -108,13 +108,37 @@
     return TU.paceFromBaseline(getTitrationWeight(), TITRATION_DATE, latestReading);
   }
 
-  // Which scenario bucket does a rate fall in?
+  // Which scenario bucket does a rate fall in? Thresholds are derived
+  // from SCENARIOS rates so this stays honest when the projection rates
+  // change. Previously used hardcoded magic numbers (0.3/1.25/2.15)
+  // that matched an OLDER version of SCENARIOS and silently mislabeled
+  // paces once the projection rates were rebased.
+  //
+  // Rule: report the highest scenario the rate has actually met or
+  // exceeded. You're only called "Base Case pace" if you're at Base
+  // Case rate or better — no participation trophies for being closer
+  // to one scenario than another.
   function paceLabel(rate) {
     if (rate == null) return { text: 'No data yet — check back after 7+ days on 7.5mg', color: '#6d7a95' };
-    if (rate < 0.3)   return { text: `${rate.toFixed(2)} lbs/wk — Below conservative`, color: '#ea1100' };
-    if (rate < 1.25)  return { text: `${rate.toFixed(2)} lbs/wk — Conservative pace`, color: '#995213' };
-    if (rate < 2.15)  return { text: `${rate.toFixed(2)} lbs/wk — Moderate pace`,     color: '#0053e2' };
-    return               { text: `${rate.toFixed(2)} lbs/wk — Optimistic pace`,        color: '#2a8703' };
+
+    const sorted = [...SCENARIOS].sort((a, b) => a.rate - b.rate);
+    const cons   = sorted[0];
+
+    // Below half the conservative rate → red-flag territory
+    if (rate < cons.rate / 2) {
+      return { text: `${rate.toFixed(2)} lbs/wk — Below conservative`, color: '#ea1100' };
+    }
+    // Between half-conservative and conservative → not yet at floor
+    if (rate < cons.rate) {
+      return { text: `${rate.toFixed(2)} lbs/wk — Below conservative`, color: '#995213' };
+    }
+
+    // Report the highest scenario met or exceeded
+    let bucket = sorted[0];
+    for (const s of sorted) {
+      if (rate >= s.rate) bucket = s;
+    }
+    return { text: `${rate.toFixed(2)} lbs/wk — ${bucket.label} pace`, color: bucket.color };
   }
 
   // ── Chart ──────────────────────────────────────────────────────────
