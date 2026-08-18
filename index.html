@@ -55,7 +55,7 @@
 <script src="app-tabs.js?v=3"     defer></script>
 <script src="app-kpis.js?v=2"     defer></script>
 <script src="app-charts.js?v=1"   defer></script>
-<script src="multi-window-trends.js?v=4" defer></script>
+<script src="multi-window-trends.js?v=5" defer></script>
 <script src="app-goal.js?v=5"     defer></script>
 <script src="app-insights.js?v=1" defer></script>
 <script src="app.js?v=102"        defer></script>
@@ -337,16 +337,26 @@
 
     <section class="fade-in" aria-label="Multi-window trends">
       <h2 class="card-title" style="margin-bottom:0.75rem">Rolling Trend Windows</h2>
-      <p style="font-size:0.75rem;color:#6d7a95;margin:-0.4rem 0 0.6rem 0">
-        Shorter windows faster than longer = accelerating. Shorter slower than longer = plateau warning.
-        Rate is a linear regression fit inside each window; delta compares window-avg to the immediately-prior same-length window.
+      <p style="font-size:0.75rem;color:var(--text-sub);margin:-0.4rem 0 0.6rem 0">
+        <strong>Short row</strong> (weeks): is the last month accelerating, plateauing, or noise?
+        <strong>Long row</strong> (months): is the recent streak the real trend, or a mirage against the longer arc?
+        Cross-row: short faster than long = real acceleration; short slower than long = recent stall.
       </p>
+      <p style="font-size:0.7rem;font-weight:600;color:var(--text-sub);margin:0.4rem 0 0.4rem 0;text-transform:uppercase;letter-spacing:0.06em">Short horizon &middot; week-scale</p>
       <div class="kpi-grid">
-        <div class="kpi kpi--blue"   id="mwt-card-7"  data-days="7"><p class="kpi-label">&#128200; 7-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--cyan"   id="mwt-card-14" data-days="14"><p class="kpi-label">&#128200; 14-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--purple" id="mwt-card-21" data-days="21"><p class="kpi-label">&#128200; 21-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--green"  id="mwt-card-28" data-days="28"><p class="kpi-label">&#128200; 28-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">—</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--blue"   id="mwt-card-7"  data-days="7"><p class="kpi-label">&#128200; 7-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--cyan"   id="mwt-card-14" data-days="14"><p class="kpi-label">&#128200; 14-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--purple" id="mwt-card-21" data-days="21"><p class="kpi-label">&#128200; 21-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--green"  id="mwt-card-28" data-days="28"><p class="kpi-label">&#128200; 28-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
       </div>
+      <p style="font-size:0.7rem;font-weight:600;color:var(--text-sub);margin:0.9rem 0 0.4rem 0;text-transform:uppercase;letter-spacing:0.06em">Long horizon &middot; month-scale &amp; lifetime</p>
+      <div class="kpi-grid">
+        <div class="kpi kpi--blue"   id="mwt-card-30"       data-days="30"><p class="kpi-label">&#128200; 30-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--cyan"   id="mwt-card-60"       data-days="60"><p class="kpi-label">&#128200; 60-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--purple" id="mwt-card-90"       data-days="90"><p class="kpi-label">&#128200; 90-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--green"  id="mwt-card-lifetime" data-days="lifetime"><p class="kpi-label">&#128200; Lifetime Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+      </div>
+      <p id="mwt-divergence-hint" style="display:none;font-size:0.78rem;color:var(--text-sub);margin:0.7rem 0 0 0;padding:0.55rem 0.75rem;background:var(--stat-box-bg);border-left:3px solid var(--blue-100);border-radius:6px;line-height:1.45"></p>
     </section>
 
     <section class="card fade-in" aria-label="Weight milestones">
