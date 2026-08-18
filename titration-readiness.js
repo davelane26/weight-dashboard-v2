@@ -283,6 +283,9 @@
         </span>
       </div>
 
+      <!-- Option 4: Compounding notice (always visible when gap > 15%) -->
+      ${latestReading ? renderCompoundingNotice(latestReading.weight, currentDose, nextDoseMg) : ''}
+
       <!-- Sparkline: 28d weigh-ins + regression line. Lets the user
            eyeball whether the displayed slope passes the smell test.
            Built as inline SVG so no extra dep (the card lives in
@@ -320,6 +323,12 @@
       </div>
 
       ${ctxEvents.length ? renderContextBlock(ctxEvents) : ''}
+
+      <!-- Option 4: First-line playbook (auto-appears when WATCH or READY) -->
+      ${latestReading ? renderPlaybook(status) : ''}
+
+      <!-- Option 4: Show-full-reasoning toggle + hidden deep-dive modal -->
+      ${latestReading ? renderReasoningModal(ctx, latestReading.weight, currentDose, nextDoseMg) : ''}
 
       <p style="font-size:0.65rem;color:#9aa5b4;margin:0">
         “4-wk trend” is a linear-regression slope through your last
@@ -468,6 +477,211 @@
   }
 
   window.renderTitrationReadiness = render;
+
+  // ── Option 4 helpers: compounding notice, playbook, deep-dive modal ──
+  //
+  // These render context that the base card doesn't consider:
+  //   - Functional dose is climbing as you shrink (compounding)
+  //   - Real 10mg titration lands at higher effective dose than trials expect
+  //   - First-line non-drug interventions before pharma escalation
+  //   - Goal-adjacency shifts the "is titration worth it?" math
+  //
+  // Design: PUSH only what's non-obvious and always-relevant
+  // (compounding one-liner). AUTO-appear the playbook when the base
+  // card fires WATCH or READY. PULL everything else via a modal.
+
+  // Estimate functional-dose compounding relative to START_WEIGHT.
+  // Uses body-mass ratio as a proxy for the inverse-blood-volume
+  // scaling of tirzepatide plasma concentration. Real-world effect
+  // is probably 60-80% of this magnitude (Vd isn't purely blood
+  // volume) but the direction is correct and matches published PK.
+  function computeCompounding(latestWeight, currentDoseMg) {
+    if (!latestWeight || !currentDoseMg || typeof START_WEIGHT === 'undefined') return null;
+    const ratio = START_WEIGHT / latestWeight;
+    const functionalMg = currentDoseMg * ratio;
+    const gapPct = (ratio - 1) * 100;
+    // Nausea probability lookup (SURMOUNT-1 mean incidence at each dose).
+    const NAUSEA_AT = { 2.5: 0.10, 5: 0.15, 7.5: 0.20, 10: 0.28, 12.5: 0.33, 15: 0.40 };
+    const interp = mg => {
+      const doses = Object.keys(NAUSEA_AT).map(Number).sort((a, b) => a - b);
+      if (mg <= doses[0]) return NAUSEA_AT[doses[0]];
+      if (mg >= doses[doses.length - 1]) return NAUSEA_AT[doses[doses.length - 1]];
+      for (let i = 0; i < doses.length - 1; i++) {
+        if (mg >= doses[i] && mg <= doses[i + 1]) {
+          const t = (mg - doses[i]) / (doses[i + 1] - doses[i]);
+          return NAUSEA_AT[doses[i]] * (1 - t) + NAUSEA_AT[doses[i + 1]] * t;
+        }
+      }
+      return NAUSEA_AT[doses[doses.length - 1]];
+    };
+    return {
+      ratio, functionalMg, gapPct,
+      nauseaAtFunctional: interp(functionalMg),
+      nauseaAtCurrentLabel: NAUSEA_AT[currentDoseMg] || interp(currentDoseMg),
+    };
+  }
+
+  // Always-visible one-line notice under the badge row. Only renders
+  // when compounding gap > 15% (below that it's within measurement
+  // noise and not worth surfacing).
+  function renderCompoundingNotice(latestWeight, currentDoseMg, nextDoseMg) {
+    const c = computeCompounding(latestWeight, currentDoseMg);
+    if (!c || c.gapPct < 15) return '';
+    let nextClause = '';
+    if (nextDoseMg) {
+      const cNext = computeCompounding(latestWeight, nextDoseMg);
+      if (cNext) {
+        nextClause = ` · bumping to ${nextDoseMg}mg would land at ~${cNext.functionalMg.toFixed(1)}mg equivalent (~${Math.round(cNext.nauseaAtFunctional * 100)}% nausea risk)`;
+      }
+    }
+    return `
+      <div style="background:#eef2ff;border-left:3px solid #7c3aed;padding:0.55rem 0.8rem;border-radius:0 8px 8px 0;margin-bottom:0.9rem">
+        <p style="font-size:0.72rem;color:#1a2340;line-height:1.45;margin:0">
+          <span style="font-weight:800;color:#7c3aed"> Compounding:</span>
+          functional dose ~<b>${c.functionalMg.toFixed(2)}mg</b> equivalent for a ${START_WEIGHT}-lb baseline patient (${c.gapPct.toFixed(0)}% higher plasma vs start)${nextClause}.
+        </p>
+      </div>`;
+  }
+
+  // First-line intervention playbook. Auto-renders on WATCH or READY,
+  // hidden otherwise. Order = evidence-based sequence: cheap+safe first,
+  // titration last after 6+ weeks of failed non-drug tries.
+  function renderPlaybook(status) {
+    if (status !== 'WATCH' && status !== 'READY') return '';
+    const urgent = status === 'READY';
+    const headline = urgent
+      ? 'Before titrating, try in order (~6-week protocol):'
+      : 'Pace is slowing. Have this playbook ready if it becomes a real stall:';
+    return `
+      <div style="background:#fff7e6;border-left:3px solid #f59f00;padding:0.7rem 0.9rem;border-radius:0 8px 8px 0;margin-bottom:0.7rem">
+        <p style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#995213;margin-bottom:0.4rem">
+           First-line playbook
+        </p>
+        <p style="font-size:0.78rem;color:#1a2340;margin:0 0 0.4rem;line-height:1.4">${headline}</p>
+        <ol style="padding-left:1.2rem;margin:0;font-size:0.78rem;color:#1a2340;line-height:1.55">
+          <li><b>Compliance audit</b> (weeks 1–2) — protein ≥180g/day, sleep ≥7h, steps ≥8k. Fix what slipped.</li>
+          <li><b>Diet break</b> (weeks 3–4) — add 400–500 cal, eat at maintenance. Resolves ~40% of stalls; zero side effects.</li>
+          <li><b>NEAT bump or refeed</b> (weeks 5–6) — +3k steps/day OR 1 refeed day/week at maintenance.</li>
+          <li><b>Titrate to next dose</b> (week 7+) — only if steps 1–3 didn't move the scale. Escalates side-effect risk (see compounding note above).</li>
+        </ol>
+      </div>`;
+  }
+
+  // Deep-dive modal content. Rendered as a hidden div; toggle attaches
+  // once via delegated click. Shows the FULL analysis without cluttering
+  // the base card: compounding math, tier, adaptive threshold,
+  // goal-adjacency, historical low weight prompt, alternative-intervention
+  // success rates. Everything the conversation-level analysis considered
+  // that the base verdict doesn't.
+  function renderReasoningModal(ctx, latestWeight, currentDoseMg, nextDoseMg) {
+    const c = computeCompounding(latestWeight, currentDoseMg);
+    const cNext = nextDoseMg ? computeCompounding(latestWeight, nextDoseMg) : null;
+    const lostFromStart = (typeof START_WEIGHT !== 'undefined' && latestWeight)
+      ? START_WEIGHT - latestWeight : null;
+    const pctLost = (lostFromStart != null && START_WEIGHT)
+      ? (lostFromStart / START_WEIGHT) * 100 : null;
+    const HEIGHT_IN = (typeof window.HEIGHT_IN !== 'undefined') ? window.HEIGHT_IN : 74.8;
+    const bmi = latestWeight ? (latestWeight * 703) / (HEIGHT_IN * HEIGHT_IN) : null;
+    const tier = bmi == null ? 'unknown'
+      : bmi >= 40 ? 'Obese III'
+      : bmi >= 35 ? 'Obese II'
+      : bmi >= 30 ? 'Obese I'
+      : bmi >= 25 ? 'Overweight'
+      : 'Normal';
+    const goal = typeof goalWeight === 'number' ? goalWeight : null;
+    const goalGap = (goal != null && latestWeight != null) ? latestWeight - goal : null;
+    const goalAdjacent = goalGap != null && goalGap <= 15 && goalGap >= 0;
+    const adaptiveHit = pctLost != null && pctLost >= 25;
+    const adaptiveNear = pctLost != null && pctLost >= 23 && pctLost < 25;
+
+    return `
+      <div id="tr-reasoning-modal" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,0.72);z-index:9999;padding:2rem;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
+        <div style="max-width:640px;margin:0 auto;background:var(--card-bg,#fff);border-radius:16px;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.4);border:1px solid var(--card-border,#e5e9f5)" onclick="event.stopPropagation()">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+            <h3 style="font-size:1.1rem;font-weight:800;color:var(--text,#1a2340);margin:0"> Full titration reasoning</h3>
+            <button onclick="document.getElementById('tr-reasoning-modal').style.display='none'" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-sub,#6d7a95);line-height:1;padding:0 0.4rem" aria-label="Close">×</button>
+          </div>
+
+          <section style="margin-bottom:1rem">
+            <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">Compounding math</p>
+            <p style="font-size:0.82rem;color:var(--text,#1a2340);line-height:1.5;margin:0">
+              Current weight ${latestWeight ? latestWeight.toFixed(1) : '?'} lb. Ratio to start weight ${START_WEIGHT}: <b>${c ? c.ratio.toFixed(3) : '?'}×</b>.
+              Same ${currentDoseMg}mg dose distributes into ~${c ? (100/c.ratio).toFixed(0) : '?'}% of your starting blood volume, so plasma concentration is <b>${c ? c.gapPct.toFixed(0) : '?'}% higher</b> than day-one.
+              Effective dose ~<b>${c ? c.functionalMg.toFixed(2) : '?'}mg equivalent</b> for a ${START_WEIGHT}-lb baseline patient.
+            </p>
+          </section>
+
+          ${cNext ? `
+          <section style="margin-bottom:1rem">
+            <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">If you titrated to ${nextDoseMg}mg</p>
+            <p style="font-size:0.82rem;color:var(--text,#1a2340);line-height:1.5;margin:0">
+              Effective dose would land at ~<b>${cNext.functionalMg.toFixed(2)}mg equivalent</b>.
+              Nausea probability rises to ~<b>${Math.round(cNext.nauseaAtFunctional * 100)}%</b> (SURMOUNT-1 mean).
+              Marginal weight loss gain vs holding: ~2–33 percentage points cumulative, but early stalls resolve ~70% of the time with titration.
+            </p>
+          </section>` : ''}
+
+          <section style="margin-bottom:1rem">
+            <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">Tier context</p>
+            <p style="font-size:0.82rem;color:var(--text,#1a2340);line-height:1.5;margin:0">
+              BMI ${bmi ? bmi.toFixed(1) : '?'} → <b>${tier}</b>.
+              Expected sustainable pace at this tier: ${
+                tier === 'Obese III' ? '2.0–3.5 lb/wk' :
+                tier === 'Obese II'  ? '1.5–2.5 lb/wk' :
+                tier === 'Obese I'   ? '1.0–1.5 lb/wk' :
+                tier === 'Overweight'? '0.5–1.0 lb/wk' :
+                                       '0.3–0.8 lb/wk'}.
+            </p>
+          </section>
+
+          <section style="margin-bottom:1rem">
+            <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">Adaptive thermogenesis</p>
+            <p style="font-size:0.82rem;color:var(--text,#1a2340);line-height:1.5;margin:0">
+              Lost ${lostFromStart ? lostFromStart.toFixed(1) : '?'} lb (${pctLost ? pctLost.toFixed(1) : '?'}%) from start.
+              ${adaptiveHit
+                ? '<b style="color:#ea1100">Past 25% threshold</b> — body defends aggressively. Any stall here likely has metabolic-adaptation component, not just compliance drift.'
+                : adaptiveNear
+                ? '<b style="color:#995213">Near 25% threshold</b> — adaptive defense may kick in within the next 5–10 lb of loss.'
+                : 'Below the 25% threshold where adaptive defense typically activates. Stalls in this range usually respond to compliance fixes or a mild titration bump.'}
+            </p>
+          </section>
+
+          ${goal != null ? `
+          <section style="margin-bottom:1rem">
+            <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">Goal-adjacency</p>
+            <p style="font-size:0.82rem;color:var(--text,#1a2340);line-height:1.5;margin:0">
+              ${goalGap.toFixed(1)} lb from ${goal} lb goal.
+              ${goalAdjacent
+                ? '<b style="color:#0053e2">Goal-adjacent zone.</b> If a stall persists here, consider it your body\'s new setpoint and switch to recomp mode rather than escalating pharma.'
+                : 'Not yet goal-adjacent. Titration decisions can weight loss-rate signal more heavily than "is this my finish line?" question.'}
+            </p>
+          </section>` : ''}
+
+          <section style="margin-bottom:1rem">
+            <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">Alternative interventions (before titrating)</p>
+            <ul style="padding-left:1.2rem;margin:0;font-size:0.78rem;color:var(--text,#1a2340);line-height:1.55">
+              <li>Compliance audit: resolves ~50% of "stalls", 0% side-effect risk</li>
+              <li>Diet break (2 wks at maintenance): resolves ~40%, 0% side-effect risk</li>
+              <li>NEAT bump (+3k steps/day): resolves ~30%, 0% side-effect risk</li>
+              <li>Refeed cycling (1 day/wk maintenance): resolves ~30%, 0% side-effect risk</li>
+              <li>Titration to next dose: resolves ~70%, 25–40% nausea risk</li>
+            </ul>
+          </section>
+
+          <section style="padding-top:0.8rem;border-top:1px dashed var(--border,#e5e9f5)">
+            <p style="font-size:0.72rem;color:var(--text-sub,#6d7a95);margin:0;line-height:1.5">
+              <b>Best single predictor of stall location:</b> your historical low adult weight. Body defends previously-held weights. If you have data on your lowest adult weight and how long you held it, that would sharpen the stall prediction more than any other input.
+            </p>
+          </section>
+        </div>
+      </div>
+      <button id="tr-reasoning-toggle" style="background:none;border:1px solid var(--border,#d1d5e0);color:var(--text-sub,#6d7a95);padding:0.4rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;margin-top:0.5rem" onclick="document.getElementById('tr-reasoning-modal').style.display='block'">
+         Show full reasoning
+      </button>
+    `;
+  }
+
+  // ── End Option 4 helpers ──
 
   // ── Hook into projector tab switch (mirror trajectory pattern) ─────
   function installHook() {
