@@ -103,26 +103,26 @@ function renderBodyFatTargets(latest) {
       : `${fmt(toLose)} lbs to go`;
     return `<tr>
       <td style="padding:0.4rem 0.5rem;font-weight:800;color:${color}">${t}%</td>
-      <td style="padding:0.4rem 0.5rem;font-weight:700;color:#f1f5f9">${fmt(w)} lbs</td>
-      <td style="padding:0.4rem 0.5rem;color:#94a3b8;font-size:0.8rem">${status}</td>
+      <td style="padding:0.4rem 0.5rem;font-weight:700;color:var(--text)">${fmt(w)} lbs</td>
+      <td style="padding:0.4rem 0.5rem;color:var(--text-sub);font-size:0.8rem">${status}</td>
     </tr>`;
   }).join('');
 
   host.innerHTML = `
-    <p style="font-size:0.7rem;color:#6d7a95;margin-bottom:0.5rem">
-      Now: <strong style="color:#f1f5f9">${fmt(calFat)}% body fat</strong> at ${fmt(curW)} lbs
-      &middot; lean mass held at <strong style="color:#f1f5f9">~${fmt(lean)} lbs</strong>
+    <p style="font-size:0.7rem;color:var(--text-sub);margin-bottom:0.5rem">
+      Now: <strong style="color:var(--text)">${fmt(calFat)}% body fat</strong> at ${fmt(curW)} lbs
+      &middot; lean mass held at <strong style="color:var(--text)">~${fmt(lean)} lbs</strong>
       &middot; <span style="opacity:0.75">${methodTag}</span>
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
-      <thead><tr style="text-align:left;color:#64748b;font-size:0.62rem;text-transform:uppercase">
+      <thead><tr style="text-align:left;color:var(--text-sub);font-size:0.62rem;text-transform:uppercase">
         <th style="padding:0.3rem 0.5rem;font-weight:700">Body Fat</th>
         <th style="padding:0.3rem 0.5rem;font-weight:700">Target Weight</th>
         <th style="padding:0.3rem 0.5rem;font-weight:700">From Now</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p style="font-size:0.62rem;color:#475569;margin-top:0.55rem;line-height:1.5">
+    <p style="font-size:0.62rem;color:var(--text-sub);margin-top:0.55rem;line-height:1.5;opacity:0.85">
       Assumes you keep every pound of lean mass — real loss usually shaves a little off, which would put each target at a slightly lower weight. A follow-up DEXA keeps this honest.
     </p>`;
 }
