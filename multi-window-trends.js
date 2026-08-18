@@ -82,8 +82,28 @@ function _mwtWindowStats(data, days) {
   if (!win.length) return null;
 
   const avg = arr => arr.reduce((s, r) => s + r.weight, 0) / arr.length;
-  const slopePerDay = regressionSlopeLbsPerDay(win, effectiveDays, { anchor: 'latest' });
-  const ratePerWk   = slopePerDay != null ? slopePerDay * 7 : null;
+
+  // Rate: for finite windows, run linear regression inside the window
+  // (same engine as Projector/Goal ETA/Slowdown so numbers agree).
+  //
+  // For LIFETIME, the CSV may not go back to START_DATE (e.g. openScale
+  // export only has readings from March forward even though the true
+  // journey started Jan 29). Running regression on the partial data
+  // undercounts the big early drop and quietly lies. Instead, anchor
+  // to (START_DATE, START_WEIGHT) → (latest date, latest weight) and
+  // report the honest end-to-end rate that includes the missing early
+  // stretch. This matches the "total lost since start" number your
+  // journey progress card already trusts.
+  let ratePerWk;
+  if (isLifetime && typeof START_WEIGHT !== 'undefined') {
+    const latestW = win[win.length - 1].weight;
+    const days    = Math.max(1, effectiveDays);
+    ratePerWk     = ((START_WEIGHT - latestW) / days) * 7 * -1;
+    // Sign convention: negative = losing (matches regressionSlopeLbsPerDay).
+  } else {
+    const slopePerDay = regressionSlopeLbsPerDay(win, effectiveDays, { anchor: 'latest' });
+    ratePerWk         = slopePerDay != null ? slopePerDay * 7 : null;
+  }
 
   return {
     days:      isLifetime ? 'Lifetime' : days,
