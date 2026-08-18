@@ -670,7 +670,7 @@
 
           <section style="padding-top:0.8rem;border-top:1px dashed var(--border,#e5e9f5)">
             <p style="font-size:0.72rem;color:var(--text-sub,#6d7a95);margin:0;line-height:1.5">
-              <b>Best single predictor of stall location:</b> your historical low adult weight. Body defends previously-held weights. If you have data on your lowest adult weight and how long you held it, that would sharpen the stall prediction more than any other input.
+              <b>Note:</b> Without a reliable historical-low-weight data point, stall prediction relies on two measurable mechanisms: the 25% adaptive-thermogenesis threshold (activates ~236 lb) and the ~15–17% BF ceiling (activates ~205–210 lb). Best-estimate stall zone: <b>210–236 lb</b>, with the specific weight depending on which mechanism dominates for you personally.
             </p>
           </section>
         </div>
