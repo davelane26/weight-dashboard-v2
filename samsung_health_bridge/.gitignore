@@ -1,0 +1,9 @@
+# Local bridge config with paths/secrets — never commit
+bridge_config.json
+
+# Run log — grows with every scheduled task run
+sync.log
+
+# Test artifacts
+test_health.json
+output/

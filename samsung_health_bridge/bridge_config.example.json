@@ -1,0 +1,17 @@
+{
+  "_comment_1": "Copy this to bridge_config.json and fill in your values. bridge_config.json is git-ignored.",
+  "_comment_2": "rclone_remote: name you gave the remote when you ran `rclone config` (default: gdrive)",
+  "rclone_remote": "gdrive",
+
+  "_comment_3": "drive_folder: name of the folder in Google Drive where Health Sync writes CSVs",
+  "drive_folder": "HealthSync",
+
+  "_comment_4": "cache_dir: local disk path where rclone drops synced CSVs",
+  "cache_dir": "C:/Users/djtwo/samsung_health_cache",
+
+  "_comment_5": "weight_tracker_repo: local clone of davelane26/Weight-tracker with a push-capable remote (PAT in remote URL)",
+  "weight_tracker_repo": "C:/Users/djtwo/Downloads/weight-tracker",
+
+  "_comment_6": "health_json_filename: output filename inside the Weight-tracker repo (dashboard fetches this via GitHub Pages)",
+  "health_json_filename": "health.json"
+}

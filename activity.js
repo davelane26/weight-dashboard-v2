@@ -1,7 +1,11 @@
-// ── activity.js ── Garmin Connect data display (overhauled) ────────────
-// Reads from Firebase /garmin/latest.json + /garmin/{date}.json
+// ── activity.js ── Galaxy Watch / Samsung Health data display ─────────
+// Reads health.json from davelane26/Weight-tracker (GitHub Pages),
+// fed by the Samsung Health bridge on djtwo. Legacy Cloudflare Worker
+// (Exist.io -> Garmin) and Firebase (Garmin direct) paths remain as
+// fallbacks for the transition period.
 // ───────────────────────────────────────────────────────────────────
 
+const SAMSUNG_HEALTH_URL  = 'https://davelane26.github.io/Weight-tracker/health.json';
 const FIREBASE_GARMIN_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
 
 // Chart instances for cleanup
@@ -99,30 +103,50 @@ function _destroyChart(inst) {
   return null;
 }
 
-// ── Load today's data ───────────────────────────────────────────────
-// Tries Cloudflare Worker /health.json first, falls back to Firebase
+// ── Load today's data ──────────────────────────────────────────────
+// Priority:
+//   1. Samsung Health via GitHub Pages (djtwo bridge, primary)
+//   2. Cloudflare Worker /health.json (Exist.io -> Garmin, legacy)
+//   3. Firebase /garmin/latest.json (Garmin direct, legacy)
 async function loadActivityData() {
   let data    = null;
-  let allDays = [];   // full 30-day history for charts
+  let allDays = [];   // full history for charts
   let source  = '';
 
-  // 1. Try Cloudflare Worker (fed by Exist.io via GitHub Actions)
+  // 1. Samsung Health via djtwo bridge -> GitHub Pages (primary)
   try {
-    const workerBase = window.HEALTH_WORKER_URL || '';
-    if (workerBase) {
-      const res  = await fetch(`${workerBase}/health.json`);
+    const res = await fetch(SAMSUNG_HEALTH_URL, { cache: 'no-cache' });
+    if (res.ok) {
       const json = await res.json();
       if (json?.days?.length) {
         allDays = json.days;
         data    = allDays[allDays.length - 1];
-        source  = 'Exist.io via Cloudflare';
+        source  = 'Samsung Health via djtwo';
       }
     }
   } catch (e) {
-    console.warn('Worker health.json failed, trying Firebase...', e);
+    console.warn('Samsung Health health.json failed, trying Worker...', e);
   }
 
-  // 2. Fall back to Firebase (legacy)
+  // 2. Try Cloudflare Worker (fed by Exist.io via GitHub Actions) (legacy)
+  if (!data) {
+    try {
+      const workerBase = window.HEALTH_WORKER_URL || '';
+      if (workerBase) {
+        const res  = await fetch(`${workerBase}/health.json`);
+        const json = await res.json();
+        if (json?.days?.length) {
+          allDays = json.days;
+          data    = allDays[allDays.length - 1];
+          source  = 'Exist.io via Cloudflare';
+        }
+      }
+    } catch (e) {
+      console.warn('Worker health.json failed, trying Firebase...', e);
+    }
+  }
+
+  // 3. Fall back to Firebase (legacy)
   if (!data) {
     try {
       const _fbToken = window.fbUser ? await window.fbUser.getIdToken() : null;
@@ -131,7 +155,7 @@ async function loadActivityData() {
       allDays = [data];
       source  = 'Garmin via Firebase';
     } catch (e) {
-      console.error('Both data sources failed:', e);
+      console.error('All data sources failed:', e);
       return;
     }
   }
