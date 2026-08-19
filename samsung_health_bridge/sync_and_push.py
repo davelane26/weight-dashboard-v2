@@ -4,16 +4,16 @@ Runs on djtwo (or wherever), on a scheduled task. One pass does:
 
   1. rclone sync CSVs from Google Drive down to a local cache
   2. Parse them into a dashboard-shaped health.json
-  3. Copy that JSON into the local Weight-tracker repo clone
+  3. Copy that JSON into the local weight-dashboard-v2 repo clone
   4. git add / commit / push if the content changed
 
 Configuration lives in bridge_config.json next to this file. See
 bridge_config.example.json for the template.
 
 Requires: rclone on PATH, git on PATH, a rclone remote already configured
-via `rclone config` (interactive, one-time), and a Weight-tracker repo
-clone with a working push credential (PAT baked into the remote URL is
-the simplest option).
+via `rclone config` (interactive, one-time), and a weight-dashboard-v2
+repo clone with a working push credential (PAT baked into the remote URL
+is the simplest option).
 """
 
 from __future__ import annotations
@@ -128,11 +128,11 @@ def git_push(repo_dir: Path, filename: str) -> None:
 def main() -> int:
     cfg = load_config()
     cache_dir = Path(cfg["cache_dir"])
-    repo_dir = Path(cfg["weight_tracker_repo"])
+    repo_dir = Path(cfg["dashboard_repo"])
     out_path = repo_dir / cfg.get("health_json_filename", "health.json")
 
     if not repo_dir.is_dir():
-        log(f"[error] weight_tracker_repo not found: {repo_dir}")
+        log(f"[error] dashboard_repo not found: {repo_dir}")
         return 2
 
     log("=" * 60)

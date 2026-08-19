@@ -9,9 +9,9 @@
   "_comment_4": "cache_dir: local disk path where rclone drops synced CSVs",
   "cache_dir": "C:/Users/djtwo/samsung_health_cache",
 
-  "_comment_5": "weight_tracker_repo: local clone of davelane26/Weight-tracker with a push-capable remote (PAT in remote URL)",
-  "weight_tracker_repo": "C:/Users/djtwo/Downloads/weight-tracker",
+  "_comment_5": "dashboard_repo: local clone of davelane26/weight-dashboard-v2 (PUBLIC, served via GitHub Pages) with a push-capable remote (PAT in remote URL). health.json is committed here so it's fetched same-origin by the dashboard, no CORS, no Cloudflare Worker needed.",
+  "dashboard_repo": "C:/Users/djtwo/Downloads/weight-dashboard-v2",
 
-  "_comment_6": "health_json_filename: output filename inside the Weight-tracker repo (dashboard fetches this via GitHub Pages)",
+  "_comment_6": "health_json_filename: output filename inside the dashboard repo",
   "health_json_filename": "health.json"
 }

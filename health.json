@@ -1,0 +1,446 @@
+{
+  "generated_at": "2026-08-19T16:33:27+00:00",
+  "lastUpdated": "2026-08-19T16:33:27+00:00",
+  "source": "samsung_health",
+  "days": [
+    {
+      "date": "2026-03-30",
+      "activities": [],
+      "steps": 5865
+    },
+    {
+      "date": "2026-03-31",
+      "activities": [],
+      "steps": 9679
+    },
+    {
+      "date": "2026-04-01",
+      "activities": [],
+      "steps": 11965
+    },
+    {
+      "date": "2026-04-02",
+      "activities": [],
+      "steps": 15019
+    },
+    {
+      "date": "2026-04-03",
+      "activities": [],
+      "steps": 5175
+    },
+    {
+      "date": "2026-04-04",
+      "activities": [],
+      "steps": 3709
+    },
+    {
+      "date": "2026-04-05",
+      "activities": [],
+      "steps": 6195
+    },
+    {
+      "date": "2026-07-01",
+      "activities": [],
+      "steps": 8492,
+      "restingHR": 65,
+      "minHR": 57,
+      "maxHR": 104,
+      "meanHR": 71.1,
+      "hrSamples": 506
+    },
+    {
+      "date": "2026-07-02",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 61,
+      "maxHR": 102,
+      "meanHR": 69.6,
+      "hrSamples": 521
+    },
+    {
+      "date": "2026-07-03",
+      "activities": [],
+      "restingHR": 66,
+      "minHR": 54,
+      "maxHR": 108,
+      "meanHR": 72.4,
+      "hrSamples": 612
+    },
+    {
+      "date": "2026-07-04",
+      "activities": [],
+      "restingHR": 69,
+      "minHR": 51,
+      "maxHR": 107,
+      "meanHR": 74.0,
+      "hrSamples": 638
+    },
+    {
+      "date": "2026-07-05",
+      "activities": [],
+      "restingHR": 66,
+      "minHR": 48,
+      "maxHR": 113,
+      "meanHR": 73.1,
+      "hrSamples": 461
+    },
+    {
+      "date": "2026-07-06",
+      "activities": [],
+      "restingHR": 62,
+      "minHR": 51,
+      "maxHR": 140,
+      "meanHR": 69.3,
+      "hrSamples": 215
+    },
+    {
+      "date": "2026-07-07",
+      "activities": [],
+      "restingHR": 62,
+      "minHR": 53,
+      "maxHR": 108,
+      "meanHR": 68.2,
+      "hrSamples": 436
+    },
+    {
+      "date": "2026-07-08",
+      "activities": [],
+      "restingHR": 65,
+      "minHR": 54,
+      "maxHR": 105,
+      "meanHR": 71.1,
+      "hrSamples": 528
+    },
+    {
+      "date": "2026-07-09",
+      "activities": [],
+      "restingHR": 66,
+      "minHR": 54,
+      "maxHR": 168,
+      "meanHR": 72.7,
+      "hrSamples": 535
+    },
+    {
+      "date": "2026-07-10",
+      "activities": [],
+      "restingHR": 65,
+      "minHR": 52,
+      "maxHR": 110,
+      "meanHR": 71.5,
+      "hrSamples": 427
+    },
+    {
+      "date": "2026-07-11",
+      "activities": [],
+      "restingHR": 67,
+      "minHR": 56,
+      "maxHR": 112,
+      "meanHR": 71.6,
+      "hrSamples": 578
+    },
+    {
+      "date": "2026-07-12",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 46,
+      "maxHR": 107,
+      "meanHR": 69.4,
+      "hrSamples": 631
+    },
+    {
+      "date": "2026-07-13",
+      "activities": [],
+      "restingHR": 61,
+      "minHR": 52,
+      "maxHR": 126,
+      "meanHR": 68.1,
+      "hrSamples": 463
+    },
+    {
+      "date": "2026-07-14",
+      "activities": [],
+      "restingHR": 61,
+      "minHR": 56,
+      "maxHR": 101,
+      "meanHR": 65.4,
+      "hrSamples": 656
+    },
+    {
+      "date": "2026-07-15",
+      "activities": [],
+      "restingHR": 61,
+      "minHR": 56,
+      "maxHR": 108,
+      "meanHR": 66.4,
+      "hrSamples": 404
+    },
+    {
+      "date": "2026-07-16",
+      "activities": [],
+      "restingHR": 62,
+      "minHR": 57,
+      "maxHR": 100,
+      "meanHR": 67.6,
+      "hrSamples": 546
+    },
+    {
+      "date": "2026-07-17",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 47,
+      "maxHR": 123,
+      "meanHR": 70.5,
+      "hrSamples": 468
+    },
+    {
+      "date": "2026-07-18",
+      "activities": [],
+      "restingHR": 63,
+      "minHR": 59,
+      "maxHR": 102,
+      "meanHR": 66.7,
+      "hrSamples": 470
+    },
+    {
+      "date": "2026-07-19",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 59,
+      "maxHR": 107,
+      "meanHR": 69.4,
+      "hrSamples": 598
+    },
+    {
+      "date": "2026-07-20",
+      "activities": [],
+      "restingHR": 62,
+      "minHR": 56,
+      "maxHR": 95,
+      "meanHR": 68.6,
+      "hrSamples": 546
+    },
+    {
+      "date": "2026-07-21",
+      "activities": [],
+      "restingHR": 63,
+      "minHR": 55,
+      "maxHR": 98,
+      "meanHR": 68.6,
+      "hrSamples": 374
+    },
+    {
+      "date": "2026-07-22",
+      "activities": [],
+      "restingHR": 60,
+      "minHR": 53,
+      "maxHR": 93,
+      "meanHR": 66.7,
+      "hrSamples": 453
+    },
+    {
+      "date": "2026-07-23",
+      "activities": [],
+      "restingHR": 65,
+      "minHR": 57,
+      "maxHR": 129,
+      "meanHR": 72.0,
+      "hrSamples": 373
+    },
+    {
+      "date": "2026-07-24",
+      "activities": [],
+      "restingHR": 68,
+      "minHR": 54,
+      "maxHR": 123,
+      "meanHR": 73.4,
+      "hrSamples": 479
+    },
+    {
+      "date": "2026-07-25",
+      "activities": [],
+      "restingHR": 66,
+      "minHR": 54,
+      "maxHR": 195,
+      "meanHR": 72.8,
+      "hrSamples": 386
+    },
+    {
+      "date": "2026-07-26",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 51,
+      "maxHR": 114,
+      "meanHR": 74.9,
+      "hrSamples": 197
+    },
+    {
+      "date": "2026-07-27",
+      "activities": [],
+      "restingHR": 65,
+      "minHR": 54,
+      "maxHR": 94,
+      "meanHR": 71.4,
+      "hrSamples": 415
+    },
+    {
+      "date": "2026-07-28",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 59,
+      "maxHR": 95,
+      "meanHR": 70.0,
+      "hrSamples": 587
+    },
+    {
+      "date": "2026-07-29",
+      "activities": [],
+      "restingHR": 61,
+      "minHR": 59,
+      "maxHR": 112,
+      "meanHR": 67.0,
+      "hrSamples": 442
+    },
+    {
+      "date": "2026-07-30",
+      "activities": [],
+      "restingHR": 64,
+      "minHR": 57,
+      "maxHR": 101,
+      "meanHR": 69.7,
+      "hrSamples": 330
+    },
+    {
+      "date": "2026-07-31",
+      "activities": [],
+      "restingHR": 62,
+      "minHR": 59,
+      "maxHR": 101,
+      "meanHR": 74.8,
+      "hrSamples": 213
+    },
+    {
+      "date": "2026-08-10",
+      "activities": [],
+      "steps": 1203,
+      "restingHR": 63,
+      "minHR": 47,
+      "maxHR": 105,
+      "meanHR": 70.3,
+      "hrSamples": 579
+    },
+    {
+      "date": "2026-08-11",
+      "activities": [],
+      "steps": 5055,
+      "restingHR": 64,
+      "minHR": 55,
+      "maxHR": 102,
+      "meanHR": 71.3,
+      "hrSamples": 294
+    },
+    {
+      "date": "2026-08-12",
+      "activities": [],
+      "steps": 7234,
+      "restingHR": 63,
+      "minHR": 49,
+      "maxHR": 199,
+      "meanHR": 70.1,
+      "hrSamples": 451
+    },
+    {
+      "date": "2026-08-13",
+      "activities": [],
+      "steps": 8513,
+      "restingHR": 66,
+      "minHR": 48,
+      "maxHR": 174,
+      "meanHR": 71.8,
+      "hrSamples": 457
+    },
+    {
+      "date": "2026-08-14",
+      "activities": [],
+      "steps": 8955,
+      "restingHR": 66,
+      "minHR": 56,
+      "maxHR": 110,
+      "meanHR": 72.5,
+      "hrSamples": 471
+    },
+    {
+      "date": "2026-08-15",
+      "activities": [],
+      "steps": 8908,
+      "restingHR": 69,
+      "minHR": 50,
+      "maxHR": 110,
+      "meanHR": 74.7,
+      "hrSamples": 481
+    },
+    {
+      "date": "2026-08-16",
+      "activities": [],
+      "steps": 3739,
+      "restingHR": 67,
+      "minHR": 46,
+      "maxHR": 106,
+      "meanHR": 76.5,
+      "hrSamples": 487,
+      "sleepHours": 4.67,
+      "sleepDeep": 1.14,
+      "sleepRem": 0.84,
+      "sleepLight": 2.69,
+      "sleepAwake": 0.72,
+      "sleepStart": "2026-08-16T01:12:00",
+      "sleepEnd": "2026-08-16T06:35:30"
+    },
+    {
+      "date": "2026-08-17",
+      "activities": [],
+      "sleepHours": 8.06,
+      "sleepDeep": 0.72,
+      "sleepRem": 2.81,
+      "sleepLight": 4.53,
+      "sleepAwake": 0.34,
+      "sleepStart": "2026-08-16T22:09:00",
+      "sleepEnd": "2026-08-17T06:33:00"
+    },
+    {
+      "date": "2026-08-18",
+      "activities": [],
+      "sleepHours": 7.05,
+      "sleepDeep": 0.88,
+      "sleepRem": 0.68,
+      "sleepLight": 5.5,
+      "sleepAwake": 0.03,
+      "sleepStart": "2026-08-17T22:02:00",
+      "sleepEnd": "2026-08-18T05:06:30"
+    },
+    {
+      "date": "2026-08-19",
+      "activities": [
+        {
+          "type": "walking",
+          "name": "Walking",
+          "startTime": "2026-08-19T05:13:14",
+          "duration": 17,
+          "distance": 0.65380055,
+          "calories": 136,
+          "steps": 1649,
+          "avgHR": 110,
+          "maxHR": 121
+        }
+      ],
+      "sleepHours": 4.56,
+      "sleepDeep": 1.48,
+      "sleepRem": 0.88,
+      "sleepLight": 2.2,
+      "sleepAwake": 0.26,
+      "sleepStart": "2026-08-18T22:39:00",
+      "sleepEnd": "2026-08-19T03:28:00",
+      "workoutsMins": 17,
+      "workoutsKm": 1.05
+    }
+  ]
+}

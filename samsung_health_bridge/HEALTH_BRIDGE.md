@@ -14,9 +14,9 @@ Health Sync app  →  Google Drive folder
     ↓                    ↓
     ↓        samsung_health_parser.py  →  health.json
     ↓                    ↓
-    ↓        git push davelane26/Weight-tracker
+    ↓        git push davelane26/weight-dashboard-v2
     ↓                    ↓
-Dashboard polls https://davelane26.github.io/Weight-tracker/health.json
+Dashboard polls https://davelane26.github.io/weight-dashboard-v2/health.json
 ```
 
 **Where things live (djtwo, user `djtwo`):**
@@ -30,7 +30,7 @@ Dashboard polls https://davelane26.github.io/Weight-tracker/health.json
 | Run log              | `<repo>/samsung_health_bridge/sync.log`                          |
 | rclone config        | `%USERPROFILE%\AppData\Roaming\rclone\rclone.conf`               |
 | Local CSV cache      | Whatever `cache_dir` in `bridge_config.json` points at           |
-| Weight-tracker clone | Whatever `weight_tracker_repo` in `bridge_config.json` points at |
+| Dashboard repo clone | Whatever `dashboard_repo` in `bridge_config.json` points at |
 | Scheduled task       | `SamsungHealthBridge` (runs hourly)                              |
 
 Unlike the openScale/MQTT pipeline, the bridge code IS in this repo —
@@ -77,10 +77,12 @@ You should now see files like `Steps 33-2026 Samsung Health.csv` and
    - Configure as a Team Drive: `n`
    - Confirm: `y`, then `q` to quit
 
-3. **Clone the Weight-tracker repo** (if not already present) with a
-   push-capable remote. Simplest: embed a GitHub PAT in the URL:
+3. **Clone the weight-dashboard-v2 repo** (the PUBLIC one — served via
+   GitHub Pages, so `health.json` needs to live here, not in the
+   private Weight-tracker repo) with a push-capable remote. Simplest:
+   embed a GitHub PAT in the URL:
    ```
-   git clone https://<PAT>@github.com/davelane26/Weight-tracker.git C:\Users\djtwo\Downloads\weight-tracker
+   git clone https://<PAT>@github.com/davelane26/weight-dashboard-v2.git C:\Users\djtwo\Downloads\weight-dashboard-v2
    ```
    The PAT needs `repo` scope. Reuse the same one the MQTT bridge uses.
 
@@ -104,7 +106,7 @@ You should now see files like `Steps 33-2026 Samsung Health.csv` and
    type sync.log
    ```
    Should show `[ok] wrote health.json: N days, ...`. Then check
-   https://github.com/davelane26/Weight-tracker/commits/main for a new
+   https://github.com/davelane26/weight-dashboard-v2/commits/main for a new
    `health.json auto-update ...` commit.
 
 ---
@@ -149,18 +151,18 @@ Work top-down. Each step isolates one link.
 
 5. **git push failing?**
    ```
-   cd <weight_tracker_repo>
+   cd <dashboard_repo>
    git push
    ```
    If you get `remote: Support for password authentication was removed`,
    the PAT baked into the remote URL expired. Rotate it:
    ```
-   git remote set-url origin https://<new-PAT>@github.com/davelane26/Weight-tracker.git
+   git remote set-url origin https://<new-PAT>@github.com/davelane26/weight-dashboard-v2.git
    ```
 
 6. **Dashboard still stale?** It caches `health.json` network-first, so
    a hard refresh after a successful push should show updated data.
-   If not, check `https://davelane26.github.io/Weight-tracker/health.json`
+   If not, check `https://davelane26.github.io/weight-dashboard-v2/health.json`
    directly in a browser — that URL should return the fresh JSON.
 
 ---

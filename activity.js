@@ -1,11 +1,14 @@
 // ── activity.js ── Galaxy Watch / Samsung Health data display ─────────
-// Reads health.json from davelane26/Weight-tracker (GitHub Pages),
-// fed by the Samsung Health bridge on djtwo. Legacy Cloudflare Worker
+// Reads health.json served alongside the dashboard on GitHub Pages,
+// fed by the Samsung Health bridge on djtwo (pushes to weight-dashboard-v2
+// repo which is public and served via Pages). Legacy Cloudflare Worker
 // (Exist.io -> Garmin) and Firebase (Garmin direct) paths remain as
 // fallbacks for the transition period.
 // ───────────────────────────────────────────────────────────────────
 
-const SAMSUNG_HEALTH_URL  = 'https://davelane26.github.io/Weight-tracker/health.json';
+// Same-origin path so it works whether the dashboard is loaded from
+// GitHub Pages, a local file, or a preview branch.
+const SAMSUNG_HEALTH_URL  = 'health.json';
 const FIREBASE_GARMIN_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
 
 // Chart instances for cleanup
