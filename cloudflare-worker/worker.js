@@ -75,13 +75,18 @@ async function sha1(str) {
 }
 
 async function isAuthorized(request, env) {
-  const secret = env.API_SECRET;
-  if (!secret) return true;
+  // Accept EITHER API_SECRET (legacy — Garmin/Exist Python scripts on djtwo)
+  // OR API_SECRET_V2 (Kage Health Bridge Android app). This lets us rotate
+  // secrets per client without a big-bang break. Either value can be sent
+  // plain-text or SHA-1 hashed (xDrip+-compatible).
+  const secrets = [env.API_SECRET, env.API_SECRET_V2].filter(Boolean);
+  if (!secrets.length) return true;
   const header = request.headers.get('API-SECRET') || request.headers.get('api-secret');
   if (!header) return false;
-  if (header === secret) return true;           // plain text match
-  const hashed = await sha1(secret);
-  if (header === hashed) return true;           // SHA1 hash match (xDrip+)
+  for (const s of secrets) {
+    if (header === s) return true;
+    if (header === await sha1(s)) return true;
+  }
   return false;
 }
 
