@@ -1,0 +1,5 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base Material 3 theme. Compose overrides most of this — the theme
+         only matters for the splash/activity chrome before Compose takes over. -->
+    <style name="Theme.KageHealth" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

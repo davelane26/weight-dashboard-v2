@@ -1,0 +1,48 @@
+name: Android Build
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch:  # allows manual trigger from GitHub UI
+
+# Concurrency: cancel in-flight builds if new push arrives — save Actions minutes.
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        # We build DEBUG (not release) because debug builds use Android's
+        # auto-generated debug keystore — no need to manage signing keys
+        # in GitHub secrets for a personal side-loaded app. If we ever move
+        # to Play Store, switch to assembleRelease + upload-signed-apk here.
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kage-health-bridge-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Internet for POSTing to Cloudflare Worker -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Health Connect permissions (Phase 1: steps only) -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <!-- Phase 2 will add: READ_HEART_RATE, READ_SLEEP, READ_EXERCISE,
+         READ_ACTIVE_CALORIES_BURNED, READ_TOTAL_CALORIES_BURNED, READ_FLOORS_CLIMBED -->
+
+    <!-- Wake background worker for scheduled 15-min sync -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Health Connect discovery: allow the system to see we're a Health Connect client -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+    <application
+        android:name=".KageApp"
+        android:allowBackup="true"
+        android:label="Kage Health Bridge"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.KageHealth"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.KageHealth">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Health Connect permission-rationale activity.
+             Health Connect requires this: when the user goes to review permissions,
+             the system launches this activity so we can explain why we need each one. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+    </application>
+</manifest>
