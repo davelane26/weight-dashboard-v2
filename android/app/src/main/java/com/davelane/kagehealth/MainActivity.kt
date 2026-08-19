@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@androidx.compose.material3.ExperimentalMaterial3Api
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun MainScreen(onRequestPermissions: () -> Unit) {
     val context = LocalContext.current
