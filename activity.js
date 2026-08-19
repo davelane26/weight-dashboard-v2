@@ -98,7 +98,19 @@ function _calcSleepScore(data) {
   const awakePenalty = awakenings > 20 ? -15 : awakenings > 15 ? -10
     : awakenings > 10 ? -6 : awakenings > 5 ? -3 : 0;
 
-  return Math.min(100, Math.max(0, dur + effScore + deepScore + remScore + awakePenalty));
+  const raw = Math.min(100, Math.max(0, dur + effScore + deepScore + remScore + awakePenalty));
+
+  // Duration reality-check cap. Even perfect stages can't turn a short
+  // night into "Good" or "Excellent" — mirrors how Samsung Health scores
+  // (which punishes short sleep aggressively via undocumented weights).
+  // Thresholds line up with the Fair/Good/Excellent bands in the KPI
+  // renderer so labels stay honest to the duration.
+  let cap = 100;
+  if      (hours < 4.5) cap = 49;   // Poor ceiling
+  else if (hours < 5.5) cap = 69;   // Fair ceiling
+  else if (hours < 6.5) cap = 84;   // Good ceiling (blocks Excellent)
+  else if (hours < 7.0) cap = 92;
+  return Math.min(raw, cap);
 }
 
 function _destroyChart(inst) {
