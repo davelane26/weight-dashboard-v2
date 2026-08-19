@@ -85,10 +85,7 @@ object HealthConnectReader {
         val now = Instant.now()
         val today = TimeRangeFilter.between(startOfDay, now)
 
-        val steps = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(StepsRecord.COUNT_TOTAL), today))
-                .get(StepsRecord.COUNT_TOTAL)
-        }
+        val steps = readTodaySteps(client, startOfDay, now)
         val minHR = safeAggregate {
             client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MIN), today))
                 .get(HeartRateRecord.BPM_MIN)
@@ -135,6 +132,35 @@ object HealthConnectReader {
             sleepAwakenings = sleep?.awakenings,
         )
     }
+
+    /**
+     * Read today's total steps by SUMMING raw StepsRecord entries whose
+     * time window overlaps today, WITHOUT the aggregate helper's automatic
+     * clipping.
+     *
+     * Why not aggregate(): Samsung Health writes a single daily-total record
+     * spanning 00:00–23:59 with the full-day count. Health Connect's aggregate
+     * API clips that record proportionally to the filter window — so a query
+     * for "midnight to now" at 17:13 returns 71.9% of the day's steps
+     * (~4860 out of 6805), not the actual current cumulative count.
+     *
+     * Fix: read raw records overlapping today's window, sum their .count
+     * fields verbatim. Matches what Samsung Health's own UI shows.
+     */
+    private suspend fun readTodaySteps(
+        client: HealthConnectClient,
+        startOfDay: Instant,
+        now: Instant,
+    ): Long? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+            )
+        )
+        if (resp.records.isEmpty()) return@runCatching null
+        resp.records.sumOf { it.count }
+    }.getOrNull()
 
     /**
      * Resting HR: read most recent RestingHeartRateRecord in the last 48h
