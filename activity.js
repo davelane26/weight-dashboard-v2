@@ -206,19 +206,25 @@ function renderActivityKPIs(data) {
     : '—';
   _set('act-sleep', sleepDisplay);
 
-  // Sleep score — only show if we have Garmin's actual score, not our estimate
-  const score    = data.sleepScore ?? null;
-  const hasScore = score !== null && score !== undefined;
+  // Sleep score - prefer Garmin's authoritative score, fall back to our
+  // estimate from duration + stage data (Samsung Health path). The
+  // estimate uses deep/REM %, efficiency, and awakenings when available.
+  const rawScore  = data.sleepScore ?? null;
+  const estScore  = rawScore == null ? _calcSleepScore(data) : null;
+  const score     = rawScore ?? estScore;
+  const hasScore  = score !== null && score !== undefined;
+  const isEst     = rawScore == null && estScore != null;
   const scoreColor = !hasScore ? '#6d7a95'
     : score >= 85 ? '#2a8703'
     : score >= 70 ? '#0053e2'
     : score >= 50 ? '#995213'
     : '#ea1100';
-  const scoreLabel = !hasScore ? 'not in sync data'
+  const baseLabel = !hasScore ? 'not in sync data'
     : score >= 85 ? 'Excellent'
     : score >= 70 ? 'Good'
     : score >= 50 ? 'Fair'
     : 'Poor';
+  const scoreLabel = isEst ? baseLabel + ' (est)' : baseLabel;
   if (_el('act-sleep-score-val')) {
     _el('act-sleep-score-val').textContent   = hasScore ? score : '—';
     _el('act-sleep-score-val').style.color   = scoreColor;
@@ -250,7 +256,7 @@ function renderActivityKPIs(data) {
   _set('act-total-cal', data.totalCalories ? _fmtK(data.totalCalories) : '—');
   _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
 
-  window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: data.sleepScore ?? null };
+  window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: score };
   if (typeof updateSnapshot    === 'function') updateSnapshot();
   if (typeof generateInsights  === 'function') generateInsights();
   if (typeof refreshHealthScore=== 'function') refreshHealthScore();
