@@ -2,63 +2,242 @@ package com.davelane.kagehealth
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.aggregate.AggregationResult
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.FloorsClimbedRecord
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Reads today's step total from Health Connect.
+ * Reads today's Health Connect snapshot: steps, HR (min/max/avg/resting),
+ * last-night's sleep with stages, active/total calories, floors, workout
+ * minutes.
  *
- * Phase 1 scope: steps only. Phase 2 will add HR, sleep, workouts, calories.
- *
- * Design notes:
- *   - Uses aggregate (not raw records) so we get a single sum instead of
- *     having to walk N thousand 1-minute buckets ourselves.
- *   - Time window is "midnight local time to now" so the number matches what
- *     Samsung Health shows in its "today" card.
+ * All fields are optional — if a metric has no data (permission missing,
+ * sensor not writing to Health Connect, etc.) we just leave it null in
+ * the Snapshot and let the /health/patch endpoint's merge logic preserve
+ * whatever the previous value was.
  */
 object HealthConnectReader {
 
     /**
-     * Health Connect permissions we need. Currently just steps read.
-     * Add to this set when extending to Phase 2.
+     * Combined Health Connect snapshot for today. All fields nullable because
+     * we don't want a missing HR reading to prevent the steps count from
+     * being pushed.
+     */
+    data class Snapshot(
+        val steps: Long? = null,
+        val restingHR: Long? = null,
+        val minHR: Long? = null,
+        val maxHR: Long? = null,
+        val avgHR: Double? = null,
+        val activeCalories: Double? = null,   // kcal
+        val totalCalories: Double? = null,    // kcal
+        val floorsClimbed: Double? = null,
+        val intensityMinutes: Long? = null,   // total workout minutes today
+        val sleepHours: Double? = null,       // last night's total
+        val sleepDeep: Double? = null,        // hours in deep stage
+        val sleepLight: Double? = null,
+        val sleepRem: Double? = null,
+        val sleepAwakenings: Long? = null,    // count of "awake" segments
+    )
+
+    /**
+     * Full set of Health Connect permissions the app needs. Passed to the
+     * PermissionController.createRequestPermissionResultContract() launcher.
      */
     val PERMISSIONS: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(FloorsClimbedRecord::class),
     )
 
-    /** True if Health Connect is installed and available on this device. */
     fun isAvailable(context: Context): Boolean =
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 
     /**
-     * Returns today's step total, or null if Health Connect has no data
-     * (e.g., permissions not granted, watch not synced, etc.).
+     * Read everything, tolerantly. A single metric throwing SecurityException
+     * (permission not granted) or IllegalStateException (nothing recorded)
+     * shouldn't take down the whole sync — we swallow per-metric and continue.
      */
-    suspend fun readTodaySteps(context: Context): Long? {
+    suspend fun readSnapshot(context: Context): Snapshot? {
         if (!isAvailable(context)) return null
-
         val client = HealthConnectClient.getOrCreate(context)
 
         val zone = ZoneId.systemDefault()
         val startOfDay = LocalDate.now(zone).atStartOfDay(zone).toInstant()
-        val now = java.time.Instant.now()
+        val now = Instant.now()
+        val today = TimeRangeFilter.between(startOfDay, now)
 
-        return try {
-            val response: AggregationResult = client.aggregate(
-                AggregateRequest(
-                    metrics = setOf(StepsRecord.COUNT_TOTAL),
-                    timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+        val steps = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(StepsRecord.COUNT_TOTAL), today))
+                .get(StepsRecord.COUNT_TOTAL)
+        }
+        val minHR = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MIN), today))
+                .get(HeartRateRecord.BPM_MIN)
+        }
+        val maxHR = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MAX), today))
+                .get(HeartRateRecord.BPM_MAX)
+        }
+        val avgHR = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_AVG), today))
+                .get(HeartRateRecord.BPM_AVG)
+        }?.toDouble()
+        val activeCal = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL), today))
+                .get(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)?.inKilocalories
+        }
+        val totalCal = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL), today))
+                .get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories
+        }
+        val floors = safeAggregate {
+            client.aggregate(AggregateRequest(setOf(FloorsClimbedRecord.FLOORS_CLIMBED_TOTAL), today))
+                .get(FloorsClimbedRecord.FLOORS_CLIMBED_TOTAL)
+        }
+
+        val restingHR = readRestingHR(client)
+        val workoutMins = readWorkoutMinutes(client, today)
+        val sleep = readLastNightSleep(client, now)
+
+        return Snapshot(
+            steps = steps,
+            minHR = minHR,
+            maxHR = maxHR,
+            avgHR = avgHR,
+            restingHR = restingHR,
+            activeCalories = activeCal,
+            totalCalories = totalCal,
+            floorsClimbed = floors,
+            intensityMinutes = workoutMins,
+            sleepHours = sleep?.hours,
+            sleepDeep = sleep?.deep,
+            sleepLight = sleep?.light,
+            sleepRem = sleep?.rem,
+            sleepAwakenings = sleep?.awakenings,
+        )
+    }
+
+    /**
+     * Resting HR: read most recent RestingHeartRateRecord in the last 48h
+     * and return its beatsPerMinute. Samsung Health writes this once daily
+     * (usually early morning) so we look back further than "today".
+     */
+    private suspend fun readRestingHR(client: HealthConnectClient): Long? {
+        return runCatching {
+            val since = Instant.now().minus(Duration.ofHours(48))
+            val resp = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = RestingHeartRateRecord::class,
+                    timeRangeFilter = TimeRangeFilter.after(since),
                 )
             )
-            response[StepsRecord.COUNT_TOTAL]
-        } catch (e: SecurityException) {
-            // Permission not granted — treat as no data rather than crash.
-            null
-        }
+            resp.records
+                .maxByOrNull { it.time }
+                ?.beatsPerMinute
+        }.getOrNull()
     }
+
+    /**
+     * Sum of all workout durations that started today, in whole minutes.
+     * Doesn't distinguish workout types — just "how many active minutes."
+     */
+    private suspend fun readWorkoutMinutes(
+        client: HealthConnectClient,
+        today: TimeRangeFilter,
+    ): Long? {
+        return runCatching {
+            val resp = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = ExerciseSessionRecord::class,
+                    timeRangeFilter = today,
+                )
+            )
+            if (resp.records.isEmpty()) return null
+            resp.records
+                .sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }
+                .coerceAtLeast(0L)
+        }.getOrNull()
+    }
+
+    /** Parsed sleep summary from Health Connect stage segments. */
+    private data class SleepSummary(
+        val hours: Double,
+        val deep: Double?,
+        val light: Double?,
+        val rem: Double?,
+        val awakenings: Long?,
+    )
+
+    /**
+     * "Last night's" sleep: find the most recent SleepSessionRecord that
+     * ended in the last 30 hours. Aggregate stage segments into deep/light/rem
+     * totals in hours, and count "awake" segments as awakenings.
+     */
+    private suspend fun readLastNightSleep(
+        client: HealthConnectClient,
+        now: Instant,
+    ): SleepSummary? {
+        return runCatching {
+            val since = now.minus(Duration.ofHours(30))
+            val resp = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = SleepSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(since, now),
+                )
+            )
+            val session = resp.records.maxByOrNull { it.endTime } ?: return null
+            val totalHours =
+                Duration.between(session.startTime, session.endTime).toMinutes() / 60.0
+
+            var deep = 0.0; var light = 0.0; var rem = 0.0
+            var awakeSegs = 0L
+            for (stage in session.stages) {
+                val h = Duration.between(stage.startTime, stage.endTime).toMinutes() / 60.0
+                when (stage.stage) {
+                    SleepSessionRecord.STAGE_TYPE_DEEP -> deep += h
+                    SleepSessionRecord.STAGE_TYPE_LIGHT -> light += h
+                    SleepSessionRecord.STAGE_TYPE_REM -> rem += h
+                    SleepSessionRecord.STAGE_TYPE_AWAKE,
+                    SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED -> awakeSegs += 1
+                    else -> {}
+                }
+            }
+
+            SleepSummary(
+                hours = round2(totalHours),
+                deep = deep.takeIf { it > 0 }?.let(::round2),
+                light = light.takeIf { it > 0 }?.let(::round2),
+                rem = rem.takeIf { it > 0 }?.let(::round2),
+                awakenings = awakeSegs.takeIf { it > 0 },
+            )
+        }.getOrNull()
+    }
+
+    private fun round2(d: Double): Double = Math.round(d * 100.0) / 100.0
+
+    /**
+     * Wrap Health Connect calls so a per-metric SecurityException / missing
+     * data / API drift doesn't torpedo the entire sync.
+     */
+    private inline fun <T> safeAggregate(block: () -> T?): T? =
+        runCatching(block).getOrNull()
 }

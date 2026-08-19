@@ -7,8 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * WorkManager worker that runs periodically (every 15 min minimum, per Android
- * platform limits) to read today's steps from Health Connect and POST them
+ * WorkManager worker: reads today's Health Connect snapshot and POSTs it
  * to the Cloudflare Worker.
  *
  * Called from:
@@ -23,36 +22,51 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         val prefs = Prefs(applicationContext)
 
-        // No config? Nothing to do. Return success so we don't get retried forever.
         if (!prefs.isConfigured) {
             prefs.lastSyncStatus = "not configured"
             prefs.lastSyncEpochMs = System.currentTimeMillis()
             return Result.success()
         }
-
         if (!HealthConnectReader.isAvailable(applicationContext)) {
             prefs.lastSyncStatus = "Health Connect not installed"
             prefs.lastSyncEpochMs = System.currentTimeMillis()
             return Result.success()
         }
 
-        val steps = HealthConnectReader.readTodaySteps(applicationContext)
-        if (steps == null) {
-            prefs.lastSyncStatus = "no steps data (permissions?)"
+        val snap = HealthConnectReader.readSnapshot(applicationContext)
+        if (snap == null) {
+            prefs.lastSyncStatus = "no data (permissions?)"
             prefs.lastSyncEpochMs = System.currentTimeMillis()
             return Result.success()
         }
 
         val result = withContext(Dispatchers.IO) {
-            WorkerClient.postSteps(prefs.workerUrl, prefs.apiSecret, steps)
+            WorkerClient.postSnapshot(prefs.workerUrl, prefs.apiSecret, snap)
         }
 
-        prefs.lastStepsSent = steps.toInt()
+        // Store the last known steps for the status card. Other metrics are
+        // just fired-and-forgotten — the dashboard shows them, no need to
+        // duplicate the display here.
+        snap.steps?.let { prefs.lastStepsSent = it.toInt() }
         prefs.lastSyncEpochMs = System.currentTimeMillis()
-        prefs.lastSyncStatus = if (result.ok) "OK: $steps steps sent" else "FAIL: ${result.status}"
+        prefs.lastSyncStatus = if (result.ok) {
+            "OK: ${summarize(snap)}"
+        } else {
+            "FAIL: ${result.status}"
+        }
 
-        // Return retry on transient failures so WorkManager backs off and tries again.
         return if (result.ok) Result.success() else Result.retry()
+    }
+
+    /** Short human-readable summary of what was sent, for the status card. */
+    private fun summarize(s: HealthConnectReader.Snapshot): String {
+        val parts = mutableListOf<String>()
+        s.steps?.let         { parts += "$it steps" }
+        s.avgHR?.let         { parts += "HR ${it.toInt()}" }
+        s.sleepHours?.let    { parts += "sleep ${it}h" }
+        s.activeCalories?.let{ parts += "${it.toInt()} kcal" }
+        s.intensityMinutes?.let { if (it > 0) parts += "${it}min wkt" }
+        return if (parts.isEmpty()) "no metrics" else parts.joinToString(" · ")
     }
 
     companion object {

@@ -42,6 +42,6 @@ cd android
 
 ## Phase status
 
-- [x] Phase 1: Scaffolding + steps-only
-- [ ] Phase 2: HR, sleep, workouts, calories
+- [x] Phase 1: Scaffolding + steps-only (v0.1.0)
+- [x] Phase 2: HR (min/max/avg/resting), sleep (hours + stages + awakenings), workouts, active/total calories, floors climbed (v0.2.0)
 - [ ] Phase 3: Polish (retry logic, error notifications, dashboard live tile)

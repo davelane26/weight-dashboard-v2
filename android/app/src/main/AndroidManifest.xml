@@ -5,10 +5,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Health Connect permissions (Phase 1: steps only) -->
+    <!-- Health Connect permissions (Phase 2: full parity) -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
-    <!-- Phase 2 will add: READ_HEART_RATE, READ_SLEEP, READ_EXERCISE,
-         READ_ACTIVE_CALORIES_BURNED, READ_TOTAL_CALORIES_BURNED, READ_FLOORS_CLIMBED -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" />
 
     <!-- Wake background worker for scheduled 15-min sync -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

@@ -12,26 +12,46 @@ import java.time.ZoneId
 /**
  * HTTP POST helper for the Cloudflare Worker's /health/patch endpoint.
  *
- * Uses HttpURLConnection (stdlib) instead of OkHttp to keep the APK tiny.
- * We have one endpoint to hit. No client library needed.
+ * Uses HttpURLConnection (stdlib) instead of OkHttp so the APK stays small.
+ * We have one endpoint to hit — no client library needed.
+ *
+ * Auth model: /health/patch uses the API-SECRET header (xDrip+-compatible),
+ * NOT Authorization: Bearer (which is Firebase-token auth for /weight.json).
+ * See cloudflare-worker/worker.js isAuthorized() around line 77.
  */
 object WorkerClient {
 
     data class Result(val ok: Boolean, val status: String)
 
     /**
-     * POST { date: today, steps: N } to $workerUrl/health/patch.
+     * POST { date: today, ...fields } to $workerUrl/health/patch.
      *
-     * The Worker's /health/patch endpoint (see cloudflare-worker/worker.js)
-     * merges fields into today's record and preserves fields from other
-     * sources — so we can safely send only what we know without wiping
-     * out Garmin-patched sleepScore, etc.
+     * The Worker's /health/patch endpoint merges fields into today's record
+     * and preserves fields from other sources — so we can safely send only
+     * what we have without wiping Garmin-patched sleepScore, etc.
      */
-    fun postSteps(workerUrl: String, apiSecret: String, steps: Long): Result {
+    fun postSnapshot(
+        workerUrl: String,
+        apiSecret: String,
+        snap: HealthConnectReader.Snapshot,
+    ): Result {
         val today = LocalDate.now(ZoneId.systemDefault()).toString()  // YYYY-MM-DD
         val body: JsonObject = buildJsonObject {
             put("date", today)
-            put("steps", steps)
+            snap.steps?.let            { put("steps", it) }
+            snap.restingHR?.let        { put("restingHR", it) }
+            snap.minHR?.let            { put("minHR", it) }
+            snap.maxHR?.let            { put("maxHR", it) }
+            snap.avgHR?.let            { put("avgHR", it) }
+            snap.activeCalories?.let   { put("activeCalories", it) }
+            snap.totalCalories?.let    { put("totalCalories", it) }
+            snap.floorsClimbed?.let    { put("floorsClimbed", it) }
+            snap.intensityMinutes?.let { put("intensityMinutes", it) }
+            snap.sleepHours?.let       { put("sleepHours", it) }
+            snap.sleepDeep?.let        { put("sleepDeep", it) }
+            snap.sleepLight?.let       { put("sleepLight", it) }
+            snap.sleepRem?.let         { put("sleepRem", it) }
+            snap.sleepAwakenings?.let  { put("sleepAwakenings", it) }
         }
         return postJson("$workerUrl/health/patch", apiSecret, body.toString())
     }
@@ -44,8 +64,6 @@ object WorkerClient {
                 connectTimeout = 15_000
                 readTimeout = 15_000
                 setRequestProperty("Content-Type", "application/json")
-                // Worker's isAuthorized() checks the API-SECRET header (xDrip+-compatible).
-                // Not to be confused with the Firebase Bearer auth used for /weight.json.
                 setRequestProperty("API-SECRET", apiSecret)
                 doOutput = true
             }
