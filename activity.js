@@ -119,23 +119,43 @@ function _destroyChart(inst) {
 }
 
 // ── Load today's data ──────────────────────────────────────────────
-// Priority:
-//   1. Samsung Health via GitHub Pages (djtwo bridge, primary)
-//   2. Cloudflare Worker /health.json (Exist.io -> Garmin, legacy)
-//   3. Firebase /garmin/latest.json (Garmin direct, legacy)
+// Sources, in priority / merge order:
+//   1. Samsung Health via GitHub Pages (djtwo bridge, historical trends)
+//   2. Cloudflare Worker /health.json — MERGED IN on top for live data
+//      (Kage Health Bridge Android app pushes today's steps every 15 min
+//      to /health/patch, which lands in Worker KV and is served here).
+//   3. Firebase /garmin/latest.json (Garmin direct, legacy fallback)
+//
+// Per-day merge is FIELD-level: Worker fields overwrite static fields
+// when both exist for the same date. This lets djtwo push completed-day
+// sleep/HR/workouts via the same endpoint later without clashing with
+// the live steps stream from the Android app.
+function _mergeDaysByDate(baseDays, overlayDays) {
+  const map = new Map();
+  for (const d of baseDays)    map.set(d.date, { ...d });
+  for (const d of overlayDays) {
+    const existing = map.get(d.date) || {};
+    const merged   = { ...existing };
+    for (const [k, v] of Object.entries(d)) {
+      if (v !== null && v !== undefined) merged[k] = v;
+    }
+    map.set(d.date, merged);
+  }
+  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 async function loadActivityData() {
   let data    = null;
   let allDays = [];   // full history for charts
   let source  = '';
 
-  // 1. Samsung Health via djtwo bridge -> GitHub Pages (primary)
+  // 1. Samsung Health via djtwo bridge -> GitHub Pages (primary, historical)
   try {
     const res = await fetch(SAMSUNG_HEALTH_URL, { cache: 'no-cache' });
     if (res.ok) {
       const json = await res.json();
       if (json?.days?.length) {
         allDays = json.days;
-        data    = allDays[allDays.length - 1];
         source  = 'Samsung Health via djtwo';
       }
     }
@@ -143,23 +163,27 @@ async function loadActivityData() {
     console.warn('Samsung Health health.json failed, trying Worker...', e);
   }
 
-  // 2. Try Cloudflare Worker (fed by Exist.io via GitHub Actions) (legacy)
-  if (!data) {
-    try {
-      const workerBase = window.HEALTH_WORKER_URL || '';
-      if (workerBase) {
-        const res  = await fetch(`${workerBase}/health.json`);
-        const json = await res.json();
-        if (json?.days?.length) {
+  // 2. Merge in Cloudflare Worker data (live from Kage Health Bridge app + legacy Exist.io)
+  try {
+    const workerBase = window.HEALTH_WORKER_URL || '';
+    if (workerBase) {
+      const res  = await fetch(`${workerBase}/health.json`, { cache: 'no-cache' });
+      const json = await res.json();
+      if (json?.days?.length) {
+        if (allDays.length) {
+          allDays = _mergeDaysByDate(allDays, json.days);
+          source += ' + Worker live';
+        } else {
           allDays = json.days;
-          data    = allDays[allDays.length - 1];
-          source  = 'Exist.io via Cloudflare';
+          source  = 'Worker live only';
         }
       }
-    } catch (e) {
-      console.warn('Worker health.json failed, trying Firebase...', e);
     }
+  } catch (e) {
+    console.warn('Worker health.json fetch failed (non-fatal):', e);
   }
+
+  if (allDays.length) data = allDays[allDays.length - 1];
 
   // 3. Fall back to Firebase (legacy)
   if (!data) {
