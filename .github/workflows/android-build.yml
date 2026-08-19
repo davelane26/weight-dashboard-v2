@@ -53,18 +53,26 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Kage Debug, O=davelane26, C=US"
 
+      - name: Verify keystore exists before build
+        run: |
+          echo "=== Keystore location & SHA ==="
+          ls -la android/app/debug.keystore
+          sha256sum android/app/debug.keystore
+
       - name: Build debug APK
         # We build DEBUG (not release) because debug builds use Android's
         # auto-generated debug keystore — no need to manage signing keys
         # in GitHub secrets for a personal side-loaded app. If we ever move
         # to Play Store, switch to assembleRelease + upload-signed-apk here.
         working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK signing cert (diagnostic)
+        # This MUST print the same SHA-256 fingerprint on every build.
+        # If two builds differ, the stable-keystore setup isn't working.
         run: |
-          echo "=== Keystore SHA (should be identical across builds) ==="
-          sha256sum app/debug.keystore || shasum -a 256 app/debug.keystore
-          gradle assembleDebug --no-daemon --stacktrace
-          echo "=== APK signing cert fingerprint (should match previous builds) ==="
-          keytool -printcert -jarfile app/build/outputs/apk/debug/app-debug.apk | grep -E 'SHA(1|256)'
+          echo "=== APK signing cert fingerprint ==="
+          keytool -printcert -jarfile android/app/build/outputs/apk/debug/app-debug.apk || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
