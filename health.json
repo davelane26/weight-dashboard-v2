@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-19T16:33:27+00:00",
-  "lastUpdated": "2026-08-19T16:33:27+00:00",
+  "generated_at": "2026-08-19T18:28:58+00:00",
+  "lastUpdated": "2026-08-19T18:28:58+00:00",
   "source": "samsung_health",
   "days": [
     {
@@ -409,6 +409,7 @@
     {
       "date": "2026-08-18",
       "activities": [],
+      "steps": 4300,
       "sleepHours": 7.05,
       "sleepDeep": 0.88,
       "sleepRem": 0.68,
