@@ -31,6 +31,28 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Reuse the same debug keystore across builds so signature stays
+      # stable and the app installs as an UPDATE instead of throwing
+      # "package conflicts with existing package" (Android refuses to
+      # replace an app when the signing cert changes).
+      - name: Cache debug keystore
+        id: cache-keystore
+        uses: actions/cache@v4
+        with:
+          path: android/app/debug.keystore
+          key: kage-debug-keystore-v1
+
+      - name: Generate keystore if cache miss
+        if: steps.cache-keystore.outputs.cache-hit != 'true'
+        run: |
+          keytool -genkeypair -v \
+            -keystore android/app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Kage Debug, O=davelane26, C=US"
+
       - name: Build debug APK
         # We build DEBUG (not release) because debug builds use Android's
         # auto-generated debug keystore — no need to manage signing keys

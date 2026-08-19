@@ -14,8 +14,11 @@ captures/
 .kotlin/
 
 # Keystores (never commit signing keys)
+# EXCEPTION: debug.keystore is committed intentionally so all builds
+# share the same signing cert (see .github/workflows/android-build.yml)
 *.jks
 *.keystore
+!app/debug.keystore
 
 # APKs (built by CI, download from GitHub Actions artifacts)
 *.apk
