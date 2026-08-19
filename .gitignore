@@ -5,6 +5,9 @@
 garmin_sync/.env
 garmin_sync/cookies.json
 garmin_sync/.garth/
+glapp_sync/glapp_state.json
+glapp_sync/.glapp_venv/
+glapp_sync/sync.log
 
 # Python
 __pycache__/

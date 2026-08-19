@@ -4,6 +4,7 @@
   const SYM_KEY        = 'glp1_sym_v4';
   const SUP_KEY        = 'glp1_sup_v4';
   const SHOTS_CLOUD_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com/medication/shots.json';
+  const GLAPP_INBOX_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com/glapp_inbox/shots.json';
   const ACCENT   = '#534ab7';
   const SEED_VER              = 3;  // bumped for 7.5mg shots
   const JOURNEY_START_WEIGHT  = 315; // lbs on Jan 29, 2026
@@ -162,6 +163,67 @@
       setShotSyncStatus('☁ Synced ✓  ' + new Date().toLocaleTimeString(), '#2a8703');
     }
   }
+
+  // ── Glapp inbox import ────────────────────────────────────────────────────
+  // Pulls the JSON blob written by the glapp-sync bookmarklet (see
+  // bookmarklets/glapp-sync.js), merges non-duplicate shots into the local
+  // store keyed by `id` (deterministic `glapp_<YYYY-MM-DD>` so re-imports
+  // are idempotent), then pushes the merged store up to /medication/shots.
+  //
+  // Wired to a button in the medication dashboard panel via
+  // `window.importFromGlapp`. Also safe to call from the console.
+  async function importFromGlappInbox() {
+    setShotSyncStatus(' Fetching Glapp inbox…', '#995213');
+    let inbox;
+    try {
+      const resp = await fetch(GLAPP_INBOX_URL + '?t=' + Date.now());
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      inbox = await resp.json();
+    } catch (e) {
+      setShotSyncStatus(' Inbox fetch failed: ' + e.message, '#e03131');
+      return { added: 0, skipped: 0, error: e.message };
+    }
+
+    // Inbox shape: { lastUpdated, source, count, shots: [...] }.
+    // Also tolerate a bare array in case the writer changes shape.
+    const incoming = Array.isArray(inbox) ? inbox : (inbox && inbox.shots) || [];
+    if (!incoming.length) {
+      setShotSyncStatus(' Glapp inbox is empty', '#6d7a95');
+      return { added: 0, skipped: 0 };
+    }
+
+    const local   = loadShots();
+    const byId    = new Map(local.map(s => [s.id, s]));
+    let added = 0, skipped = 0;
+    incoming.forEach(s => {
+      if (!s || !s.id || !s.date) return;
+      if (byId.has(s.id)) { skipped++; return; }
+      local.push(s);
+      byId.set(s.id, s);
+      added++;
+    });
+
+    if (added === 0) {
+      setShotSyncStatus(` Glapp: nothing new (${skipped} already synced)`, '#6d7a95');
+      return { added: 0, skipped };
+    }
+
+    local.sort((a, b) => new Date(a.date) - new Date(b.date));
+    saveShots(local);
+    renderGlp1Dashboard();
+    if (activeMedTab === 'history') renderGlp1History();
+    if (activeMedTab === 'phases')  renderGlp1Dial();
+
+    setShotSyncStatus(` Glapp: imported ${added} new shot${added === 1 ? '' : 's'}`, '#2a8703');
+
+    // Fire-and-forget push to /medication/shots so other devices pick it up.
+    if (window.fbUser) pushShotsToCloud(local);
+
+    return { added, skipped };
+  }
+
+  // Expose for the button in index.html and for console use.
+  window.importFromGlapp = importFromGlappInbox;
 
   // ── Seed ──────────────────────────────────────────────────────────────────
   function seed() {
@@ -840,11 +902,17 @@
     if (el) el.textContent = val;
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────────────────────────
   function initGlp1() {
     seed();
     switchMedTab('dashboard');
     syncShotsWithCloud();
+    // Auto-drain the Glapp inbox on boot so the manual button is only
+    // needed for on-demand catch-up. Runs after a tiny delay so the
+    // Firebase cloud sync above has a chance to finish first (order is
+    // cosmetic — both merges are idempotent by id — but it keeps the
+    // status line readable instead of two messages fighting).
+    setTimeout(() => { importFromGlappInbox().catch(() => {}); }, 1500);
     if (!window._glp1Interval) {
       window._glp1Interval = setInterval(() => {
         if (activeMedTab === 'dashboard') renderGlp1Dashboard();

@@ -1,0 +1,5 @@
+{
+  "_comment": "Overrides for the default Glapp URLs. Edit if the app moves.",
+  "login_url": "https://glapp.io/",
+  "logs_url":  "https://glapp.io/logs"
+}

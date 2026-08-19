@@ -151,6 +151,47 @@
 
   <!-- ============================================================ -->
   <div class="card">
+    <h2>Glapp Sync <span class="badge">Auto-Update</span></h2>
+    <p>Scrapes your Glapp shot log (Date / Medication / Dosage / Site / Pain / Notes) and pushes it to your dashboard's Firebase inbox. Log shots once in Glapp, click the bookmarklet, then click <strong>Import from Glapp</strong> on the Medication tab. Idempotent: safe to re-run.</p>
+
+    <p><strong>Drag this to your bookmarks bar:</strong></p>
+    <a class="drag-link"
+       href="javascript:(function(){var s=document.createElement('script');s.src='https://davelane26.github.io/weight-dashboard-v2/bookmarklets/glapp-sync.js?t='+Date.now();document.head.appendChild(s);})();"
+       onclick="event.preventDefault(); alert('Don\'t click me here \u2014 drag me to your bookmarks bar instead!');">
+       Glapp Sync
+    </a>
+    <p class="drag-hint">Same loader pattern as Garmin Sync: fetches the latest code from GitHub Pages every click, so future scraper tweaks propagate with zero re-install.</p>
+
+    <div class="callout">
+      <strong>One-time Firebase rule setup:</strong> This bookmarklet writes anonymously to <code>/glapp_inbox</code>. Add this to your RTDB rules (Firebase Console -&gt; Realtime Database -&gt; Rules):
+<pre style="margin:0.5rem 0 0;background:#0f172a;font-size:0.72rem;padding:0.5rem 0.75rem">"glapp_inbox": {
+  ".read":  true,
+  ".write": true
+}</pre>
+    </div>
+
+    <h3 style="margin-top:1.5rem;font-size:1rem;">How to use</h3>
+    <ol>
+      <li>Open Glapp in your browser and navigate to the <strong>All logs</strong> shot view (Date / Medication / Dosage columns visible)</li>
+      <li>Click the <strong>Glapp Sync</strong> bookmarklet</li>
+      <li>You'll see an <code>alert()</code> with the count of shots pushed and the first/last entries</li>
+      <li>Open your dashboard, go to the <strong>Medication</strong> tab, click <strong>Import from Glapp</strong></li>
+      <li>New shots merge into your local shot log by deterministic id (<code>glapp_YYYY-MM-DD</code>) - re-running never duplicates</li>
+    </ol>
+
+    <h3 style="margin-top:1.5rem;font-size:1rem;">What it captures</h3>
+    <dl class="kv">
+      <dt>Per shot</dt><dd>Date, medication name, dose (mg), injection site, pain level, notes</dd>
+      <dt>Time-of-day</dt><dd>Glapp only shows dates; defaults to 17:30 to match <code>medication.js</code>'s SHOT_SEED convention</dd>
+      <dt>Where it goes</dt><dd>Firebase <code>/glapp_inbox/shots.json</code>. Dashboard pulls + merges on demand.</dd>
+    </dl>
+
+    <h3 style="margin-top:1.5rem;font-size:1rem;">Source</h3>
+    <pre id="glapp-source-view">Loading&hellip;</pre>
+  </div>
+
+  <!-- =================================================== -->
+  <div class="card">
     <h2>Source Code <span class="badge">Auditable</span></h2>
     <p>The full code that runs when you click the bookmarklet. Lives at <a href="./garmin-sync.js" target="_blank"><code>bookmarklets/garmin-sync.js</code></a> in the repo.</p>
     <pre id="source-view">Loading&hellip;</pre>
@@ -186,7 +227,7 @@
     });
   });
 
-  // Load + display source
+  // Load + display Garmin source
   fetch('./garmin-sync.js?t=' + Date.now())
     .then(r => r.text())
     .then(src => {
@@ -204,6 +245,15 @@
     })
     .catch(() => {
       document.getElementById('source-view').textContent = '(failed to load source - view it on GitHub)';
+    });
+
+  // Load + display Glapp source (view-only; no inline flavor since Glapp
+  // is a network-required web app anyway)
+  fetch('./glapp-sync.js?t=' + Date.now())
+    .then(r => r.text())
+    .then(src => { document.getElementById('glapp-source-view').textContent = src; })
+    .catch(() => {
+      document.getElementById('glapp-source-view').textContent = '(failed to load - view it on GitHub)';
     });
 </script>
 

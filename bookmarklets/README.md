@@ -27,6 +27,33 @@ Scrapes the currently-open Garmin Connect page (either the Activity dashboard or
 
 ---
 
+### `glapp-sync.js` - Glapp shot log sync
+
+Scrapes the Glapp "All logs" shot table and pushes it to a Firebase inbox so the dashboard can pull the shots without duplicating hand-entry.
+
+**Why an inbox instead of writing to `/medication/shots.json` directly:** `/medication/shots.json` is auth-gated (`?auth=<firebase-token>`). The bookmarklet runs on the Glapp origin, which has no Firebase session, so it cannot authenticate. Same reason `garmin-sync.js` writes to the anon-writable `/garmin/*` path.
+
+**Data captured (per row):** `date`, `med`, `dose` (mg), `site`, `pain`, `notes`.
+
+**Deterministic id:** `glapp_<YYYY-MM-DD>` - re-running the bookmarklet never duplicates shots.
+
+**Data destinations:**
+
+- `PUT` Firebase `/glapp_inbox/shots.json`  (payload: `{ lastUpdated, source, count, shots: [...] }`)
+
+**Dashboard side:** Medication tab has an **Import from Glapp** button that fetches the inbox, merges non-duplicate shots into `localStorage['glp1_v4']`, and pushes the merged store to `/medication/shots` for cross-device sync. Also callable from console as `window.importFromGlapp()`.
+
+**One-time Firebase rules setup** (RTDB Rules):
+
+```json
+"glapp_inbox": {
+  ".read":  true,
+  ".write": true
+}
+```
+
+---
+
 ## Two install flavors
 
 The installer page offers both:
