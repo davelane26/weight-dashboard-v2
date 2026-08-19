@@ -59,7 +59,12 @@ jobs:
         # in GitHub secrets for a personal side-loaded app. If we ever move
         # to Play Store, switch to assembleRelease + upload-signed-apk here.
         working-directory: android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          echo "=== Keystore SHA (should be identical across builds) ==="
+          sha256sum app/debug.keystore || shasum -a 256 app/debug.keystore
+          gradle assembleDebug --no-daemon --stacktrace
+          echo "=== APK signing cert fingerprint (should match previous builds) ==="
+          keytool -printcert -jarfile app/build/outputs/apk/debug/app-debug.apk | grep -E 'SHA(1|256)'
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
