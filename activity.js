@@ -267,30 +267,21 @@ function renderActivityKPIs(data) {
     _el('act-sleep-score-label').textContent = scoreLabel;
   }
 
-  // ❤️ Resting HR
+  // Resting HR
   _set('act-hr', data.restingHR || '—');
   _set('act-hr-sub', data.minHR && data.maxHR ? `${data.minHR}–${data.maxHR} bpm range` : '');
 
-  // 💪 Intensity minutes
+  // Intensity minutes (from workout sessions)
   _set('act-intensity', data.intensityMinutes || '—');
 
-  // 🧠 Stress
-  const stress = data.stressLevel || null;
-  _set('act-stress', stress || '—');
-  _set('act-stress-sub', stress
-    ? (stress <= 25 ? '🟢 Resting' : stress <= 50 ? '🟡 Low' : stress <= 75 ? '🟠 Medium' : '🔴 High')
-    : '');
+  // Active Calories (from ActiveCaloriesBurnedRecord)
+  _set('act-active-cal', data.activeCalories ? _fmtK(data.activeCalories) : '—');
 
-  // 🔋 Body Battery
-  _set('act-battery', data.bodyBattery ?? '—');
-
-  // 🏃 Fitness Age
-  _set('act-fitness-age', data.fitnessAge ?? '—');
-  _set('act-fitness-age-sub', data.fitnessAge ? `Actual age: 44` : '');
-
-  // 🔥 Calories
+  // Total Calories (from TotalCaloriesBurnedRecord — includes BMR)
   _set('act-total-cal', data.totalCalories ? _fmtK(data.totalCalories) : '—');
-  _set('act-cal-breakdown', data.activeCalories ? `${_fmtK(data.activeCalories)} active` : '');
+
+  // Floors climbed (from FloorsClimbedRecord)
+  _set('act-floors', data.floorsClimbed != null ? Math.round(data.floorsClimbed).toString() : '—');
 
   window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: score };
   if (typeof updateSnapshot    === 'function') updateSnapshot();
