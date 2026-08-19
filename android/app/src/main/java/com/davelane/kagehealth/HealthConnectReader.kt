@@ -11,6 +11,7 @@ import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -134,9 +135,19 @@ object HealthConnectReader {
     }
 
     /**
+     * Samsung Health's Android package name — used to filter Health Connect
+     * reads to ONLY records originally written by Samsung Health, ignoring
+     * duplicates written by other apps (Health Sync writes Samsung's data
+     * back to HC with a different origin, causing double-counting).
+     */
+    private const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
+    private val SAMSUNG_ONLY: Set<DataOrigin> =
+        setOf(DataOrigin(SAMSUNG_HEALTH_PACKAGE))
+
+    /**
      * Read today's total steps by SUMMING raw StepsRecord entries whose
-     * time window overlaps today, WITHOUT the aggregate helper's automatic
-     * clipping.
+     * time window overlaps today AND whose data origin is Samsung Health,
+     * WITHOUT the aggregate helper's automatic clipping.
      *
      * Why not aggregate(): Samsung Health writes a single daily-total record
      * spanning 00:00–23:59 with the full-day count. Health Connect's aggregate
@@ -144,8 +155,12 @@ object HealthConnectReader {
      * for "midnight to now" at 17:13 returns 71.9% of the day's steps
      * (~4860 out of 6805), not the actual current cumulative count.
      *
-     * Fix: read raw records overlapping today's window, sum their .count
-     * fields verbatim. Matches what Samsung Health's own UI shows.
+     * Why filter by dataOrigin: multiple apps (Health Sync, Garmin Connect,
+     * others) can write StepsRecords to HC. Even if you remove them from
+     * the priority list in HC's UI, their historical records remain and
+     * a plain read would sum them all — inflating the total. Restricting
+     * to Samsung Health origin ensures we get exactly one authoritative
+     * count matching what Samsung's own UI shows.
      */
     private suspend fun readTodaySteps(
         client: HealthConnectClient,
@@ -156,6 +171,7 @@ object HealthConnectReader {
             ReadRecordsRequest(
                 recordType = StepsRecord::class,
                 timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+                dataOriginFilter = SAMSUNG_ONLY,
             )
         )
         if (resp.records.isEmpty()) return@runCatching null
