@@ -267,9 +267,15 @@ function renderActivityKPIs(data) {
     _el('act-sleep-score-label').textContent = scoreLabel;
   }
 
-  // Resting HR
-  _set('act-hr', data.restingHR || '—');
-  _set('act-hr-sub', data.minHR && data.maxHR ? `${data.minHR}–${data.maxHR} bpm range` : '');
+  // Heart Rate card: show today's AVG (matches Kage app's sync summary)
+  // as the big number; sub-line breaks out resting + range so both live
+  // in one glance. avgHR is populated live from all HR samples today;
+  // restingHR is the once-daily overnight low Samsung calculates.
+  _set('act-hr', data.avgHR != null ? Math.round(data.avgHR).toString() : (data.restingHR || '—'));
+  const hrSubParts = []
+  if (data.restingHR)                    hrSubParts.push(`resting ${data.restingHR}`)
+  if (data.minHR && data.maxHR)          hrSubParts.push(`${data.minHR}–${data.maxHR} range`)
+  _set('act-hr-sub', hrSubParts.join(' · '));
 
   // Intensity minutes (from workout sessions)
   _set('act-intensity', data.intensityMinutes || '—');
