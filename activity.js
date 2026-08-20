@@ -11,11 +11,11 @@
 const SAMSUNG_HEALTH_URL  = 'health.json';
 const FIREBASE_GARMIN_URL = 'https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com';
 
-// Chart instances for cleanup
-let actStepsChartInst = null;
-let actSleepChartInst = null;
-let actHRChartInst    = null;
-
+// Chart instances for cleanup. Only actSleepDonutInst is still active —
+// the old actStepsChartInst / actSleepChartInst / actHRChartInst were part
+// of the 30-day trends section, replaced by ring/donut/comparison cards.
+// Keeping the null globals so app-tabs.js's chart-teardown loop doesn't
+// crash on missing keys during tab switches.
 window.actStepsChartInst  = null;
 window.actSleepChartInst  = null;
 window.actHRChartInst     = null;
@@ -205,7 +205,10 @@ async function loadActivityData() {
   renderActivityKPIs(data);
   renderSleepBreakdown(data);
   renderActivities(data.activities);
-  loadActivityCharts(allDays);
+  renderSleepDonut(data);
+  renderProgressRings(data);
+  renderWeeklyCompare(allDays);
+  renderSystemHealth(data, source);
 
   // Hide setup prompt
   const setup = _el('act-setup');
@@ -405,131 +408,152 @@ function renderActivities(activities) {
   }).join('');
 }
 
-// ── History Charts (30-day) ───────────────────────────────────────────────
-// history = array of day entries from the Worker (already sorted oldest→newest)
-function loadActivityCharts(history = []) {
-  // Use last 30 days, show MM/DD labels
-  const recent = history.slice(-30);
-  const labels = recent.map(h => {
-    const d = new Date(h.date + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
-  });
+// ── Sleep Stages Donut (last night) ─────────────────────────────────────
+let actSleepDonutInst = null;
+window.actSleepDonutInst = null;
 
-  const chartDefaults = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 9 }, maxTicksLimit: 10 } },
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6d7a95', font: { size: 10 } } },
+function renderSleepDonut(data) {
+  const canvas = _el('actSleepDonut');
+  if (!canvas) return;
+  const deep  = +(data.sleepDeep  || 0);
+  const light = +(data.sleepLight || 0);
+  const rem   = +(data.sleepRem   || 0);
+  const total = deep + light + rem;
+
+  _set('actSleepTotal', total > 0 ? total.toFixed(1) + 'h' : '—');
+
+  const legend = _el('actSleepLegend');
+  if (legend) {
+    const row = (color, name, val) => `<div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:10px;height:10px;background:${color};border-radius:2px;margin-right:6px"></span>${name}</span><span style="font-weight:600">${val > 0 ? val.toFixed(2) + 'h' : '—'}</span></div>`;
+    legend.innerHTML =
+      row('#1e3a5f', 'Deep',  deep)  +
+      row('#4a90d9', 'Light', light) +
+      row('#7c3aed', 'REM',   rem);
+  }
+
+  actSleepDonutInst = _destroyChart(actSleepDonutInst);
+  if (total <= 0) {
+    actSleepDonutInst = _emptyChart(actSleepDonutInst, canvas, 'No sleep data yet');
+    return;
+  }
+  actSleepDonutInst = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Deep', 'Light', 'REM'],
+      datasets: [{
+        data: [deep, light, rem],
+        backgroundColor: ['#1e3a5f', '#4a90d9', '#7c3aed'],
+        borderWidth: 0,
+      }],
     },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed.toFixed(2)}h` } },
+      },
+    },
+  });
+  window.actSleepDonutInst = actSleepDonutInst;
+}
+
+// ── Today's Progress Rings (Apple Watch style) ──────────────────────────
+const STEP_GOAL      = 10000;
+const INTENSITY_GOAL = 30;   // active min/day (WHO baseline recommendation)
+
+function renderProgressRings(data) {
+  const svg = _el('actRings');
+  if (!svg) return;
+  const steps      = +(data.steps || 0);
+  const intensity  = +(data.intensityMinutes || data.workoutsMins || 0);
+  const stepsPct   = Math.min(steps / STEP_GOAL, 1);
+  const intenPct   = Math.min(intensity / INTENSITY_GOAL, 1);
+
+  // Two concentric rings. r=80 outer (steps), r=60 inner (intensity).
+  // Circumference = 2πr. Filled arc = circumference * pct.
+  const ring = (r, pct, color) => {
+    const c = 2 * Math.PI * r;
+    const dash = c * pct;
+    return `
+      <circle cx="100" cy="100" r="${r}" fill="none" stroke="${color}22" stroke-width="14" />
+      <circle cx="100" cy="100" r="${r}" fill="none" stroke="${color}" stroke-width="14"
+              stroke-linecap="round" stroke-dasharray="${dash} ${c}"
+              transform="rotate(-90 100 100)" />`;
   };
+  svg.innerHTML = ring(80, stepsPct, '#2a8703') + ring(58, intenPct, '#7c3aed');
 
-  // Steps chart — Bug 4 fix: show empty state instead of ghost zero bars
-  const stepsCanvas = _el('actStepsChart');
-  const stepsData = recent.map(h => h.steps || 0);
-  if (stepsCanvas) {
-    if (_allZero(stepsData)) {
-      actStepsChartInst = _emptyChart(actStepsChartInst, stepsCanvas, 'No step data yet — keep moving! 🚶');
-      window.actStepsChartInst = null;
-    } else {
-      actStepsChartInst = _destroyChart(actStepsChartInst);
-      actStepsChartInst = new Chart(stepsCanvas.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            data: stepsData,
-            backgroundColor: stepsData.map(s => s >= 10000
-              ? 'rgba(42,135,3,0.7)' : 'rgba(42,135,3,0.35)'),
-            borderColor: '#2a8703',
-            borderWidth: 1,
-            borderRadius: 6,
-          }],
-        },
-        options: {
-          ...chartDefaults,
-          scales: {
-            ...chartDefaults.scales,
-            y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => _fmtK(v) } },
-          },
-        },
-      });
-      window.actStepsChartInst = actStepsChartInst;
-    }
+  const legend = _el('actRingsLegend');
+  if (legend) {
+    legend.innerHTML = `
+      <div style="margin-bottom:0.6rem">
+        <div style="color:#2a8703;font-weight:700;font-size:0.75rem">STEPS</div>
+        <div style="font-size:1.1rem;font-weight:700">${_fmtK(steps)}<span style="color:#94a3b8;font-weight:400;font-size:0.75rem"> / ${_fmtK(STEP_GOAL)}</span></div>
+        <div style="font-size:0.7rem;color:#6d7a95">${Math.round(stepsPct * 100)}% of goal</div>
+      </div>
+      <div>
+        <div style="color:#7c3aed;font-weight:700;font-size:0.75rem">ACTIVE MIN</div>
+        <div style="font-size:1.1rem;font-weight:700">${intensity}<span style="color:#94a3b8;font-weight:400;font-size:0.75rem"> / ${INTENSITY_GOAL}</span></div>
+        <div style="font-size:0.7rem;color:#6d7a95">${Math.round(intenPct * 100)}% of goal</div>
+      </div>`;
   }
+}
 
-  // Sleep chart (stacked bar) — Bug 4 fix: check for real data first
-  const sleepCanvas = _el('actSleepChart');
-  const sleepDeep  = recent.map(h => h.sleepDeep  || 0);
-  const sleepLight = recent.map(h => h.sleepLight || 0);
-  const sleepREM   = recent.map(h => h.sleepRem   || 0);
-  if (sleepCanvas) {
-    if ([sleepDeep, sleepLight, sleepREM].every(_allZero)) {
-      actSleepChartInst = _emptyChart(actSleepChartInst, sleepCanvas, 'No sleep stage data yet');
-      window.actSleepChartInst = null;
-    } else {
-      actSleepChartInst = _destroyChart(actSleepChartInst);
-      actSleepChartInst = new Chart(sleepCanvas.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Deep',  data: sleepDeep,  backgroundColor: '#1e3a5f', borderRadius: 3 },
-            { label: 'Light', data: sleepLight, backgroundColor: '#4a90d9', borderRadius: 3 },
-            { label: 'REM',   data: sleepREM,   backgroundColor: '#7c3aed', borderRadius: 3 },
-          ],
-        },
-        options: {
-          ...chartDefaults,
-          plugins: {
-            legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
-            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)}h` } },
-          },
-          scales: {
-            ...chartDefaults.scales,
-            x: { ...chartDefaults.scales.x, stacked: true },
-            y: { ...chartDefaults.scales.y, stacked: true, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'h' } },
-          },
-        },
-      });
-      window.actSleepChartInst = actSleepChartInst;
-    }
+// ── This Week vs Last Week ──────────────────────────────────────────
+function renderWeeklyCompare(history = []) {
+  const box = _el('actWeeklyCompare');
+  if (!box) return;
+  if (history.length < 8) { box.innerHTML = '<span style="color:#94a3b8">Not enough history yet (need 14 days)</span>'; return; }
+
+  // Split into last 7 and previous 7 by date (ignore any gaps, treat the
+  // trailing 14 days chronologically). Days are already sorted ascending.
+  const last14 = history.slice(-14);
+  const thisWk = last14.slice(-7);
+  const prevWk = last14.slice(0, 7);
+
+  const sum   = (arr, field) => arr.reduce((s, d) => s + (+d[field] || 0), 0);
+  const avg   = (arr, field) => { const vs = arr.map(d => +d[field]).filter(v => v > 0); return vs.length ? vs.reduce((s, v) => s + v, 0) / vs.length : 0; };
+  const arrow = (t, p) => { if (!p) return ''; const d = ((t - p) / p) * 100; const c = d >= 0 ? '#2a8703' : '#c92a2a'; const s = d >= 0 ? '▲' : '▼'; return `<span style="color:${c};font-weight:700;font-size:0.75rem">${s} ${Math.abs(d).toFixed(0)}%</span>`; };
+  const row   = (label, thisVal, prevVal, fmt) => `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0.75rem;padding:0.35rem 0;border-bottom:1px solid #f1f5f9"><span style="color:#475569">${label}</span><span style="font-weight:600;color:#334155">${fmt(thisVal)}</span><span style="color:#94a3b8">${fmt(prevVal)}</span>${arrow(thisVal, prevVal)}</div>`;
+
+  const thisSteps = sum(thisWk, 'steps'),   prevSteps = sum(prevWk, 'steps');
+  const thisSleep = avg(thisWk, 'sleepHours'), prevSleep = avg(prevWk, 'sleepHours');
+  const thisRHR   = avg(thisWk, 'restingHR'), prevRHR   = avg(prevWk, 'restingHR');
+  const thisAct   = sum(thisWk, 'intensityMinutes') || sum(thisWk, 'workoutsMins');
+  const prevAct   = sum(prevWk, 'intensityMinutes') || sum(prevWk, 'workoutsMins');
+
+  box.innerHTML =
+    `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0.75rem;padding-bottom:0.35rem;border-bottom:2px solid #e2e8f0;font-size:0.7rem;font-weight:700;color:#6d7a95;text-transform:uppercase"><span>Metric</span><span>This wk</span><span>Last wk</span><span>Δ</span></div>` +
+    row('Total steps',    thisSteps, prevSteps, v => _fmtK(v)) +
+    row('Avg sleep',      thisSleep, prevSleep, v => v > 0 ? v.toFixed(1) + 'h' : '—') +
+    row('Active minutes', thisAct,   prevAct,   v => v + 'min') +
+    row('Resting HR',     thisRHR,   prevRHR,   v => v > 0 ? v.toFixed(0) + 'bpm' : '—');
+}
+
+// ── Live System Health (the nerd-flex card) ────────────────────────────
+function renderSystemHealth(data, source) {
+  const box = _el('actSystemHealth');
+  if (!box) return;
+  const ts    = data.updatedAt || data.lastUpdated;
+  const now   = Date.now();
+  let freshness = '—';
+  let stale     = false;
+  if (ts) {
+    const ageMs  = now - new Date(ts).getTime();
+    const ageMin = Math.floor(ageMs / 60000);
+    stale = ageMin > 30;
+    freshness = ageMin < 1  ? 'just now'
+              : ageMin < 60 ? `${ageMin} min ago`
+              :               `${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`;
   }
+  const dot   = stale ? '' : '';  // visual live/stale indicator
+  const state = stale ? 'STALE' : 'LIVE';
 
-  // Workouts chart (replaces HR — we don't have HR from Exist.io)
-  const hrCanvas      = _el('actHRChart');
-  const workoutMins   = recent.map(h => h.workoutsMins || 0);
-  const workoutMiles  = recent.map(h => h.workoutsKm ? +(h.workoutsKm * 0.621371).toFixed(2) : 0);
-  if (hrCanvas) {
-    if (_allZero(workoutMins)) {
-      actHRChartInst = _emptyChart(actHRChartInst, hrCanvas, 'No workout data yet');
-      window.actHRChartInst = null;
-    } else {
-      actHRChartInst = _destroyChart(actHRChartInst);
-      actHRChartInst = new Chart(hrCanvas.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            { label: 'Mins',     data: workoutMins, backgroundColor: 'rgba(124,58,237,0.7)', borderRadius: 4, yAxisID: 'y' },
-            { label: 'Mi',       data: workoutMiles, backgroundColor: 'rgba(8,145,178,0.7)',  borderRadius: 4, yAxisID: 'y2' },
-          ],
-        },
-        options: {
-          ...chartDefaults,
-          plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } } },
-          scales: {
-            x:  { ...chartDefaults.scales.x },
-            y:  { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'm' } },
-            y2: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { color: '#6d7a95', font: { size: 10 }, callback: v => v + 'mi' } },
-          },
-        },
-      });
-      window.actHRChartInst = actHRChartInst;
-    }
-  }
-
+  box.innerHTML = [
+    `<div><b>${dot} ${state}</b> · last data ${freshness}</div>`,
+    `<div>source · ${source || 'unknown'}</div>`,
+    `<div>pipeline · Samsung Health → Health Connect → Kage v0.3.3 → Cloudflare Worker → dashboard</div>`,
+    `<div>next expected sync · within 15 min (Kage watchdog: 5 min)</div>`,
+  ].join('');
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────

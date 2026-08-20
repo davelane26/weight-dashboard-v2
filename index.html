@@ -856,12 +856,35 @@
     <section class="card fade-in card--accent-purple" id="sleep-breakdown" style="display:none"><h2 class="card-title">💤 Sleep Stages</h2><div id="sleep-stage-visual"></div></section>
     <section class="card fade-in"><h2 class="card-title">🏋️ Today's Activities</h2><div id="act-list"></div></section>
     <section class="card fade-in">
-      <h2 class="card-title">📈 30-Day Trends</h2>
-      <div class="comp-charts" style="grid-template-columns:1fr">
-        <div><p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🚶 Steps</p><div class="comp-chart-wrap" style="height:180px"><canvas id="actStepsChart"></canvas></div></div>
-        <div><p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">💤 Sleep Stages</p><div class="comp-chart-wrap" style="height:200px"><canvas id="actSleepChart"></canvas></div></div>
-        <div><p style="font-size:0.75rem;font-weight:600;color:#6d7a95;margin-bottom:0.5rem">🏃 Workouts (mins)</p><div class="comp-chart-wrap" style="height:180px"><canvas id="actHRChart"></canvas></div></div>
+      <h2 class="card-title">Sleep Stages</h2>
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:1rem;align-items:center">
+        <div style="position:relative;height:180px">
+          <canvas id="actSleepDonut"></canvas>
+          <div id="actSleepDonutCenter" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+            <p style="font-size:1.5rem;font-weight:800;color:#334155;margin:0" id="actSleepTotal">-</p>
+            <p style="font-size:0.65rem;color:#6d7a95;margin:0;text-transform:uppercase;letter-spacing:0.05em">total</p>
+          </div>
+        </div>
+        <div id="actSleepLegend" style="font-size:0.85rem;line-height:1.8"></div>
       </div>
+    </section>
+
+    <section class="card fade-in">
+      <h2 class="card-title">Today's Progress</h2>
+      <div style="display:flex;justify-content:center;align-items:center;padding:0.5rem 0">
+        <svg id="actRings" viewBox="0 0 200 200" style="width:180px;height:180px"></svg>
+        <div id="actRingsLegend" style="margin-left:1.25rem;font-size:0.85rem;line-height:1.6"></div>
+      </div>
+    </section>
+
+    <section class="card fade-in">
+      <h2 class="card-title">This Week vs Last Week</h2>
+      <div id="actWeeklyCompare" style="font-size:0.85rem;line-height:1.6">-</div>
+    </section>
+
+    <section class="card fade-in" style="background:#f8fafc">
+      <h2 class="card-title" style="font-size:0.85rem">Live System Health</h2>
+      <div id="actSystemHealth" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;line-height:1.7;color:#475569">-</div>
     </section>
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
   </div><!-- /tab-activity -->

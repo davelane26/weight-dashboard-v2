@@ -115,7 +115,10 @@ function switchTab(name) {
   }
   if (name === 'activity') {
     setTimeout(() => {
-      ['actStepsChartInst','actSleepChartInst','actHRChartInst'].forEach(k => {
+      // Only actSleepDonutInst is a live chart now. The other three keys
+      // remain as null placeholders from the 30-day-trends deprecation —
+      // safe to iterate but nothing to resize.
+      ['actSleepDonutInst','actStepsChartInst','actSleepChartInst','actHRChartInst'].forEach(k => {
         if (window[k]) window[k].resize();
       });
     }, 50);
