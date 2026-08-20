@@ -367,6 +367,12 @@ function renderActivities(activities) {
 let actSleepDonutInst = null;
 window.actSleepDonutInst = null;
 
+// Cache last-rendered sleep values so the 60s auto-refresh doesn't
+// re-animate an identical donut every minute (Chart.js does a fresh
+// animation on every new Chart() and it's visually noisy for data that
+// hasn't changed since you woke up).
+let _lastSleepSig = '';
+
 function renderSleepDonut(data) {
   const canvas = _el('actSleepDonut');
   if (!canvas) return;
@@ -374,6 +380,11 @@ function renderSleepDonut(data) {
   const light = +(data.sleepLight || 0);
   const rem   = +(data.sleepRem   || 0);
   const total = deep + light + rem;
+
+  // Skip if nothing changed since last render.
+  const sig = `${deep}|${light}|${rem}`;
+  if (sig === _lastSleepSig && actSleepDonutInst) return;
+  _lastSleepSig = sig;
 
   _set('actSleepTotal', total > 0 ? total.toFixed(1) + 'h' : '—');
 
