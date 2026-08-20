@@ -4,13 +4,17 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.FloorsClimbedRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
+import androidx.health.connect.client.records.OxygenSaturationRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -52,6 +56,14 @@ object HealthConnectReader {
         val sleepLight: Double? = null,
         val sleepRem: Double? = null,
         val sleepAwakenings: Long? = null,    // count of "awake" segments
+        // v0.3.4 additions:
+        val distanceMeters: Double? = null,   // today's total distance in meters
+        val spo2Avg: Double? = null,          // last night avg blood oxygen (%)
+        val spo2Min: Double? = null,          // last night min blood oxygen (%)
+        val hrvRmssd: Double? = null,         // last night avg HRV in milliseconds
+        val vo2Max: Double? = null,           // most recent VO2 max estimate (mL/kg/min)
+        val bedtime: String? = null,          // last night sleep session startTime (ISO)
+        val waketime: String? = null,         // last night sleep session endTime (ISO)
     )
 
     /**
@@ -67,6 +79,11 @@ object HealthConnectReader {
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(FloorsClimbedRecord::class),
+        // v0.3.4 additions:
+        HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(OxygenSaturationRecord::class),
+        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
+        HealthPermission.getReadPermission(Vo2MaxRecord::class),
     )
 
     /**
@@ -134,6 +151,18 @@ object HealthConnectReader {
         val workoutMins = readWorkoutMinutes(client, today)
         val sleep = readLastNightSleep(client, now)
 
+        // v0.3.4 new metrics
+        val distance = readTodayDistance(client, startOfDay, now)
+        // SpO2 and HRV are typically only measured during sleep, so we query
+        // the window of last night's sleep session if we have it (falls back
+        // to "last 30 hours" if we don't).
+        val healthWindow: TimeRangeFilter =
+            if (sleep != null) TimeRangeFilter.between(sleep.startInstant, sleep.endInstant)
+            else TimeRangeFilter.between(now.minus(Duration.ofHours(30)), now)
+        val spo2 = readSpO2Stats(client, healthWindow)
+        val hrv  = readHRVAvg(client, healthWindow)
+        val vo2  = readLatestVO2Max(client)
+
         return Snapshot(
             steps = steps,
             minHR = minHR,
@@ -149,6 +178,13 @@ object HealthConnectReader {
             sleepLight = sleep?.light,
             sleepRem = sleep?.rem,
             sleepAwakenings = sleep?.awakenings,
+            distanceMeters = distance,
+            spo2Avg = spo2?.first,
+            spo2Min = spo2?.second,
+            hrvRmssd = hrv,
+            vo2Max = vo2,
+            bedtime = sleep?.startInstant?.toString(),
+            waketime = sleep?.endInstant?.toString(),
         )
     }
 
@@ -245,6 +281,11 @@ object HealthConnectReader {
         val light: Double?,
         val rem: Double?,
         val awakenings: Long?,
+        // v0.3.4: expose session bounds so downstream reads (SpO2, HRV) can
+        // scope themselves to "during last night's sleep" and the dashboard
+        // can show bedtime / waketime.
+        val startInstant: Instant,
+        val endInstant: Instant,
     )
 
     /**
@@ -288,11 +329,100 @@ object HealthConnectReader {
                 light = light.takeIf { it > 0 }?.let(::round2),
                 rem = rem.takeIf { it > 0 }?.let(::round2),
                 awakenings = awakeSegs.takeIf { it > 0 },
+                startInstant = session.startTime,
+                endInstant = session.endTime,
             )
         }.getOrNull()
     }
 
     private fun round2(d: Double): Double = Math.round(d * 100.0) / 100.0
+
+    // ── v0.3.4: Distance, SpO2, HRV, VO2 Max ──────────────────────────────
+
+    /**
+     * Today's total distance in meters, summed from raw DistanceRecord entries
+     * filtered to Samsung Health origin (same rationale as steps: multiple
+     * apps can write distance and we want a single authoritative source).
+     */
+    private suspend fun readTodayDistance(
+        client: HealthConnectClient,
+        startOfDay: Instant,
+        now: Instant,
+    ): Double? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = DistanceRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+                dataOriginFilter = SAMSUNG_ONLY,
+            )
+        )
+        if (resp.records.isEmpty()) return@runCatching null
+        resp.records.sumOf { it.distance.inMeters }
+    }.getOrNull()
+
+    /**
+     * Blood oxygen (SpO2) stats during the given window: returns (avg%, min%).
+     * Samsung Galaxy Watches measure SpO2 continuously during sleep, so
+     * calling this with the sleep window returns a meaningful nightly stat.
+     * MIN is more clinically interesting than avg — dips below 90% during
+     * sleep are a marker for possible sleep apnea.
+     */
+    private suspend fun readSpO2Stats(
+        client: HealthConnectClient,
+        window: TimeRangeFilter,
+    ): Pair<Double, Double>? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = OxygenSaturationRecord::class,
+                timeRangeFilter = window,
+            )
+        )
+        if (resp.records.isEmpty()) return@runCatching null
+        val vals = resp.records.map { it.percentage.value }  // .value gives Double %
+        val avg = round2(vals.average())
+        val min = round2(vals.min())
+        Pair(avg, min)
+    }.getOrNull()
+
+    /**
+     * Heart Rate Variability (RMSSD) average in milliseconds during the given
+     * window. RMSSD is the standard HRV metric — higher = better recovery /
+     * parasympathetic tone, lower = stress or overtraining. Samsung tracks
+     * this continuously during sleep on Galaxy Watch 4+.
+     */
+    private suspend fun readHRVAvg(
+        client: HealthConnectClient,
+        window: TimeRangeFilter,
+    ): Double? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = HeartRateVariabilityRmssdRecord::class,
+                timeRangeFilter = window,
+            )
+        )
+        if (resp.records.isEmpty()) return@runCatching null
+        round2(resp.records.map { it.heartRateVariabilityMillis }.average())
+    }.getOrNull()
+
+    /**
+     * Most recent VO2 Max estimate in mL/kg/min. Samsung Health computes
+     * this from workout data on the watch and updates it every few days /
+     * after significant workouts. Look back 30 days because it doesn't
+     * refresh daily.
+     */
+    private suspend fun readLatestVO2Max(client: HealthConnectClient): Double? = runCatching {
+        val since = Instant.now().minus(Duration.ofDays(30))
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = Vo2MaxRecord::class,
+                timeRangeFilter = TimeRangeFilter.after(since),
+            )
+        )
+        resp.records
+            .maxByOrNull { it.time }
+            ?.vo2MillilitersPerMinuteKilogram
+            ?.let(::round2)
+    }.getOrNull()
 
     /**
      * Wrap Health Connect calls so a per-metric SecurityException / missing

@@ -850,7 +850,10 @@
         <div class="kpi" style="border-top-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#7c3aed">💪 Intensity</p><p class="kpi-value" style="color:#7c3aed" id="act-intensity">—</p><p class="kpi-unit">active min</p></div>
         <div class="kpi" style="border-top-color:#f59e0b;background:linear-gradient(135deg,#fef3c7 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#b45309"> Active Calories</p><p class="kpi-value" style="color:#b45309" id="act-active-cal">—</p><p class="kpi-unit">kcal burned</p></div>
         <div class="kpi" style="border-top-color:#dc2626;background:linear-gradient(135deg,#fef2f2 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#991b1b"> Total Calories</p><p class="kpi-value" style="color:#991b1b" id="act-total-cal">—</p><p class="kpi-unit">kcal today</p></div>
-        <div class="kpi" style="border-top-color:#0284c7;background:linear-gradient(135deg,#eff6ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0369a1"> Floors</p><p class="kpi-value" style="color:#0369a1" id="act-floors">—</p><p class="kpi-unit">climbed</p></div>
+        <div class="kpi" style="border-top-color:#0284c7;background:linear-gradient(135deg,#eff6ff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0369a1"> Floors</p><p class="kpi-value" style="color:#0369a1" id="act-floors">-</p><p class="kpi-unit">climbed</p></div>
+        <div class="kpi" style="border-top-color:#0d9488;background:linear-gradient(135deg,#f0fdfa 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#0f766e">SpO2</p><p class="kpi-value" style="color:#0f766e" id="act-spo2">-</p><p class="kpi-unit" id="act-spo2-sub">nightly avg</p></div>
+        <div class="kpi" style="border-top-color:#db2777;background:linear-gradient(135deg,#fdf2f8 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#be185d">HRV</p><p class="kpi-value" style="color:#be185d" id="act-hrv">-</p><p class="kpi-unit">ms RMSSD</p></div>
+        <div class="kpi" style="border-top-color:#059669;background:linear-gradient(135deg,#ecfdf5 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#047857">VO2 Max</p><p class="kpi-value" style="color:#047857" id="act-vo2">-</p><p class="kpi-unit">mL/kg/min</p></div>
       </div>
     </section>
     <section class="card fade-in"><h2 class="card-title">🏋️ Today's Activities</h2><div id="act-list"></div></section>
@@ -871,6 +874,7 @@
         </div>
         <div id="actSleepLegend" style="font-size:0.85rem;line-height:1.9"></div>
       </div>
+      <div id="actSleepTimes" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;font-size:0.75rem;color:#6d7a95;text-align:center"></div>
     </section>
 
     <section class="card fade-in" style="margin:0">
@@ -879,6 +883,7 @@
         <svg id="actRings" viewBox="0 0 200 200" style="width:160px;height:160px;flex-shrink:0"></svg>
         <div id="actRingsLegend" style="font-size:0.85rem;line-height:1.6"></div>
       </div>
+      <div id="actDistance" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;font-size:0.75rem;color:#6d7a95;text-align:center"></div>
     </section>
 
     <section class="card fade-in" style="margin:0">

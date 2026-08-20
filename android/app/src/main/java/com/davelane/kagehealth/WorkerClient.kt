@@ -52,6 +52,14 @@ object WorkerClient {
             snap.sleepLight?.let       { put("sleepLight", it) }
             snap.sleepRem?.let         { put("sleepRem", it) }
             snap.sleepAwakenings?.let  { put("sleepAwakenings", it) }
+            // v0.3.4 additions
+            snap.distanceMeters?.let   { put("distanceMeters", it) }
+            snap.spo2Avg?.let          { put("spo2Avg", it) }
+            snap.spo2Min?.let          { put("spo2Min", it) }
+            snap.hrvRmssd?.let         { put("hrvRmssd", it) }
+            snap.vo2Max?.let           { put("vo2Max", it) }
+            snap.bedtime?.let          { put("bedtime", it) }
+            snap.waketime?.let         { put("waketime", it) }
         }
         return postJson("$workerUrl/health/patch", apiSecret, body.toString())
     }

@@ -297,6 +297,19 @@ function renderActivityKPIs(data) {
   // Floors climbed (from FloorsClimbedRecord)
   _set('act-floors', data.floorsClimbed != null ? Math.round(data.floorsClimbed).toString() : '—');
 
+  // v0.3.4 additions ---------------------------------------------------
+  // SpO2 (blood oxygen). Show avg with min as sub. <90% min flags possible sleep apnea.
+  if (data.spo2Avg != null) {
+    _set('act-spo2', data.spo2Avg.toFixed(1) + '%');
+    _set('act-spo2-sub', data.spo2Min != null ? `min ${data.spo2Min.toFixed(0)}%` : 'nightly avg');
+  } else {
+    _set('act-spo2', '—');
+  }
+  // HRV (RMSSD, milliseconds). Higher = better recovery.
+  _set('act-hrv', data.hrvRmssd != null ? data.hrvRmssd.toFixed(0) : '—');
+  // VO2 Max (mL/kg/min). Samsung updates every few days.
+  _set('act-vo2', data.vo2Max != null ? data.vo2Max.toFixed(1) : '—');
+
   window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: score };
   if (typeof updateSnapshot    === 'function') updateSnapshot();
   if (typeof generateInsights  === 'function') generateInsights();
@@ -388,6 +401,20 @@ function renderSleepDonut(data) {
 
   _set('actSleepTotal', total > 0 ? total.toFixed(1) + 'h' : '—');
 
+  // Bedtime + Waketime line (v0.3.4). Only shows if we have both from Kage.
+  const bedwake = _el('actSleepTimes');
+  if (bedwake) {
+    if (data.bedtime && data.waketime) {
+      const fmt = iso => {
+        const d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      };
+      bedwake.innerHTML = `<b>${fmt(data.bedtime)}</b> → <b>${fmt(data.waketime)}</b>`;
+    } else {
+      bedwake.innerHTML = '';
+    }
+  }
+
   const legend = _el('actSleepLegend');
   if (legend) {
     const row = (color, name, val) => `<div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:10px;height:10px;background:${color};border-radius:2px;margin-right:6px"></span>${name}</span><span style="font-weight:600">${val > 0 ? val.toFixed(2) + 'h' : '—'}</span></div>`;
@@ -461,6 +488,18 @@ function renderProgressRings(data) {
         <div style="font-size:1.1rem;font-weight:700">${intensity}<span style="color:#94a3b8;font-weight:400;font-size:0.75rem"> / ${INTENSITY_GOAL}</span></div>
         <div style="font-size:0.7rem;color:#6d7a95">${Math.round(intenPct * 100)}% of goal</div>
       </div>`;
+  }
+
+  // Distance walked today (v0.3.4). Rendered under the rings.
+  const distBox = _el('actDistance');
+  if (distBox) {
+    if (data.distanceMeters != null && data.distanceMeters > 0) {
+      const km = data.distanceMeters / 1000;
+      const mi = km * 0.621371;
+      distBox.innerHTML = `<b>${mi.toFixed(2)} mi</b> · ${km.toFixed(2)} km walked today`;
+    } else {
+      distBox.innerHTML = '';
+    }
   }
 }
 
