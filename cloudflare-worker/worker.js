@@ -357,6 +357,9 @@ export default {
         'restingHR','minHR','maxHR','avgHR','stressLevel','bodyBattery','fitnessAge',
         // Activity
         'steps','intensityMinutes','activeCalories','totalCalories','floorsClimbed',
+        // v0.3.4 Kage additions: distance today, blood oxygen, HRV, VO2 max,
+        // bedtime/waketime bounds from the last sleep session.
+        'distanceMeters','spo2Avg','spo2Min','hrvRmssd','vo2Max','bedtime','waketime',
       ];
       for (const key of allowed) {
         if (body[key] !== undefined && body[key] !== null) patched[key] = body[key];
