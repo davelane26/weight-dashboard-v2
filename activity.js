@@ -212,12 +212,18 @@ async function loadActivityData() {
   if (setup) setup.style.display = 'none';
 
   // Show last updated
+  // Update the "synced" line with THIS refresh's wall clock, not just the
+  // data record's own timestamp — lets the user visually confirm the
+  // auto-refresh loop is ticking (line changes every 60s while tab visible).
+  const nowStr = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
   const ts = data.lastUpdated || data.updatedAt;
   if (ts) {
     const d = new Date(ts);
-    _set('act-updated', `Synced via ${source} · ${d.toLocaleString()}`);
+    _set('act-updated', `Data: ${d.toLocaleString()} · via ${source} · checked ${nowStr}`);
   } else if (data.date) {
-    _set('act-updated', `Data for ${data.date} · via ${source}`);
+    _set('act-updated', `Data for ${data.date} · via ${source} · checked ${nowStr}`);
+  } else {
+    _set('act-updated', `via ${source} · checked ${nowStr}`);
   }
 }
 
@@ -526,6 +532,43 @@ function loadActivityCharts(history = []) {
 
 }
 
-// ── Init ─────────────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────────────────────────
+// Auto-refresh strategy:
+//   * Fire immediately on load
+//   * Fire every REFRESH_MS while the tab is visible
+//   * Pause when the tab is hidden (Page Visibility API) to save bandwidth
+//     and battery on mobile — no point polling a page nobody's looking at
+//   * Immediately re-fetch when the tab regains focus (catches up on missed
+//     ticks so you never see stale data after coming back from another tab)
+const REFRESH_MS = 60_000;  // 60s — balances freshness vs. Cloudflare
+                            // Worker request quota (100k/day free tier)
+let _refreshTimer = null;
+
+function _startAutoRefresh() {
+  if (_refreshTimer) return;
+  _refreshTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') loadActivityData();
+  }, REFRESH_MS);
+}
+
+function _stopAutoRefresh() {
+  if (!_refreshTimer) return;
+  clearInterval(_refreshTimer);
+  _refreshTimer = null;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    loadActivityData();       // catch up immediately
+    _startAutoRefresh();      // resume ticking
+  } else {
+    _stopAutoRefresh();       // pause — no point polling a hidden tab
+  }
+});
+
 loadActivityData();
-setInterval(loadActivityData, 30000);
+_startAutoRefresh();
+
+// Expose loadActivityData globally so a manual "Refresh" button (or the tab
+// switcher in enhancements.js) can force a refetch on demand.
+window.loadActivityData = loadActivityData;
