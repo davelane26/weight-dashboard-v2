@@ -24,6 +24,7 @@ class BootReceiver : BroadcastReceiver() {
             // just spins in "waiting for setup" mode.
             if (Prefs(context).isConfigured) {
                 SyncService.start(context)
+                WatchdogReceiver.schedule(context)  // re-arm heartbeat after reboot
             }
         }
     }

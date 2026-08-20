@@ -25,6 +25,7 @@ class KageApp : Application() {
         schedulePeriodicSync()
         if (Prefs(this).isConfigured) {
             SyncService.start(this)
+            WatchdogReceiver.schedule(this)  // heartbeat: restart service if killed
         }
     }
 

@@ -104,6 +104,7 @@ class MainActivity : ComponentActivity() {
     private fun maybeStartSyncService() {
         if (Prefs(this).isConfigured) {
             SyncService.start(this)
+            WatchdogReceiver.schedule(this)  // ensure heartbeat is armed
         }
     }
 
