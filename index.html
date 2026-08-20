@@ -857,7 +857,7 @@
     <section class="card fade-in"><h2 class="card-title">🏋️ Today's Activities</h2><div id="act-list"></div></section>
     <section class="card fade-in">
       <h2 class="card-title">Sleep Stages</h2>
-      <div style="display:grid;grid-template-columns:200px 1fr;gap:1rem;align-items:center">
+      <div style="display:grid;grid-template-columns:180px minmax(0,280px);gap:1.25rem;align-items:center;max-width:520px">
         <div style="position:relative;height:180px">
           <canvas id="actSleepDonut"></canvas>
           <div id="actSleepDonutCenter" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
@@ -865,26 +865,26 @@
             <p style="font-size:0.65rem;color:#6d7a95;margin:0;text-transform:uppercase;letter-spacing:0.05em">total</p>
           </div>
         </div>
-        <div id="actSleepLegend" style="font-size:0.85rem;line-height:1.8"></div>
+        <div id="actSleepLegend" style="font-size:0.85rem;line-height:1.9"></div>
       </div>
     </section>
 
     <section class="card fade-in">
       <h2 class="card-title">Today's Progress</h2>
-      <div style="display:flex;justify-content:center;align-items:center;padding:0.5rem 0">
-        <svg id="actRings" viewBox="0 0 200 200" style="width:180px;height:180px"></svg>
-        <div id="actRingsLegend" style="margin-left:1.25rem;font-size:0.85rem;line-height:1.6"></div>
+      <div style="display:flex;align-items:center;gap:1.5rem;max-width:520px">
+        <svg id="actRings" viewBox="0 0 200 200" style="width:180px;height:180px;flex-shrink:0"></svg>
+        <div id="actRingsLegend" style="font-size:0.85rem;line-height:1.6"></div>
       </div>
     </section>
 
     <section class="card fade-in">
       <h2 class="card-title">This Week vs Last Week</h2>
-      <div id="actWeeklyCompare" style="font-size:0.85rem;line-height:1.6">-</div>
+      <div id="actWeeklyCompare" style="font-size:0.85rem;line-height:1.6;max-width:520px">-</div>
     </section>
 
     <section class="card fade-in" style="background:#f8fafc">
       <h2 class="card-title" style="font-size:0.85rem">Live System Health</h2>
-      <div id="actSystemHealth" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;line-height:1.7;color:#475569">-</div>
+      <div id="actSystemHealth" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;line-height:1.7;color:#475569;max-width:640px">-</div>
     </section>
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
   </div><!-- /tab-activity -->
