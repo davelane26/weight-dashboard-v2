@@ -41,7 +41,13 @@ class WatchdogReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val WATCHDOG_INTERVAL_MS = 15L * 60L * 1000L  // 15 min
+        // 5-min heartbeat: aggressive enough that after a Clear All kill, the
+        // service is back within 5 min instead of 15. Cost is negligible —
+        // AlarmManager wake-up + one BroadcastReceiver invocation. Even on
+        // Doze, setExactAndAllowWhileIdle is exempt from the 15-min throttle
+        // for the FIRST alarm; subsequent ones may be clamped but 5-min target
+        // means we still recover in <15 worst case.
+        const val WATCHDOG_INTERVAL_MS = 5L * 60L * 1000L
         private const val REQUEST_CODE = 42
 
         /**

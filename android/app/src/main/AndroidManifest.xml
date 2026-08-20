@@ -23,6 +23,13 @@
     <!-- Android 13+ runtime perm for the ongoing sync notification -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Android 13+ exact alarms for the watchdog heartbeat. USE_EXACT_ALARM
+         is granted without user prompt for apps like ours (health/calendar/etc.);
+         SCHEDULE_EXACT_ALARM is the fallback for older Androids where user
+         may need to grant it via Settings > Special app access. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- Health Connect discovery: allow the system to see we're a Health Connect client -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
