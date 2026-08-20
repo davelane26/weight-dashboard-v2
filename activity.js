@@ -535,20 +535,23 @@ function loadActivityCharts(history = []) {
 // ── Init ───────────────────────────────────────────────────────────────────────
 // Auto-refresh strategy:
 //   * Fire immediately on load
-//   * Fire every REFRESH_MS while the tab is visible
+//   * Fire every ACTIVITY_REFRESH_MS while the tab is visible
 //   * Pause when the tab is hidden (Page Visibility API) to save bandwidth
 //     and battery on mobile — no point polling a page nobody's looking at
 //   * Immediately re-fetch when the tab regains focus (catches up on missed
 //     ticks so you never see stale data after coming back from another tab)
-const REFRESH_MS = 60_000;  // 60s — balances freshness vs. Cloudflare
-                            // Worker request quota (100k/day free tier)
+// NOTE: renamed from REFRESH_MS to avoid collision with app-config.js's global
+// REFRESH_MS (30_000) — duplicate `const` at global scope is a SyntaxError
+// that kills the entire file's execution.
+const ACTIVITY_REFRESH_MS = 60_000;  // 60s — balances freshness vs. Cloudflare
+                                     // Worker request quota (100k/day free tier)
 let _refreshTimer = null;
 
 function _startAutoRefresh() {
   if (_refreshTimer) return;
   _refreshTimer = setInterval(() => {
     if (document.visibilityState === 'visible') loadActivityData();
-  }, REFRESH_MS);
+  }, ACTIVITY_REFRESH_MS);
 }
 
 function _stopAutoRefresh() {
