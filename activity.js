@@ -231,14 +231,23 @@ async function loadActivityData() {
 
 // ── KPI Cards ──────────────────────────────────────────────────────
 function renderActivityKPIs(data) {
-  // Steps hero — Bug 2 fix: fall back to step-based distance when Garmin
-  // doesn't include a distance field (avoids the "0 mi" display bug)
+  // Steps hero. Distance preference order:
+  //   1. data.distanceMeters (Kage v0.3.4+, GPS-accurate from Samsung Health)
+  //   2. data.distance (legacy Garmin/other field, already in miles)
+  //   3. steps / 2000 fallback estimate (avoids "0 mi" when no distance field)
   const STEPS_PER_MILE = 2000;
   const stepGoal = 10000;
   const stepPct = Math.min(100, ((data.steps || 0) / stepGoal) * 100);
-  const distMi = data.distance
-    ? (+data.distance).toFixed(2)
-    : (data.steps ? (data.steps / STEPS_PER_MILE).toFixed(2) : '0.00');
+  let distMi;
+  if (data.distanceMeters != null && data.distanceMeters > 0) {
+    distMi = (data.distanceMeters / 1609.344).toFixed(2);
+  } else if (data.distance) {
+    distMi = (+data.distance).toFixed(2);
+  } else if (data.steps) {
+    distMi = (data.steps / STEPS_PER_MILE).toFixed(2);
+  } else {
+    distMi = '0.00';
+  }
   _set('act-steps', _fmtK(data.steps));
   _set('act-steps-sub',
     `${distMi} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
@@ -488,18 +497,6 @@ function renderProgressRings(data) {
         <div style="font-size:1.1rem;font-weight:700">${intensity}<span style="color:#94a3b8;font-weight:400;font-size:0.75rem"> / ${INTENSITY_GOAL}</span></div>
         <div style="font-size:0.7rem;color:#6d7a95">${Math.round(intenPct * 100)}% of goal</div>
       </div>`;
-  }
-
-  // Distance walked today (v0.3.4). Rendered under the rings.
-  const distBox = _el('actDistance');
-  if (distBox) {
-    if (data.distanceMeters != null && data.distanceMeters > 0) {
-      const km = data.distanceMeters / 1000;
-      const mi = km * 0.621371;
-      distBox.innerHTML = `<b>${mi.toFixed(2)} mi</b> · ${km.toFixed(2)} km walked today`;
-    } else {
-      distBox.innerHTML = '';
-    }
   }
 }
 
