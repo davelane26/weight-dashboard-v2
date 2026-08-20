@@ -1,9 +1,11 @@
 package com.davelane.kagehealth
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,8 +66,18 @@ class MainActivity : ComponentActivity() {
             // UI will refresh via LaunchedEffect polling. No action needed here.
         }
 
+    // Android 13+: runtime permission for the ongoing foreground-service
+    // notification. Without this granted, the persistent notification is
+    // silently suppressed (though the service itself still runs).
+    private val requestNotificationPerm =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { /* result not needed — UI polls */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        maybeRequestNotificationPermission()
+        maybeStartSyncService()
         setContent {
             KageTheme {
                 Surface(
@@ -79,6 +91,27 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // If the user updated their config while the app was backgrounded,
+        // (re)start the service so it picks up the new URL/secret.
+        maybeStartSyncService()
+    }
+
+    private fun maybeStartSyncService() {
+        if (Prefs(this).isConfigured) {
+            SyncService.start(this)
+        }
+    }
+
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            if (!granted) requestNotificationPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 }

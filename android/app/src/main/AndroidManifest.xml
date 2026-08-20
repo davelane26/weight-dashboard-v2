@@ -15,12 +15,12 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" />
 
-    <!-- Wake background worker for scheduled 15-min sync -->
+    <!-- Foreground service for reliable 15-min sync + boot restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
-    <!-- Android 13+ requires runtime permission for the persistent notification -->
+    <!-- Android 13+ runtime perm for the ongoing sync notification -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Health Connect discovery: allow the system to see we're a Health Connect client -->
@@ -59,6 +59,23 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Foreground sync service. Persistent notification keeps this alive
+             even when Samsung's OneUI throttles background work. -->
+        <service
+            android:name=".SyncService"
+            android:foregroundServiceType="dataSync|health"
+            android:exported="false" />
+
+        <!-- Restart the sync service on boot / after app update -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>
