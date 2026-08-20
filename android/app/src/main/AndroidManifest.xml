@@ -19,6 +19,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <!-- Android 13+ requires runtime permission for the persistent notification -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Health Connect discovery: allow the system to see we're a Health Connect client -->
     <queries>

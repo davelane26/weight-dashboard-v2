@@ -69,6 +69,24 @@ object HealthConnectReader {
         HealthPermission.getReadPermission(FloorsClimbedRecord::class),
     )
 
+    /**
+     * Check whether we ACTUALLY have permission to read all our record types.
+     * Health Connect can silently revoke permissions (Samsung's auto-revoke,
+     * HC app updates, user action) and our reads then throw SecurityException
+     * which safeAggregate swallows — leading to "OK: no metrics" instead of
+     * a clear "permissions revoked, tap Grant" signal.
+     */
+    suspend fun hasAllPermissions(context: Context): Boolean {
+        if (!isAvailable(context)) return false
+        return try {
+            val client = HealthConnectClient.getOrCreate(context)
+            val granted = client.permissionController.getGrantedPermissions()
+            granted.containsAll(PERMISSIONS)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun isAvailable(context: Context): Boolean =
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 

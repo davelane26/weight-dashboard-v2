@@ -33,6 +33,14 @@ class SyncWorker(
             return Result.success()
         }
 
+        // Check permissions explicitly so we distinguish "revoked permissions"
+        // from "legit empty day" — previously both surfaced as "no metrics".
+        if (!HealthConnectReader.hasAllPermissions(applicationContext)) {
+            prefs.lastSyncStatus = "PERMISSIONS REVOKED — tap Grant button"
+            prefs.lastSyncEpochMs = System.currentTimeMillis()
+            return Result.success()
+        }
+
         val snap = HealthConnectReader.readSnapshot(applicationContext)
         if (snap == null) {
             prefs.lastSyncStatus = "no data (permissions?)"
