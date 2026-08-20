@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Foreground service that runs the sync loop every SYNC_INTERVAL_MS,
@@ -87,33 +88,42 @@ class SyncService : Service() {
     }
 
     private suspend fun performOneSync() {
+        updateNotification("checking config…")
         val prefs = Prefs(applicationContext)
         if (!prefs.isConfigured) {
             updateNotification("waiting for setup (open app)")
             return
         }
+
+        updateNotification("checking Health Connect…")
         if (!HealthConnectReader.isAvailable(applicationContext)) {
             updateNotification("Health Connect not installed")
             return
         }
         if (!HealthConnectReader.hasAllPermissions(applicationContext)) {
-            updateNotification("permissions revoked \u2014 tap to fix")
-            prefs.lastSyncStatus = "PERMISSIONS REVOKED \u2014 tap Grant button"
+            updateNotification("permissions revoked — tap to fix")
+            prefs.lastSyncStatus = "PERMISSIONS REVOKED — tap Grant button"
             prefs.lastSyncEpochMs = System.currentTimeMillis()
             return
         }
 
+        updateNotification("reading health data…")
         val snap = HealthConnectReader.readSnapshot(applicationContext)
         if (snap == null) {
             updateNotification("no data yet today")
             return
         }
 
-        val result = WorkerClient.postSnapshot(prefs.workerUrl, prefs.apiSecret, snap)
+        updateNotification("posting to worker…")
+        // HTTP POST is blocking (HttpURLConnection) — route it to Dispatchers.IO
+        // so we don't tie up the Dispatchers.Default thread pool.
+        val result = withContext(Dispatchers.IO) {
+            WorkerClient.postSnapshot(prefs.workerUrl, prefs.apiSecret, snap)
+        }
         snap.steps?.let { prefs.lastStepsSent = it.toInt() }
         prefs.lastSyncEpochMs = System.currentTimeMillis()
 
-        val stepsStr = snap.steps?.toString() ?: "\u2014"
+        val stepsStr = snap.steps?.toString() ?: "—"
         prefs.lastSyncStatus = if (result.ok) "OK: $stepsStr steps" else "FAIL: ${result.status}"
         updateNotification(
             if (result.ok) "last sync: $stepsStr steps at ${nowHm()}"
