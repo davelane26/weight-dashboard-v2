@@ -518,10 +518,27 @@ function renderWeeklyCompare(history = []) {
   const thisWk = last14.slice(-7);
   const prevWk = last14.slice(0, 7);
 
+  // Fixed-width value columns so numbers line up under their headers even
+  // when some rows have no delta arrow (auto columns cause the whole row to
+  // shift when siblings collapse to zero width).
+  const gridCols = 'grid-template-columns:1fr 72px 72px 56px';
+  const cellR    = 'text-align:right';
   const sum   = (arr, field) => arr.reduce((s, d) => s + (+d[field] || 0), 0);
   const avg   = (arr, field) => { const vs = arr.map(d => +d[field]).filter(v => v > 0); return vs.length ? vs.reduce((s, v) => s + v, 0) / vs.length : 0; };
-  const arrow = (t, p) => { if (!p) return ''; const d = ((t - p) / p) * 100; const c = d >= 0 ? '#2a8703' : '#c92a2a'; const s = d >= 0 ? '▲' : '▼'; return `<span style="color:${c};font-weight:700;font-size:0.75rem">${s} ${Math.abs(d).toFixed(0)}%</span>`; };
-  const row   = (label, thisVal, prevVal, fmt) => `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0.75rem;padding:0.35rem 0;border-bottom:1px solid #f1f5f9"><span style="color:#475569">${label}</span><span style="font-weight:600;color:#334155">${fmt(thisVal)}</span><span style="color:#94a3b8">${fmt(prevVal)}</span>${arrow(thisVal, prevVal)}</div>`;
+  const arrow = (t, p) => {
+    if (!p) return `<span style="${cellR};color:#cbd5e1">\u2014</span>`;
+    const d = ((t - p) / p) * 100;
+    const c = d >= 0 ? '#2a8703' : '#c92a2a';
+    const s = d >= 0 ? '\u25b2' : '\u25bc';
+    return `<span style="${cellR};color:${c};font-weight:700;font-size:0.75rem">${s} ${Math.abs(d).toFixed(0)}%</span>`;
+  };
+  const row = (label, thisVal, prevVal, fmt) =>
+    `<div style="display:grid;${gridCols};gap:0.75rem;padding:0.35rem 0;border-bottom:1px solid #f1f5f9;align-items:baseline">` +
+      `<span style="color:#475569">${label}</span>` +
+      `<span style="${cellR};font-weight:600;color:#334155">${fmt(thisVal)}</span>` +
+      `<span style="${cellR};color:#94a3b8">${fmt(prevVal)}</span>` +
+      `${arrow(thisVal, prevVal)}` +
+    `</div>`;
 
   const thisSteps = sum(thisWk, 'steps'),   prevSteps = sum(prevWk, 'steps');
   const thisSleep = avg(thisWk, 'sleepHours'), prevSleep = avg(prevWk, 'sleepHours');
@@ -530,7 +547,12 @@ function renderWeeklyCompare(history = []) {
   const prevAct   = sum(prevWk, 'intensityMinutes') || sum(prevWk, 'workoutsMins');
 
   box.innerHTML =
-    `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0.75rem;padding-bottom:0.35rem;border-bottom:2px solid #e2e8f0;font-size:0.7rem;font-weight:700;color:#6d7a95;text-transform:uppercase"><span>Metric</span><span>This wk</span><span>Last wk</span><span>Δ</span></div>` +
+    `<div style="display:grid;${gridCols};gap:0.75rem;padding-bottom:0.35rem;border-bottom:2px solid #e2e8f0;font-size:0.7rem;font-weight:700;color:#6d7a95;text-transform:uppercase">` +
+      `<span>Metric</span>` +
+      `<span style="${cellR}">This wk</span>` +
+      `<span style="${cellR}">Last wk</span>` +
+      `<span style="${cellR}">\u0394</span>` +
+    `</div>` +
     row('Total steps',    thisSteps, prevSteps, v => _fmtK(v)) +
     row('Avg sleep',      thisSleep, prevSleep, v => v > 0 ? v.toFixed(1) + 'h' : '—') +
     row('Active minutes', thisAct,   prevAct,   v => v + 'min') +
