@@ -34,6 +34,18 @@ class Prefs(context: Context) {
         get() = sp.getInt(KEY_LAST_STEPS, -1)
         set(v) = sp.edit().putInt(KEY_LAST_STEPS, v).apply()
 
+    /**
+     * Which Health Connect data origin to treat as authoritative for
+     * sum-type metrics (steps, distance, calories, floors, workouts).
+     * Fallback to the other source kicks in only if primary has no data.
+     *
+     * Values: HealthConnectReader.ORIGIN_SAMSUNG (default) or ORIGIN_GARMIN.
+     */
+    var primaryOrigin: String
+        get() = sp.getString(KEY_PRIMARY_ORIGIN, HealthConnectReader.ORIGIN_SAMSUNG)
+            ?: HealthConnectReader.ORIGIN_SAMSUNG
+        set(v) = sp.edit().putString(KEY_PRIMARY_ORIGIN, v).apply()
+
     val isConfigured: Boolean
         get() = workerUrl.isNotBlank() && apiSecret.isNotBlank()
 
@@ -43,5 +55,6 @@ class Prefs(context: Context) {
         private const val KEY_LAST_SYNC = "last_sync_epoch_ms"
         private const val KEY_LAST_STATUS = "last_sync_status"
         private const val KEY_LAST_STEPS = "last_steps_sent"
+        private const val KEY_PRIMARY_ORIGIN = "primary_origin"
     }
 }

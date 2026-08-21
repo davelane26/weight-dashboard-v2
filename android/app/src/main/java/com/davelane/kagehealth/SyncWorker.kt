@@ -41,7 +41,7 @@ class SyncWorker(
             return Result.success()
         }
 
-        val snap = HealthConnectReader.readSnapshot(applicationContext)
+        val snap = HealthConnectReader.readSnapshot(applicationContext, prefs.primaryOrigin)
         if (snap == null) {
             prefs.lastSyncStatus = "no data (permissions?)"
             prefs.lastSyncEpochMs = System.currentTimeMillis()

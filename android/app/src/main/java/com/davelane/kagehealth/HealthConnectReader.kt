@@ -112,7 +112,10 @@ object HealthConnectReader {
      * (permission not granted) or IllegalStateException (nothing recorded)
      * shouldn't take down the whole sync — we swallow per-metric and continue.
      */
-    suspend fun readSnapshot(context: Context): Snapshot? {
+    suspend fun readSnapshot(
+        context: Context,
+        primaryOrigin: String = ORIGIN_SAMSUNG,
+    ): Snapshot? {
         if (!isAvailable(context)) return null
         val client = HealthConnectClient.getOrCreate(context)
 
@@ -121,7 +124,32 @@ object HealthConnectReader {
         val now = Instant.now()
         val today = TimeRangeFilter.between(startOfDay, now)
 
-        val steps = readTodaySteps(client, startOfDay, now)
+        // Sum-type metrics: read primary origin first, fall back to secondary
+        // if primary has no data for today. Prevents double-counting when
+        // both Samsung Health AND Garmin Connect are writing to HC on the
+        // same day (e.g., wearing both watches).
+        val primaryFilter = originFilter(primaryOrigin)
+        val fallbackFilter = originFilter(otherOrigin(primaryOrigin))
+
+        val steps = readTodayStepsPreferring(client, startOfDay, now, primaryFilter, fallbackFilter)
+        val activeCal = aggregatePreferring(
+            client, today, primaryFilter, fallbackFilter,
+            ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+        )?.inKilocalories
+        val totalCal = aggregatePreferring(
+            client, today, primaryFilter, fallbackFilter,
+            TotalCaloriesBurnedRecord.ENERGY_TOTAL,
+        )?.inKilocalories
+        val floors = aggregatePreferring(
+            client, today, primaryFilter, fallbackFilter,
+            FloorsClimbedRecord.FLOORS_CLIMBED_TOTAL,
+        )
+
+        // Point-in-time / already-deduped metrics: unfiltered reads are OK.
+        // - HR aggregates (min/max/avg): mixing origins is imperfect but not
+        //   inflationary — bigger min/max are meaningful, avg is diluted.
+        // - Sleep, resting HR, VO2Max: most-recent-wins already.
+        // - SpO2, HRV: averaged across origins is still reasonable.
         val minHR = safeAggregate {
             client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MIN), today))
                 .get(HeartRateRecord.BPM_MIN)
@@ -134,25 +162,14 @@ object HealthConnectReader {
             client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_AVG), today))
                 .get(HeartRateRecord.BPM_AVG)
         }?.toDouble()
-        val activeCal = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL), today))
-                .get(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)?.inKilocalories
-        }
-        val totalCal = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL), today))
-                .get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories
-        }
-        val floors = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(FloorsClimbedRecord.FLOORS_CLIMBED_TOTAL), today))
-                .get(FloorsClimbedRecord.FLOORS_CLIMBED_TOTAL)
-        }
 
         val restingHR = readRestingHR(client)
-        val workoutMins = readWorkoutMinutes(client, today)
+        val workoutMins = readWorkoutMinutesPreferring(client, today, primaryFilter, fallbackFilter)
         val sleep = readLastNightSleep(client, now)
 
-        // v0.3.4 new metrics
-        val distance = readTodayDistance(client, startOfDay, now)
+        // v0.3.4 metrics — distance is sum-type (needs origin priority),
+        // rest are point-in-time / averaged.
+        val distance = readTodayDistancePreferring(client, startOfDay, now, primaryFilter, fallbackFilter)
         // SpO2 and HRV are typically only measured during sleep, so we query
         // the window of last night's sleep session if we have it (falls back
         // to "last 30 hours" if we don't).
@@ -188,20 +205,39 @@ object HealthConnectReader {
         )
     }
 
-    /**
-     * Samsung Health's Android package name — used to filter Health Connect
-     * reads to ONLY records originally written by Samsung Health, ignoring
-     * duplicates written by other apps (Health Sync writes Samsung's data
-     * back to HC with a different origin, causing double-counting).
-     */
+    // ── Data-origin identifiers (v0.4.0) ──────────────────────────────────
+    //
+    // Health Connect can receive the same metric from multiple apps. For
+    // sum-type metrics (steps, distance, calories, floors, workout minutes)
+    // this means naive reads DOUBLE-COUNT when >1 source is present. To
+    // avoid this we filter by dataOrigin and read one source at a time,
+    // preferring the user-selected primary and falling back to the other
+    // if primary has no data for today.
+
+    /** Samsung Health app package (Galaxy Watch → Samsung Health → HC). */
+    const val ORIGIN_SAMSUNG = "samsung"
     private const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
     private val SAMSUNG_ONLY: Set<DataOrigin> =
         setOf(DataOrigin(SAMSUNG_HEALTH_PACKAGE))
 
+    /** Garmin Connect app package (Garmin device → Garmin Connect → HC). */
+    const val ORIGIN_GARMIN = "garmin"
+    private const val GARMIN_CONNECT_PACKAGE = "com.garmin.android.apps.connectmobile"
+    private val GARMIN_ONLY: Set<DataOrigin> =
+        setOf(DataOrigin(GARMIN_CONNECT_PACKAGE))
+
+    private fun originFilter(originKey: String): Set<DataOrigin> = when (originKey) {
+        ORIGIN_GARMIN -> GARMIN_ONLY
+        else          -> SAMSUNG_ONLY   // default & safety net
+    }
+
+    private fun otherOrigin(originKey: String): String =
+        if (originKey == ORIGIN_GARMIN) ORIGIN_SAMSUNG else ORIGIN_GARMIN
+
     /**
      * Read today's total steps by SUMMING raw StepsRecord entries whose
-     * time window overlaps today AND whose data origin is Samsung Health,
-     * WITHOUT the aggregate helper's automatic clipping.
+     * time window overlaps today AND whose data origin matches the primary
+     * source. Falls back to secondary origin if primary has no data.
      *
      * Why not aggregate(): Samsung Health writes a single daily-total record
      * spanning 00:00–23:59 with the full-day count. Health Connect's aggregate
@@ -209,28 +245,66 @@ object HealthConnectReader {
      * for "midnight to now" at 17:13 returns 71.9% of the day's steps
      * (~4860 out of 6805), not the actual current cumulative count.
      *
-     * Why filter by dataOrigin: multiple apps (Health Sync, Garmin Connect,
-     * others) can write StepsRecords to HC. Even if you remove them from
-     * the priority list in HC's UI, their historical records remain and
-     * a plain read would sum them all — inflating the total. Restricting
-     * to Samsung Health origin ensures we get exactly one authoritative
-     * count matching what Samsung's own UI shows.
+     * Why per-origin: multiple apps (Samsung Health, Garmin Connect, Health
+     * Sync, others) can write StepsRecords to HC. A plain read sums them
+     * all — inflating the total. Reading one origin at a time keeps the
+     * count faithful to whichever source we're treating as authoritative.
      */
-    private suspend fun readTodaySteps(
+    private suspend fun readTodayStepsPreferring(
         client: HealthConnectClient,
         startOfDay: Instant,
         now: Instant,
+        primary: Set<DataOrigin>,
+        fallback: Set<DataOrigin>,
+    ): Long? {
+        readStepsForOrigin(client, startOfDay, now, primary)?.let { return it }
+        return readStepsForOrigin(client, startOfDay, now, fallback)
+    }
+
+    private suspend fun readStepsForOrigin(
+        client: HealthConnectClient,
+        startOfDay: Instant,
+        now: Instant,
+        origin: Set<DataOrigin>,
     ): Long? = runCatching {
         val resp = client.readRecords(
             ReadRecordsRequest(
                 recordType = StepsRecord::class,
                 timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
-                dataOriginFilter = SAMSUNG_ONLY,
+                dataOriginFilter = origin,
             )
         )
         if (resp.records.isEmpty()) return@runCatching null
         resp.records.sumOf { it.count }
     }.getOrNull()
+
+    /**
+     * Generic "aggregate metric with origin priority": try primary origin
+     * first, fall back to secondary if primary has nothing. Works for any
+     * AggregateMetric<T> (kcal, count, meters, etc.) — the type parameter
+     * flows through so callers get their expected return type.
+     */
+    private suspend fun <T : Any> aggregatePreferring(
+        client: HealthConnectClient,
+        window: TimeRangeFilter,
+        primary: Set<DataOrigin>,
+        fallback: Set<DataOrigin>,
+        metric: androidx.health.connect.client.aggregate.AggregateMetric<T>,
+    ): T? {
+        aggregateForOrigin(client, window, primary, metric)?.let { return it }
+        return aggregateForOrigin(client, window, fallback, metric)
+    }
+
+    private suspend fun <T : Any> aggregateForOrigin(
+        client: HealthConnectClient,
+        window: TimeRangeFilter,
+        origin: Set<DataOrigin>,
+        metric: androidx.health.connect.client.aggregate.AggregateMetric<T>,
+    ): T? = safeAggregate {
+        client.aggregate(
+            AggregateRequest(setOf(metric), window, dataOriginFilter = origin)
+        ).get(metric)
+    }
 
     /**
      * Resting HR: read most recent RestingHeartRateRecord in the last 48h
@@ -255,24 +329,36 @@ object HealthConnectReader {
     /**
      * Sum of all workout durations that started today, in whole minutes.
      * Doesn't distinguish workout types — just "how many active minutes."
+     * Uses origin priority so we don't double-count a workout logged by
+     * both watches.
      */
-    private suspend fun readWorkoutMinutes(
+    private suspend fun readWorkoutMinutesPreferring(
         client: HealthConnectClient,
         today: TimeRangeFilter,
+        primary: Set<DataOrigin>,
+        fallback: Set<DataOrigin>,
     ): Long? {
-        return runCatching {
-            val resp = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = ExerciseSessionRecord::class,
-                    timeRangeFilter = today,
-                )
-            )
-            if (resp.records.isEmpty()) return null
-            resp.records
-                .sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }
-                .coerceAtLeast(0L)
-        }.getOrNull()
+        readWorkoutMinutesForOrigin(client, today, primary)?.let { return it }
+        return readWorkoutMinutesForOrigin(client, today, fallback)
     }
+
+    private suspend fun readWorkoutMinutesForOrigin(
+        client: HealthConnectClient,
+        today: TimeRangeFilter,
+        origin: Set<DataOrigin>,
+    ): Long? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = ExerciseSessionRecord::class,
+                timeRangeFilter = today,
+                dataOriginFilter = origin,
+            )
+        )
+        if (resp.records.isEmpty()) return@runCatching null
+        resp.records
+            .sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }
+            .coerceAtLeast(0L)
+    }.getOrNull()
 
     /** Parsed sleep summary from Health Connect stage segments. */
     private data class SleepSummary(
@@ -341,19 +427,31 @@ object HealthConnectReader {
 
     /**
      * Today's total distance in meters, summed from raw DistanceRecord entries
-     * filtered to Samsung Health origin (same rationale as steps: multiple
-     * apps can write distance and we want a single authoritative source).
+     * filtered to the primary origin (falls back to secondary). Same rationale
+     * as steps — reading unfiltered sums across sources and inflates.
      */
-    private suspend fun readTodayDistance(
+    private suspend fun readTodayDistancePreferring(
         client: HealthConnectClient,
         startOfDay: Instant,
         now: Instant,
+        primary: Set<DataOrigin>,
+        fallback: Set<DataOrigin>,
+    ): Double? {
+        readDistanceForOrigin(client, startOfDay, now, primary)?.let { return it }
+        return readDistanceForOrigin(client, startOfDay, now, fallback)
+    }
+
+    private suspend fun readDistanceForOrigin(
+        client: HealthConnectClient,
+        startOfDay: Instant,
+        now: Instant,
+        origin: Set<DataOrigin>,
     ): Double? = runCatching {
         val resp = client.readRecords(
             ReadRecordsRequest(
                 recordType = DistanceRecord::class,
                 timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
-                dataOriginFilter = SAMSUNG_ONLY,
+                dataOriginFilter = origin,
             )
         )
         if (resp.records.isEmpty()) return@runCatching null
