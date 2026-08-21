@@ -284,15 +284,21 @@ function renderActivityKPIs(data) {
     _el('act-sleep-score-label').textContent = scoreLabel;
   }
 
-  // Heart Rate card: show today's AVG (matches Kage app's sync summary)
-  // as the big number; sub-line breaks out resting + range so both live
-  // in one glance. avgHR is populated live from all HR samples today;
-  // restingHR is the once-daily overnight low Samsung calculates.
-  _set('act-hr', data.avgHR != null ? Math.round(data.avgHR).toString() : (data.restingHR || '—'));
-  const hrSubParts = []
-  if (data.restingHR)                    hrSubParts.push(`resting ${data.restingHR}`)
-  if (data.minHR && data.maxHR)          hrSubParts.push(`${data.minHR}–${data.maxHR} range`)
-  _set('act-hr-sub', hrSubParts.join(' · '));
+  // Heart Rate card: v0.4.2 preference is currentHR (latest sample from the
+  // last 30min) so the tile feels alive. Falls back to avgHR when the
+  // current-HR pipeline hasn't landed a recent sample (device off, sync gap).
+  // Sub-line surfaces avg + resting + range so the aggregate context is
+  // still visible in one glance.
+  const hasCurrent = data.currentHR != null;
+  const hrPrimary  = hasCurrent ? data.currentHR
+                                : (data.avgHR != null ? Math.round(data.avgHR) : (data.restingHR || '\u2014'));
+  _set('act-hr', hrPrimary.toString());
+  _set('act-hr-unit', hasCurrent ? 'bpm now' : 'bpm avg today');
+  const hrSubParts = [];
+  if (hasCurrent && data.avgHR != null)  hrSubParts.push(`avg ${Math.round(data.avgHR)}`);
+  if (data.restingHR)                    hrSubParts.push(`resting ${data.restingHR}`);
+  if (data.minHR && data.maxHR)          hrSubParts.push(`${data.minHR}\u2013${data.maxHR} range`);
+  _set('act-hr-sub', hrSubParts.join(' \u00b7 '));
 
   // Intensity minutes (from workout sessions)
   _set('act-intensity', data.intensityMinutes || '—');

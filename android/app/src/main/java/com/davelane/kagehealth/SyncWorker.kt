@@ -70,7 +70,8 @@ class SyncWorker(
     private fun summarize(s: HealthConnectReader.Snapshot): String {
         val parts = mutableListOf<String>()
         s.steps?.let         { parts += "$it steps" }
-        s.avgHR?.let         { parts += "HR ${it.toInt()}" }
+        s.currentHR?.let     { parts += "HR ${it}" }
+        s.avgHR?.let         { parts += "avg ${it.toInt()}" }
         s.sleepHours?.let    { parts += "sleep ${it}h" }
         s.activeCalories?.let{ parts += "${it.toInt()} kcal" }
         s.intensityMinutes?.let { if (it > 0) parts += "${it}min wkt" }

@@ -47,6 +47,7 @@ object HealthConnectReader {
         val minHR: Long? = null,
         val maxHR: Long? = null,
         val avgHR: Double? = null,
+        val currentHR: Long? = null,          // v0.4.2: most recent HR sample in last 30min
         val activeCalories: Double? = null,   // kcal
         val totalCalories: Double? = null,    // kcal
         val floorsClimbed: Double? = null,
@@ -164,6 +165,7 @@ object HealthConnectReader {
         }?.toDouble()
 
         val restingHR = readRestingHR(client)
+        val currentHR = readCurrentHR(client)
         val workoutMins = readWorkoutMinutesPreferring(client, today, primaryFilter, fallbackFilter)
         val sleep = readLastNightSleep(client, now)
 
@@ -185,6 +187,7 @@ object HealthConnectReader {
             minHR = minHR,
             maxHR = maxHR,
             avgHR = avgHR,
+            currentHR = currentHR,
             restingHR = restingHR,
             activeCalories = activeCal,
             totalCalories = totalCal,
@@ -304,6 +307,30 @@ object HealthConnectReader {
         client.aggregate(
             AggregateRequest(setOf(metric), window, dataOriginFilter = origin)
         ).get(metric)
+    }
+
+    /**
+     * Current HR: read the most recent HeartRateRecord sample within the
+     * last 30 minutes and return its bpm. Unfiltered across origins so it
+     * catches whichever device wrote most recently. Returns null if no HR
+     * data landed in the last 30 min (device off, stale sync, etc.).
+     */
+    private suspend fun readCurrentHR(client: HealthConnectClient): Long? {
+        return runCatching {
+            val since = Instant.now().minus(Duration.ofMinutes(30))
+            val resp = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = HeartRateRecord::class,
+                    timeRangeFilter = TimeRangeFilter.after(since),
+                )
+            )
+            // HeartRateRecord holds a list of samples per record. Flatten
+            // across all records in the window and grab the latest sample.
+            resp.records
+                .flatMap { it.samples }
+                .maxByOrNull { it.time }
+                ?.beatsPerMinute
+        }.getOrNull()
     }
 
     /**

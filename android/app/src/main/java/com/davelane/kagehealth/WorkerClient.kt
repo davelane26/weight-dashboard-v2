@@ -43,6 +43,7 @@ object WorkerClient {
             snap.minHR?.let            { put("minHR", it) }
             snap.maxHR?.let            { put("maxHR", it) }
             snap.avgHR?.let            { put("avgHR", it) }
+            snap.currentHR?.let        { put("currentHR", it) }
             snap.activeCalories?.let   { put("activeCalories", it) }
             snap.totalCalories?.let    { put("totalCalories", it) }
             snap.floorsClimbed?.let    { put("floorsClimbed", it) }

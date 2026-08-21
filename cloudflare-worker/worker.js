@@ -354,7 +354,7 @@ export default {
         'sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
         'sleepAwakenings','timeInBed',
         // Heart / stress / battery
-        'restingHR','minHR','maxHR','avgHR','stressLevel','bodyBattery','fitnessAge',
+        'restingHR','minHR','maxHR','avgHR','currentHR','stressLevel','bodyBattery','fitnessAge',
         // Activity
         'steps','intensityMinutes','activeCalories','totalCalories','floorsClimbed',
         // v0.3.4 Kage additions: distance today, blood oxygen, HRV, VO2 max,
