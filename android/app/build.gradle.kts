@@ -12,8 +12,8 @@ android {
         applicationId = "com.davelane.kagehealth"
         minSdk = 26          // Health Connect requires Android 8.0+
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.4.0"
+        versionCode = 13
+        versionName = "0.4.1"
     }
 
     signingConfigs {

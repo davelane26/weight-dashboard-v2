@@ -46,7 +46,13 @@ object WorkerClient {
             snap.activeCalories?.let   { put("activeCalories", it) }
             snap.totalCalories?.let    { put("totalCalories", it) }
             snap.floorsClimbed?.let    { put("floorsClimbed", it) }
-            snap.intensityMinutes?.let { put("intensityMinutes", it) }
+            // intensityMinutes intentionally NOT sent from Kage: the Garmin-bookmarklet
+            // is the authoritative source for that field (uses Garmin's real
+            // moderate + 2*vigorous calculation from HR zones). Kage's ExerciseSessionRecord
+            // sum systematically undercounts because non-workout activity (walking around
+            // life, chores) doesn't get recorded as an exercise session but does raise HR
+            // into moderate/vigorous zones. Sending Kage's smaller number every 15 min
+            // was overwriting the bookmarklet's accurate value.
             snap.sleepHours?.let       { put("sleepHours", it) }
             snap.sleepDeep?.let        { put("sleepDeep", it) }
             snap.sleepLight?.let       { put("sleepLight", it) }
