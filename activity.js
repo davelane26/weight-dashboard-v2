@@ -297,8 +297,9 @@ function renderActivityKPIs(data) {
   const hrSubParts = [];
   if (hasCurrent && data.avgHR != null)  hrSubParts.push(`avg ${Math.round(data.avgHR)}`);
   if (data.restingHR)                    hrSubParts.push(`resting ${data.restingHR}`);
-  if (data.minHR && data.maxHR)          hrSubParts.push(`${data.minHR}\u2013${data.maxHR} range`);
   _set('act-hr-sub', hrSubParts.join(' \u00b7 '));
+  // Range gets its own line so it doesn't visually blur into avg/resting.
+  _set('act-hr-range', (data.minHR && data.maxHR) ? `range ${data.minHR}\u2013${data.maxHR}` : '');
 
   // Intensity minutes (from workout sessions)
   _set('act-intensity', data.intensityMinutes || '—');
