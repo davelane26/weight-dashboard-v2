@@ -14,10 +14,16 @@ name = "glucose-relay"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
-# TODO: fill in the KV namespace id — find it in the Cloudflare dashboard:
-# Workers & Pages -> glucose-relay -> Settings -> Variables -> KV Namespace
-# Bindings (shows the id next to the GLUCOSE_KV binding), or via
-# `wrangler kv namespace list` once logged in locally.
 [[kv_namespaces]]
 binding = "GLUCOSE_KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "ecca8944f9a348d99c1c94961ee4971d"
+
+# D1 database (WEIGHT_DB -> "weight-data"). worker.js in this repo doesn't
+# currently reference this binding, but it's connected on the live Worker —
+# declared here so an automated `wrangler deploy` doesn't silently drop it.
+# TODO: fill in the real D1 database id (Workers & Pages -> D1 -> weight-data,
+# or `wrangler d1 list` once logged in locally).
+[[d1_databases]]
+binding = "WEIGHT_DB"
+database_name = "weight-data"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
