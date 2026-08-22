@@ -54,6 +54,14 @@ object WorkerClient {
             // life, chores) doesn't get recorded as an exercise session but does raise HR
             // into moderate/vigorous zones. Sending Kage's smaller number every 15 min
             // was overwriting the bookmarklet's accurate value.
+            //
+            // v0.4.3: send that same number under workoutsMins instead — the field
+            // name the Samsung Health bridge already uses for the same
+            // sum-of-session-durations methodology. The dashboard's Active Minutes
+            // tile falls back to workoutsMins when intensityMinutes is absent, so
+            // Kage-only users (no bookmarklet run) get a real number instead of a
+            // permanently blank tile, without touching the bookmarklet's field.
+            snap.intensityMinutes?.let { put("workoutsMins", it) }
             snap.sleepHours?.let       { put("sleepHours", it) }
             snap.sleepDeep?.let        { put("sleepDeep", it) }
             snap.sleepLight?.let       { put("sleepLight", it) }
