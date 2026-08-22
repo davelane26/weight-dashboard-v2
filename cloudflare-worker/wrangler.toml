@@ -1,0 +1,23 @@
+# Wrangler config for the `glucose-relay` Worker (glucose-relay.djtwo6.workers.dev).
+#
+# This enables `wrangler deploy` — used by .github/workflows/deploy-worker.yml
+# to auto-deploy on every push that touches cloudflare-worker/**, replacing the
+# old "paste into the Cloudflare dashboard Quick Edit UI" manual step.
+#
+# Secrets (API_SECRET, API_SECRET_V, ALLOWED_EMAILS, ANTHROPIC_API_KEY) are
+# NOT declared here — they're already set on the live Worker via the
+# dashboard/`wrangler secret put`, live server-side, and are untouched by
+# `wrangler deploy`. Only the KV binding below needs to be declared, since
+# that's part of the Worker's code-level config.
+
+name = "glucose-relay"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# TODO: fill in the KV namespace id — find it in the Cloudflare dashboard:
+# Workers & Pages -> glucose-relay -> Settings -> Variables -> KV Namespace
+# Bindings (shows the id next to the GLUCOSE_KV binding), or via
+# `wrangler kv namespace list` once logged in locally.
+[[kv_namespaces]]
+binding = "GLUCOSE_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
