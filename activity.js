@@ -301,8 +301,13 @@ function renderActivityKPIs(data) {
   // Range gets its own line so it doesn't visually blur into avg/resting.
   _set('act-hr-range', (data.minHR && data.maxHR) ? `range ${data.minHR}\u2013${data.maxHR}` : '');
 
-  // Intensity minutes (from workout sessions)
-  _set('act-intensity', data.intensityMinutes || '—');
+  // Intensity minutes (from workout sessions). Garmin sync populates
+  // intensityMinutes directly; the Samsung Health bridge (current primary
+  // source) only writes workoutsMins — fall back to it so this tile isn't
+  // permanently blank now that Samsung Health is the default path (matches
+  // the fallback already used by the progress rings and weekly-compare).
+  const intensityMins = data.intensityMinutes ?? data.workoutsMins;
+  _set('act-intensity', intensityMins || '—');
 
   // Active Calories (from ActiveCaloriesBurnedRecord)
   _set('act-active-cal', data.activeCalories ? _fmtK(data.activeCalories) : '—');
