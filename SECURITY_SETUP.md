@@ -38,9 +38,13 @@ Files: `cloudflare-worker/worker.js`, `app.js`, `index.html`,
 `cloudflare-worker/migrate_weight.py`
 
 ### Steps
-1. **Deploy the worker.** Paste the new `worker.js` into the Cloudflare
-   dashboard editor (Workers & Pages -> `glucose-relay` -> Edit Code) and
-   Save/Deploy.
+1. **Deploy the worker.** Automatic as of Aug 2026 — pushing any change to
+   `cloudflare-worker/**` on `main` triggers `.github/workflows/deploy-worker.yml`,
+   which runs `wrangler deploy` for you (see `cloudflare-worker/wrangler.toml`
+   for the bindings config, and the repo's `CLOUDFLARE_API_TOKEN` /
+   `CLOUDFLARE_ACCOUNT_ID` secrets for auth). No more manual paste-into-the-
+   dashboard step — if a push doesn't show up live, check the Action's run
+   log instead of assuming you forgot to deploy by hand.
 
 2. **Set the allow-list on the worker.** In the worker's Settings ->
    Variables, add:

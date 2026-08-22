@@ -62,10 +62,9 @@ SETUP_LOCAL_SYNC.bat
 
 ## Also — redeploy the Cloudflare Worker
 
-The `worker.js` was updated to fix the batch merge (so Exist.io syncs
-no longer wipe your Garmin patches). Paste the updated file into the
-Cloudflare dashboard if you haven't already:
-
-**File:** `C:\Users\d3lane\Documents\puppy_workspace\weight-dashboard-v2\cloudflare-worker\worker.js`
-
-**Dashboard:** https://dash.cloudflare.com → Workers & Pages → `glucose-relay` → Edit Code
+**Outdated as of Aug 2026** — this used to require pasting `worker.js`
+into the Cloudflare dashboard by hand after every edit. It's now automatic:
+pushing a change under `cloudflare-worker/**` to `main` triggers
+`.github/workflows/deploy-worker.yml`, which deploys it via `wrangler`.
+See `cloudflare-worker/wrangler.toml` and `SECURITY_SETUP.md`. Nothing to
+do here anymore — left for historical context on this note.
