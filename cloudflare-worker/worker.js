@@ -11,6 +11,18 @@
  *   GET  /glucose.json         ← dashboard reads from here
  *   GET  /workout-schedule     ← dashboard reads day-of-week overrides (token-gated)
  *   POST /workout-schedule     ← dashboard writes day-of-week overrides (token-gated)
+ *
+ * IMPORTANT — every runtime env var this Worker reads (API_SECRET,
+ * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY) MUST be set as a
+ * **Secret** in the dashboard/via `wrangler secret put`, never as a plain
+ * Variable. `wrangler deploy` treats wrangler.toml as the complete,
+ * authoritative binding list for everything EXCEPT true secrets — a plain
+ * Variable not declared in wrangler.toml gets silently deleted on the next
+ * automated deploy. This bit us for real: ALLOWED_EMAILS was a plain
+ * Variable, the first automated deploy wiped it, and every Firebase-gated
+ * endpoint (weight.json, /photo, /workout-schedule) started 401ing for
+ * everyone even with a perfectly valid token, since requireUser() fails
+ * closed when the allow-list is empty.
  */
 
 const MAX_READINGS = 288; // 24h at 5-min intervals

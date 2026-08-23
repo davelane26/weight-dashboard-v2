@@ -4,11 +4,18 @@
 # to auto-deploy on every push that touches cloudflare-worker/**, replacing the
 # old "paste into the Cloudflare dashboard Quick Edit UI" manual step.
 #
-# Secrets (API_SECRET, API_SECRET_V, ALLOWED_EMAILS, ANTHROPIC_API_KEY) are
-# NOT declared here — they're already set on the live Worker via the
-# dashboard/`wrangler secret put`, live server-side, and are untouched by
-# `wrangler deploy`. Only the KV binding below needs to be declared, since
-# that's part of the Worker's code-level config.
+# Secrets (API_SECRET, API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY) are
+# NOT declared here — they're set on the live Worker via the dashboard/
+# `wrangler secret put`, live server-side.
+#
+# THIS ONLY WORKS IF THEIR TYPE IS ACTUALLY "Secret", NOT "Variable" —
+# wrangler treats wrangler.toml as the complete, authoritative config for
+# everything except true secrets, so an undeclared plain Variable gets
+# silently deleted on deploy, same as an undeclared binding. This already
+# happened once: ALLOWED_EMAILS was a plain Variable and the first
+# automated deploy wiped it, breaking every Firebase-gated dashboard
+# endpoint. If you ever hand-edit a var on the live Worker, check its
+# type in Settings -> Variables and Secrets before the next deploy.
 
 name = "glucose-relay"
 main = "worker.js"
