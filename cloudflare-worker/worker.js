@@ -600,14 +600,27 @@ export default {
       let body;
       try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
 
+      // Delete event: { event: "delete", userId, date } -- no weight/values,
+      // just the UTC date of the entry to remove (confirmed shape,
+      // 2026-08-24). Same exact-date-match convention as everything else.
+      if (body && body.event === 'delete' && typeof body.date === 'string') {
+        const dateStr = formatOpenScaleDate(body.date);
+        if (!dateStr) return cors('{"error":"invalid date in delete event"}', 400);
+        const stored = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
+        const remaining = stored.filter((r) => r.date !== dateStr);
+        if (remaining.length === stored.length) {
+          return cors(JSON.stringify({ ok: true, note: `no entry found for ${dateStr}, nothing to delete` }));
+        }
+        await env.GLUCOSE_KV.put('weight', JSON.stringify(remaining));
+        return cors(JSON.stringify({ ok: true, mode: 'delete', date: dateStr }));
+      }
+
       const raw = Array.isArray(body.measurements) ? body.measurements
                 : (body && typeof body.weight === 'number' ? [body] : null);
       if (!raw) {
-        // TEMPORARY (remove once delete-shape handling is built): capture
-        // whatever this unrecognized shape actually is instead of hard-
-        // failing, so openScale's own retry loop doesn't get stuck on a
-        // permanent 400 -- most likely a delete event, which has some shape
-        // we haven't seen yet. Logged for GET /weight/openscale-webhook-debug.
+        // Genuinely unrecognized shape (not a known measurement or delete
+        // event) -- capture it instead of hard-failing, so openScale's own
+        // retry loop doesn't get stuck. Check GET /weight/openscale-webhook-debug.
         await env.GLUCOSE_KV.put('openscale_webhook_debug', JSON.stringify({
           receivedAt: new Date().toISOString(),
           body,
@@ -649,9 +662,15 @@ export default {
       return cors(JSON.stringify({ ok: true, mode: 'merge', date: entry.date, id: entry.id }));
     }
 
-    // TEMPORARY, remove once delete-shape handling is built -- see the
-    // capture code above.
+    // Diagnostic for whatever the fallback capture above catches (a
+    // genuinely unrecognized webhook shape, not the now-handled delete
+    // event). Gated by a ?key= query param (not a header) so it's still
+    // checkable by just pasting a URL into a browser -- a plain navigation
+    // can't set custom headers, which is exactly the /weight.json 401 trap
+    // from earlier. Reuses OPENSCALE_WEBHOOK_SECRET, no new secret needed.
     if (method === 'GET' && url.pathname === '/weight/openscale-webhook-debug') {
+      const secret = env.OPENSCALE_WEBHOOK_SECRET;
+      if (secret && url.searchParams.get('key') !== secret) return cors('{"error":"Unauthorized"}', 401);
       const data = await env.GLUCOSE_KV.get('openscale_webhook_debug', { type: 'json' });
       return cors(JSON.stringify(data ?? { note: 'nothing captured yet' }));
     }
@@ -668,14 +687,24 @@ export default {
 // that same fixed -06:00 shift rather than doing real timezone conversion,
 // to stay consistent with the rest of the dataset.
 const KG_TO_LBS = 2.20462;
-function convertOpenScaleMeasurement(m) {
-  if (!m || typeof m.weight !== 'number' || !m.date) return null;
-  const utc = new Date(m.date);
+
+// Shared by convertOpenScaleMeasurement and the delete handler -- both need
+// to turn openScale's UTC ISO date into the same "-0600" local string data
+// entries are keyed by, so a delete's date string actually matches the
+// entry it's meant to remove.
+function formatOpenScaleDate(isoUtc) {
+  const utc = new Date(isoUtc);
   if (isNaN(utc)) return null;
   const local = new Date(utc.getTime() - 6 * 3600_000);
   const pad = (n) => String(n).padStart(2, '0');
-  const dateStr = `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}` +
+  return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}` +
     `T${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}-0600`;
+}
+
+function convertOpenScaleMeasurement(m) {
+  if (!m || typeof m.weight !== 'number' || !m.date) return null;
+  const dateStr = formatOpenScaleDate(m.date);
+  if (!dateStr) return null;
 
   // openScale duplicates fat/water/muscle at the top level AND inside
   // "values" (which also carries bmi/bmr/tdee/bone/impedance) -- prefer the

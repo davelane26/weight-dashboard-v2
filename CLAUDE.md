@@ -80,13 +80,18 @@ instructions (e.g. the glucose tab).
      deliberately not git**, since the 2026-08-23 incident showed both
      pipelines fire from the same event; a second concurrent git-writer
      would reintroduce that exact race. This exists so the live dashboard
-     stays current even when the home PC/MQTT bridge is down. Two payload
+     stays current even when the home PC/MQTT bridge is down. Three payload
      shapes from openScale itself: a bulk `{event, measurements: [...]}`
-     dump (guarded full-replace) from manual Test/Sync taps, and a flat
+     dump (guarded full-replace) from manual Test/Sync taps, a flat
      single-object payload (safe merge-by-date) on a real auto-fired
-     weigh-in — see `convertOpenScaleMeasurement`/`mergeWeightEntry` in
-     `worker.js`. Gated by the `OPENSCALE_WEBHOOK_SECRET` Worker secret
-     checked against the raw `Authorization` header value (openScale's
+     weigh-in, and `{event: "delete", date}` (removes the matching entry)
+     when a reading is deleted in the app — see
+     `convertOpenScaleMeasurement`/`mergeWeightEntry`/`formatOpenScaleDate`
+     in `worker.js`. Any other shape gets captured (not 400'd, so
+     openScale's own retry queue doesn't get stuck) to KV for inspection
+     via `GET /weight/openscale-webhook-debug?key=<OPENSCALE_WEBHOOK_SECRET>`.
+     Gated by the `OPENSCALE_WEBHOOK_SECRET` Worker secret checked against
+     the raw `Authorization` header value (openScale's
      Webhook UI only exposes that one auth field, not a named header).
 2. **Activity/health data** (steps, sleep, HR, workouts, etc. — the
    Activity tab, driven by `activity.js`) comes from **this repo's**
