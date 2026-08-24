@@ -84,6 +84,7 @@ object HealthConnectReader {
         // Connect record type for this exists at all).
         val bodyFatPercent: Double? = null,
         val boneMassLbs: Double? = null,
+    )
 
     /**
      * Full set of Health Connect permissions the app needs. Passed to the
