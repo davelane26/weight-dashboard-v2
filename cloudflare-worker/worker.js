@@ -602,7 +602,18 @@ export default {
 
       const raw = Array.isArray(body.measurements) ? body.measurements
                 : (body && typeof body.weight === 'number' ? [body] : null);
-      if (!raw) return cors('{"error":"unrecognized payload shape"}', 400);
+      if (!raw) {
+        // TEMPORARY (remove once delete-shape handling is built): capture
+        // whatever this unrecognized shape actually is instead of hard-
+        // failing, so openScale's own retry loop doesn't get stuck on a
+        // permanent 400 -- most likely a delete event, which has some shape
+        // we haven't seen yet. Logged for GET /weight/openscale-webhook-debug.
+        await env.GLUCOSE_KV.put('openscale_webhook_debug', JSON.stringify({
+          receivedAt: new Date().toISOString(),
+          body,
+        }));
+        return cors(JSON.stringify({ ok: true, note: 'unrecognized shape, captured for review' }));
+      }
 
       const converted = raw.map(convertOpenScaleMeasurement).filter(Boolean);
       if (!converted.length) return cors('{"error":"no usable measurements in payload"}', 400);
@@ -636,6 +647,13 @@ export default {
       const { merged, entry } = mergeWeightEntry(stored, converted[0]);
       await env.GLUCOSE_KV.put('weight', JSON.stringify(merged));
       return cors(JSON.stringify({ ok: true, mode: 'merge', date: entry.date, id: entry.id }));
+    }
+
+    // TEMPORARY, remove once delete-shape handling is built -- see the
+    // capture code above.
+    if (method === 'GET' && url.pathname === '/weight/openscale-webhook-debug') {
+      const data = await env.GLUCOSE_KV.get('openscale_webhook_debug', { type: 'json' });
+      return cors(JSON.stringify(data ?? { note: 'nothing captured yet' }));
     }
 
     return cors('{"error":"Not found"}', 404);
