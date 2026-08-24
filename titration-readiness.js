@@ -201,9 +201,10 @@
     // before the up-titration day) vs latest reading. Using this
     // anchor matches the trajectory card's "Lost since titration" so
     // both numbers always agree.
-    const baseline      = TU.preChangeBaseline(doseStart);
-    const doseReadings  = TU.readingsSince(doseStart);
-    const latestReading = doseReadings.length
+    const baseline         = TU.preChangeBaseline(doseStart);
+    const baselineReading  = TU.preChangeReading(doseStart);
+    const doseReadings     = TU.readingsSince(doseStart);
+    const latestReading    = doseReadings.length
       ? doseReadings[doseReadings.length - 1]
       : null;
     const lossOnDose = (baseline != null && latestReading)
@@ -283,8 +284,8 @@
         </span>
       </div>
 
-      <!-- Option 4: Compounding notice (always visible when gap > 15%) -->
-      ${latestReading ? renderCompoundingNotice(latestReading.weight, currentDose, nextDoseMg) : ''}
+      <!-- Option 4: Compounding notice (always visible when gap > 5%) -->
+      ${latestReading ? renderCompoundingNotice(latestReading, baselineReading, currentDose, nextDoseMg) : ''}
 
       <!-- Sparkline: 28d weigh-ins + regression line. Lets the user
            eyeball whether the displayed slope passes the smell test.
@@ -328,7 +329,7 @@
       ${latestReading ? renderPlaybook(status) : ''}
 
       <!-- Option 4: Show-full-reasoning toggle + hidden deep-dive modal -->
-      ${latestReading ? renderReasoningModal(ctx, latestReading.weight, currentDose, nextDoseMg) : ''}
+      ${latestReading ? renderReasoningModal(ctx, latestReading, baselineReading, currentDose, nextDoseMg) : ''}
 
       <p style="font-size:0.65rem;color:#9aa5b4;margin:0">
         “4-wk trend” is a linear-regression slope through your last
@@ -490,14 +491,41 @@
   // (compounding one-liner). AUTO-appear the playbook when the base
   // card fires WATCH or READY. PULL everything else via a modal.
 
-  // Estimate functional-dose compounding relative to START_WEIGHT.
-  // Uses body-mass ratio as a proxy for the inverse-blood-volume
-  // scaling of tirzepatide plasma concentration. Real-world effect
-  // is probably 60-80% of this magnitude (Vd isn't purely blood
-  // volume) but the direction is correct and matches published PK.
-  function computeCompounding(latestWeight, currentDoseMg) {
-    if (!latestWeight || !currentDoseMg || typeof START_WEIGHT === 'undefined') return null;
-    const ratio = START_WEIGHT / latestWeight;
+  // Estimate functional-dose compounding relative to the weight at
+  // which the CURRENT dose was first taken (not the journey-start
+  // weight — the user's ladder-climbing weight loss happened on prior
+  // doses and shouldn't be credited to the current one).
+  //
+  // Model priority:
+  //   1. LBM-linear (bodyFat data on both readings) — most accurate
+  //      for tirzepatide because it's a peptide (Vd tracks lean mass
+  //      / extracellular fluid, not total weight). Especially matters
+  //      for muscle-preserving losers who lose mostly fat.
+  //   2. Allometric weight^0.7 fallback — matches the tirzepatide
+  //      population-PK covariate exponent (~0.7–0.75) when body-comp
+  //      data isn't available. Better than naive weight-linear which
+  //      overstates the effect for lean losers.
+  //
+  // Real-world uncertainty is still ±30% either way (individual Vd
+  // varies), but this is honest math instead of the confidently-wrong
+  // journey-start / weight-linear version we had before.
+  function computeCompounding(latestReading, baselineReading, currentDoseMg) {
+    if (!latestReading || !baselineReading || !currentDoseMg) return null;
+    const latestW = latestReading.weight;
+    const baseW   = baselineReading.weight;
+    if (!latestW || !baseW) return null;
+
+    let ratio, model;
+    if (latestReading.bodyFat != null && baselineReading.bodyFat != null) {
+      const lbmBase = baseW   * (1 - baselineReading.bodyFat / 100);
+      const lbmNow  = latestW * (1 - latestReading.bodyFat   / 100);
+      if (lbmNow <= 0) return null;
+      ratio = lbmBase / lbmNow;
+      model = 'lean-body-mass';
+    } else {
+      ratio = Math.pow(baseW / latestW, 0.7);
+      model = 'weight^0.7 (no body-comp data)';
+    }
     const functionalMg = currentDoseMg * ratio;
     const gapPct = (ratio - 1) * 100;
     // Nausea probability lookup (SURMOUNT-1 mean incidence at each dose).
@@ -515,21 +543,24 @@
       return NAUSEA_AT[doses[doses.length - 1]];
     };
     return {
-      ratio, functionalMg, gapPct,
+      ratio, functionalMg, gapPct, model,
+      baselineWeight: baseW,
       nauseaAtFunctional: interp(functionalMg),
       nauseaAtCurrentLabel: NAUSEA_AT[currentDoseMg] || interp(currentDoseMg),
     };
   }
 
   // Always-visible one-line notice under the badge row. Only renders
-  // when compounding gap > 15% (below that it's within measurement
-  // noise and not worth surfacing).
-  function renderCompoundingNotice(latestWeight, currentDoseMg, nextDoseMg) {
-    const c = computeCompounding(latestWeight, currentDoseMg);
-    if (!c || c.gapPct < 15) return '';
+  // when compounding gap > 5% (below that it's within measurement
+  // noise and not worth surfacing). Threshold lowered from 15% now
+  // that the math uses the correct baseline — real gaps are smaller
+  // than the old journey-start / weight-linear version implied.
+  function renderCompoundingNotice(latestReading, baselineReading, currentDoseMg, nextDoseMg) {
+    const c = computeCompounding(latestReading, baselineReading, currentDoseMg);
+    if (!c || c.gapPct < 5) return '';
     let nextClause = '';
     if (nextDoseMg) {
-      const cNext = computeCompounding(latestWeight, nextDoseMg);
+      const cNext = computeCompounding(latestReading, baselineReading, nextDoseMg);
       if (cNext) {
         nextClause = ` · bumping to ${nextDoseMg}mg would land at ~${cNext.functionalMg.toFixed(1)}mg equivalent (~${Math.round(cNext.nauseaAtFunctional * 100)}% nausea risk)`;
       }
@@ -538,7 +569,7 @@
       <div style="background:#eef2ff;border-left:3px solid #7c3aed;padding:0.55rem 0.8rem;border-radius:0 8px 8px 0;margin-bottom:0.9rem">
         <p style="font-size:0.72rem;color:#1a2340;line-height:1.45;margin:0">
           <span style="font-weight:800;color:#7c3aed"> Compounding:</span>
-          functional dose ~<b>${c.functionalMg.toFixed(2)}mg</b> equivalent for a ${START_WEIGHT}-lb baseline patient (${c.gapPct.toFixed(0)}% higher plasma vs start)${nextClause}.
+          functional dose ~<b>${c.functionalMg.toFixed(2)}mg</b> equivalent vs when you started ${currentDoseMg}mg at ${c.baselineWeight.toFixed(1)} lb (${c.gapPct.toFixed(0)}% higher plasma concentration)${nextClause}.
         </p>
       </div>`;
   }
@@ -573,9 +604,10 @@
   // goal-adjacency, historical low weight prompt, alternative-intervention
   // success rates. Everything the conversation-level analysis considered
   // that the base verdict doesn't.
-  function renderReasoningModal(ctx, latestWeight, currentDoseMg, nextDoseMg) {
-    const c = computeCompounding(latestWeight, currentDoseMg);
-    const cNext = nextDoseMg ? computeCompounding(latestWeight, nextDoseMg) : null;
+  function renderReasoningModal(ctx, latestReading, baselineReading, currentDoseMg, nextDoseMg) {
+    const c = computeCompounding(latestReading, baselineReading, currentDoseMg);
+    const cNext = nextDoseMg ? computeCompounding(latestReading, baselineReading, nextDoseMg) : null;
+    const latestWeight = latestReading ? latestReading.weight : null;
     const lostFromStart = (typeof START_WEIGHT !== 'undefined' && latestWeight)
       ? START_WEIGHT - latestWeight : null;
     const pctLost = (lostFromStart != null && START_WEIGHT)
@@ -605,9 +637,12 @@
           <section style="margin-bottom:1rem">
             <p style="font-size:0.65rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sub,#6d7a95);margin:0 0 0.4rem">Compounding math</p>
             <p style="font-size:0.82rem;color:var(--text,#1a2340);line-height:1.5;margin:0">
-              Current weight ${latestWeight ? latestWeight.toFixed(1) : '?'} lb. Ratio to start weight ${START_WEIGHT}: <b>${c ? c.ratio.toFixed(3) : '?'}×</b>.
-              Same ${currentDoseMg}mg dose distributes into ~${c ? (100/c.ratio).toFixed(0) : '?'}% of your starting blood volume, so plasma concentration is <b>${c ? c.gapPct.toFixed(0) : '?'}% higher</b> than day-one.
-              Effective dose ~<b>${c ? c.functionalMg.toFixed(2) : '?'}mg equivalent</b> for a ${START_WEIGHT}-lb baseline patient.
+              ${c ? `
+                Current weight ${latestWeight.toFixed(1)} lb vs <b>${c.baselineWeight.toFixed(1)} lb</b> when you started ${currentDoseMg}mg.
+                Concentration model: <b>${c.model}</b> (peptide-appropriate; Vd tracks lean mass, not total weight).
+                Ratio: <b>${c.ratio.toFixed(3)}×</b> — plasma concentration is <b>${c.gapPct.toFixed(1)}% higher</b> vs when you started this dose.
+                Effective dose ~<b>${c.functionalMg.toFixed(2)}mg equivalent</b> compared to a same-body-comp patient just starting ${currentDoseMg}mg.
+              ` : 'Insufficient data to compute compounding math (need current + dose-start weigh-ins).'}
             </p>
           </section>
 

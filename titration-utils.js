@@ -89,13 +89,28 @@
   // titration" — using the first POST-shot reading would absorb the
   // early water-weight whoosh and silently flatter the math.
   function preChangeBaseline(doseStart, readings) {
+    const r = preChangeReading(doseStart, readings);
+    return r ? r.weight : null;
+  }
+
+  // Same anchor as preChangeBaseline but returns the FULL reading
+  // (with bodyFat/muscle/water if the smart-scale captured them).
+  // Consumers that need to model lean-body-mass — e.g. tirzepatide
+  // concentration compounding — need the full object, not just weight.
+  function preChangeReading(doseStart, readings) {
     const cutoff = endOfDay(doseStart);
     const candidates = _readings(readings)
       .filter(r => r.date && r.date <= cutoff)
       .sort((a, b) => a.date - b.date);
-    return candidates.length
-      ? candidates[candidates.length - 1].weight
-      : null;
+    if (!candidates.length) return null;
+    // Walk backwards from doseStart; prefer the nearest reading that
+    // has bodyFat data so LBM-based math has real numbers to work
+    // with. Falls back to the true last reading (weight-only) when
+    // no body-comp reading exists in the pre-change window.
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      if (candidates[i].bodyFat != null) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
   }
 
   // ── Pace math ──────────────────────────────────────────────────────
@@ -172,6 +187,7 @@
     readingsBetween,
     dedupeByDay,
     preChangeBaseline,
+    preChangeReading,
     paceFromBaseline,
     slopePerWeek,
     slopePerWeekClean,
