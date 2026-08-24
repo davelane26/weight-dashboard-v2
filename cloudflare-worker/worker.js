@@ -610,16 +610,21 @@ export default {
       const stored = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
 
       if (converted.length > 1) {
-        if (converted.length < stored.length) {
+        // Retention guard, same threshold/reasoning as the MQTT bridge fix
+        // (mqtt_bridge.py's MIN_RETENTION_RATIO): a legitimate full resync
+        // can legitimately be a few entries SMALLER than what's live -- the
+        // user deleted a bad reading in openScale and re-synced, which is
+        // the documented way to remove one (see MQTT_BRIDGE.md). Only
+        // refuse a payload that's catastrophically smaller (more than half
+        // gone), which is what an empty/stale/malformed sync looks like.
+        // This can't perfectly tell "intentional small deletion" apart from
+        // "stale queued retry" by count alone -- neither could the bridge's
+        // guard -- so it errs toward trusting a live openScale resync.
+        const MIN_RETENTION_RATIO = 0.5;
+        if (stored.length > 0 && converted.length < stored.length * MIN_RETENTION_RATIO) {
           return cors(JSON.stringify({
-            error: `refusing: payload has ${converted.length} entries, fewer than the ${stored.length} already live`,
-          }), 409);
-        }
-        const newLatest = converted.reduce((m, r) => (r.date > m ? r.date : m), '');
-        const curLatest = stored.reduce((m, r) => (r.date > m ? r.date : m), '');
-        if (newLatest < curLatest) {
-          return cors(JSON.stringify({
-            error: `refusing: payload's latest reading (${newLatest}) is older than what's live (${curLatest})`,
+            error: `refusing: payload has only ${converted.length} entries, ` +
+                   `well below the ${stored.length} already live -- looks stale/malformed`,
           }), 409);
         }
         const sorted = converted.slice().sort((a, b) => (a.date > b.date ? 1 : -1))
