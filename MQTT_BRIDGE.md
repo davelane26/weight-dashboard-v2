@@ -153,8 +153,11 @@ Work top-down; each step isolates one link.
    refresh after step 4 succeeds should show the new weigh-in.
 
 If a reading gets lost while the pipeline is down, add it manually via
-[add-weighin.html](add-weighin.html) — it writes straight to
-`Weight-tracker/data.json`.
+[add-weighin.html](add-weighin.html) — as of 2026-08-24 it POSTs to the
+Worker's `/weight/manual-add` (needs the Worker's `API_SECRET`, not a
+GitHub token anymore), which writes both KV (live immediately) and
+`Weight-tracker/data.json` on GitHub, same as the openScale webhook's bulk
+sync does.
 
 ---
 
