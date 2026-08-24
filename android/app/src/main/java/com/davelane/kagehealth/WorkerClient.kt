@@ -98,6 +98,8 @@ object WorkerClient {
         val body: JsonObject = buildJsonObject {
             put("date", date)
             put("weight", weight)
+            snap.bodyFatPercent?.let { put("bodyFat", it) }
+            snap.boneMassLbs?.let    { put("bone", it) }
         }
         return postJson("$workerUrl/weight/patch", apiSecret, body.toString())
     }

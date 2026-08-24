@@ -22,6 +22,9 @@
     <uses-permission android:name="android.permission.health.READ_VO2_MAX" />
     <!-- v0.4.4 addition: weight (openScale -> Health Connect -> /weight/patch) -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <!-- v0.4.5 additions: body fat %, bone mass (same /weight/patch path) -->
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
+    <uses-permission android:name="android.permission.health.READ_BONE_MASS" />
 
     <!-- Foreground service for reliable 15-min sync + boot restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

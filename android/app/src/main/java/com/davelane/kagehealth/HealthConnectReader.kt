@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.BodyFatRecord
+import androidx.health.connect.client.records.BoneMassRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.FloorsClimbedRecord
@@ -74,7 +76,14 @@ object HealthConnectReader {
         // a safe no-op instead of piling up duplicate entries.
         val weight: Double? = null,           // lbs
         val weightDate: String? = null,       // "2026-08-23T09:21-0600" -- matches data.json's date format
-    )
+        // v0.4.5 additions: body fat % and bone mass, same openScale->HC path
+        // as weight. NOT included: muscle % (Health Connect's only related
+        // type, LeanBodyMassRecord, measures a different metric -- lean body
+        // mass, not skeletal muscle % -- so it's deliberately left out
+        // rather than writing a wrong number) and body water % (no Health
+        // Connect record type for this exists at all).
+        val bodyFatPercent: Double? = null,
+        val boneMassLbs: Double? = null,
 
     /**
      * Full set of Health Connect permissions the app needs. Passed to the
@@ -96,6 +105,9 @@ object HealthConnectReader {
         HealthPermission.getReadPermission(Vo2MaxRecord::class),
         // v0.4.4 addition: weight (openScale writes WeightRecord to Health Connect)
         HealthPermission.getReadPermission(WeightRecord::class),
+        // v0.4.5 additions: body fat %, bone mass
+        HealthPermission.getReadPermission(BodyFatRecord::class),
+        HealthPermission.getReadPermission(BoneMassRecord::class),
     )
 
     /**
@@ -193,6 +205,8 @@ object HealthConnectReader {
         val hrv  = readHRVAvg(client, healthWindow)
         val vo2  = readLatestVO2Max(client)
         val weight = readLatestWeight(client)
+        val bodyFat = readLatestBodyFat(client)
+        val boneMass = readLatestBoneMass(client)
 
         return Snapshot(
             steps = steps,
@@ -219,6 +233,8 @@ object HealthConnectReader {
             waketime = sleep?.endInstant?.toString(),
             weight = weight?.first,
             weightDate = weight?.second,
+            bodyFatPercent = bodyFat,
+            boneMassLbs = boneMass,
         )
     }
 
@@ -589,6 +605,34 @@ object HealthConnectReader {
         val lbs = round2(latest.weight.inPounds)
         val dateStr = latest.time.atZone(ZoneId.systemDefault()).format(WEIGHT_DATE_FORMAT)
         lbs to dateStr
+    }.getOrNull()
+
+    /** Most recent body fat % (BodyFatRecord). No fixed window, same reasoning as readLatestWeight. */
+    private suspend fun readLatestBodyFat(client: HealthConnectClient): Double? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = BodyFatRecord::class,
+                timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
+            )
+        )
+        resp.records
+            .maxByOrNull { it.time }
+            ?.percentage?.value
+            ?.let(::round2)
+    }.getOrNull()
+
+    /** Most recent bone mass in lbs (BoneMassRecord). No fixed window, same reasoning as readLatestWeight. */
+    private suspend fun readLatestBoneMass(client: HealthConnectClient): Double? = runCatching {
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = BoneMassRecord::class,
+                timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
+            )
+        )
+        resp.records
+            .maxByOrNull { it.time }
+            ?.mass?.inPounds
+            ?.let(::round2)
     }.getOrNull()
 
     /**
