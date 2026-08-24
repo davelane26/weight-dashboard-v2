@@ -7,10 +7,11 @@
  * Set secret: API_SECRET (matches xDrip+ API_SECRET setting)
  *
  * Endpoints:
- *   POST /api/v1/entries       ← xDrip+ uploads here
- *   GET  /glucose.json         ← dashboard reads from here
- *   GET  /workout-schedule     ← dashboard reads day-of-week overrides (token-gated)
- *   POST /workout-schedule     ← dashboard writes day-of-week overrides (token-gated)
+ *   POST /api/v1/entries         ← xDrip+ uploads here
+ *   GET  /glucose.json           ← dashboard reads from here
+ *   GET  /workout-schedule       ← dashboard reads day-of-week overrides (token-gated)
+ *   POST /workout-schedule       ← dashboard writes day-of-week overrides (token-gated)
+ *   POST /weight/openscale-webhook ← openScale's built-in Webhook sync (KV-only, see its own comment)
  *
  * IMPORTANT — every runtime env var this Worker reads (API_SECRET,
  * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY) MUST be set as a
@@ -569,9 +570,132 @@ export default {
       return cors(JSON.stringify({ ok: true, count: rows.length }));
     }
 
+    // ── POST /weight/openscale-webhook  (openScale's built-in Webhook sync) ─
+    // Two payload shapes observed from openScale itself (2026-08-23):
+    //   1. Bulk (fired by "Test connection" / "Sync with Webhook"):
+    //      { event, measurements: [ {...}, ... ] } -- the WHOLE history.
+    //      Guarded full-replace, same regression protection as the MQTT
+    //      bridge fix (refuse if it would shrink or go backwards in time).
+    //   2. Real-time auto-fire (a genuine new weigh-in): a flat measurement
+    //      object directly, no wrapper. Safe merge-by-date upsert.
+    // Deliberately KV-only -- does NOT mirror to Weight-tracker/data.json.
+    // The MQTT bridge already writes there for the exact same openScale
+    // event (confirmed 2026-08-23: the same weigh-in reached both MQTT and
+    // this webhook), so a second git-writer here would reintroduce the
+    // same race that caused that day's data-loss incident. Git stays
+    // MQTT-bridge-owned; this endpoint only keeps the live dashboard (KV)
+    // fresh on days the home PC/bridge is down.
+    // Auth: openScale's Webhook UI only exposes a raw "Authorization
+    // header" field (not a named custom header), so this checks the
+    // OPENSCALE_WEBHOOK_SECRET Worker secret against that header's literal
+    // value -- set the same string in both places. If the secret isn't
+    // configured, this endpoint stays open (fine for the initial capture/
+    // test phase; set the secret before relying on this for real).
+    if (method === 'POST' && url.pathname === '/weight/openscale-webhook') {
+      const expected = env.OPENSCALE_WEBHOOK_SECRET;
+      if (expected) {
+        const got = request.headers.get('Authorization') || '';
+        if (got !== expected) return cors('{"error":"Unauthorized"}', 401);
+      }
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+
+      const raw = Array.isArray(body.measurements) ? body.measurements
+                : (body && typeof body.weight === 'number' ? [body] : null);
+      if (!raw) return cors('{"error":"unrecognized payload shape"}', 400);
+
+      const converted = raw.map(convertOpenScaleMeasurement).filter(Boolean);
+      if (!converted.length) return cors('{"error":"no usable measurements in payload"}', 400);
+
+      const stored = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
+
+      if (converted.length > 1) {
+        if (converted.length < stored.length) {
+          return cors(JSON.stringify({
+            error: `refusing: payload has ${converted.length} entries, fewer than the ${stored.length} already live`,
+          }), 409);
+        }
+        const newLatest = converted.reduce((m, r) => (r.date > m ? r.date : m), '');
+        const curLatest = stored.reduce((m, r) => (r.date > m ? r.date : m), '');
+        if (newLatest < curLatest) {
+          return cors(JSON.stringify({
+            error: `refusing: payload's latest reading (${newLatest}) is older than what's live (${curLatest})`,
+          }), 409);
+        }
+        const sorted = converted.slice().sort((a, b) => (a.date > b.date ? 1 : -1))
+          .map((e, i) => ({ ...e, id: i + 1 }));
+        await env.GLUCOSE_KV.put('weight', JSON.stringify(sorted));
+        return cors(JSON.stringify({ ok: true, mode: 'bulk-replace', count: sorted.length }));
+      }
+
+      const { merged, entry } = mergeWeightEntry(stored, converted[0]);
+      await env.GLUCOSE_KV.put('weight', JSON.stringify(merged));
+      return cors(JSON.stringify({ ok: true, mode: 'merge', date: entry.date, id: entry.id }));
+    }
+
     return cors('{"error":"Not found"}', 404);
   },
 };
+
+// ── Convert one openScale webhook measurement into data.json's shape ────────
+// openScale sends weight/bone in kg (convert to lbs, matching data.json's
+// convention) and date as UTC ISO ("...Z"). data.json's date convention is a
+// FIXED "-0600" local offset on every existing entry regardless of true DST
+// -- Workers run in UTC with no real local timezone to read, so this applies
+// that same fixed -06:00 shift rather than doing real timezone conversion,
+// to stay consistent with the rest of the dataset.
+const KG_TO_LBS = 2.20462;
+function convertOpenScaleMeasurement(m) {
+  if (!m || typeof m.weight !== 'number' || !m.date) return null;
+  const utc = new Date(m.date);
+  if (isNaN(utc)) return null;
+  const local = new Date(utc.getTime() - 6 * 3600_000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const dateStr = `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}` +
+    `T${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}-0600`;
+
+  // openScale duplicates fat/water/muscle at the top level AND inside
+  // "values" (which also carries bmi/bmr/tdee/bone/impedance) -- prefer the
+  // top-level field when present, fall back to "values" for everything else.
+  const byKey = {};
+  for (const v of (Array.isArray(m.values) ? m.values : [])) {
+    if (v && v.key) byKey[v.key] = v.value;
+  }
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  const entry = {
+    date: dateStr,
+    weight: round2(m.weight * KG_TO_LBS),
+    weight_kg: round2(m.weight),
+  };
+  if (typeof byKey.bmi === 'number')  entry.bmi = round2(byKey.bmi);
+  if (typeof byKey.bmr === 'number')  entry.bmr = round2(byKey.bmr);
+  if (typeof byKey.tdee === 'number') entry.tdee = round2(byKey.tdee);
+  if (typeof byKey.bone === 'number') entry.bone = round2(byKey.bone * KG_TO_LBS);
+  const bodyFat = typeof m.body_fat === 'number' ? m.body_fat : byKey.body_fat;
+  if (typeof bodyFat === 'number') entry.bodyFat = bodyFat;
+  const muscle = typeof m.muscle === 'number' ? m.muscle : byKey.muscle;
+  if (typeof muscle === 'number') entry.muscle = muscle;
+  const water = typeof m.water === 'number' ? m.water : byKey.water;
+  if (typeof water === 'number') entry.water = water;
+
+  return entry;
+}
+
+// ── Merge one weight reading into the stored array by exact date match ──────
+// Same date string -> replace in place (keeps the existing id). New date ->
+// append with the next id. Mirrors mqtt_bridge.py's single-reading update.
+function mergeWeightEntry(stored, entry) {
+  const idx = stored.findIndex((r) => r.date === entry.date);
+  if (idx >= 0) {
+    const merged = [...stored];
+    merged[idx] = { ...stored[idx], ...entry, id: stored[idx].id };
+    return { merged, entry: merged[idx] };
+  }
+  const withId = { ...entry, id: (stored.reduce((m, r) => Math.max(m, r.id || 0), 0) || 0) + 1 };
+  const merged = [...stored, withId].sort((a, b) => (a.date > b.date ? 1 : -1));
+  return { merged, entry: withId };
+}
 
 // ── Normalise a raw health payload into a stored entry ──────────────────────
 function buildHealthEntry(body) {

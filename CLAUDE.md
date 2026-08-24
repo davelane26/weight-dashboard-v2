@@ -65,9 +65,29 @@ instructions (e.g. the glucose tab).
 
 1. **Weight data** (the core dashboard: weight, BMI, body comp, goal
    projection) comes from a **different, private repo**
-   (`Weight-tracker`), fetched cross-origin via `DATA_URL` in
-   `app-config.js`. It's fed by openScale on the user's phone. This repo
-   does not contain that data or its ingestion pipeline.
+   (`Weight-tracker`), read live by the dashboard via the Worker's
+   Firebase-gated `GET /weight.json` (KV-backed), falling back to the
+   public `DATA_URL` in `app-config.js` if that fails. This repo does not
+   contain that data. Two independent pipelines feed it, both sourced
+   from openScale on the phone, firing off the *same* underlying weigh-in
+   event but writing to different places:
+   - **MQTT bridge** (home PC, `mqtt_bridge.py`, see `MQTT_BRIDGE.md`) —
+     the only one that writes to git (`Weight-tracker/data.json`), full
+     table rewrite each sync, mirrored into KV by that repo's own GitHub
+     Action.
+   - **openScale's built-in Webhook service** → `POST
+     /weight/openscale-webhook` in `worker.js` — writes **KV only,
+     deliberately not git**, since the 2026-08-23 incident showed both
+     pipelines fire from the same event; a second concurrent git-writer
+     would reintroduce that exact race. This exists so the live dashboard
+     stays current even when the home PC/MQTT bridge is down. Two payload
+     shapes from openScale itself: a bulk `{event, measurements: [...]}`
+     dump (guarded full-replace) from manual Test/Sync taps, and a flat
+     single-object payload (safe merge-by-date) on a real auto-fired
+     weigh-in — see `convertOpenScaleMeasurement`/`mergeWeightEntry` in
+     `worker.js`. Gated by the `OPENSCALE_WEBHOOK_SECRET` Worker secret
+     checked against the raw `Authorization` header value (openScale's
+     Webhook UI only exposes that one auth field, not a named header).
 2. **Activity/health data** (steps, sleep, HR, workouts, etc. — the
    Activity tab, driven by `activity.js`) comes from **this repo's**
    `health.json`, assembled from multiple sources that get merged
