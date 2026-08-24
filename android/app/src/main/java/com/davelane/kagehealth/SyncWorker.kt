@@ -52,26 +52,15 @@ class SyncWorker(
             WorkerClient.postSnapshot(prefs.workerUrl, prefs.apiSecret, snap)
         }
 
-        // Weight is a separate endpoint/store from health.json (see
-        // WorkerClient.postWeight's doc comment). Fire-and-log, not
-        // fire-and-retry — a weight-sync hiccup shouldn't put the whole
-        // periodic worker into a WorkManager retry loop over a nice-to-have;
-        // the next 15-min poll will just re-send the same still-latest
-        // weigh-in and it merges as a safe no-op either way.
-        val weightResult = withContext(Dispatchers.IO) {
-            WorkerClient.postWeight(prefs.workerUrl, prefs.apiSecret, snap)
-        }
-
         // Store the last known steps for the status card. Other metrics are
         // just fired-and-forgotten — the dashboard shows them, no need to
         // duplicate the display here.
         snap.steps?.let { prefs.lastStepsSent = it.toInt() }
         prefs.lastSyncEpochMs = System.currentTimeMillis()
-        val weightNote = weightResult?.let { if (it.ok) null else " (weight sync FAIL: ${it.status})" } ?: ""
         prefs.lastSyncStatus = if (result.ok) {
-            "OK: ${summarize(snap)}$weightNote"
+            "OK: ${summarize(snap)}"
         } else {
-            "FAIL: ${result.status}$weightNote"
+            "FAIL: ${result.status}"
         }
 
         return if (result.ok) Result.success() else Result.retry()
@@ -86,7 +75,6 @@ class SyncWorker(
         s.sleepHours?.let    { parts += "sleep ${it}h" }
         s.activeCalories?.let{ parts += "${it.toInt()} kcal" }
         s.intensityMinutes?.let { if (it > 0) parts += "${it}min wkt" }
-        s.weight?.let         { parts += "${it}lb" }
         return if (parts.isEmpty()) "no metrics" else parts.joinToString(" · ")
     }
 

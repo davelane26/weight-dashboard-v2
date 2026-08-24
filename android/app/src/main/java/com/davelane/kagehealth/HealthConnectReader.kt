@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
-import androidx.health.connect.client.records.BodyFatRecord
-import androidx.health.connect.client.records.BoneMassRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.FloorsClimbedRecord
@@ -17,7 +15,6 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
-import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -26,7 +23,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * Reads today's Health Connect snapshot: steps, HR (min/max/avg/resting),
@@ -69,21 +65,6 @@ object HealthConnectReader {
         val vo2Max: Double? = null,           // most recent VO2 max estimate (mL/kg/min)
         val bedtime: String? = null,          // last night sleep session startTime (ISO)
         val waketime: String? = null,         // last night sleep session endTime (ISO)
-        // v0.4.4 addition: latest weight reading (openScale -> Health Connect),
-        // for POST /weight/patch. weightDate is the record's OWN timestamp
-        // (when it was actually weighed), not "now" -- so repeat polls that
-        // find the same still-latest record send the same date and merge as
-        // a safe no-op instead of piling up duplicate entries.
-        val weight: Double? = null,           // lbs
-        val weightDate: String? = null,       // "2026-08-23T09:21-0600" -- matches data.json's date format
-        // v0.4.5 additions: body fat % and bone mass, same openScale->HC path
-        // as weight. NOT included: muscle % (Health Connect's only related
-        // type, LeanBodyMassRecord, measures a different metric -- lean body
-        // mass, not skeletal muscle % -- so it's deliberately left out
-        // rather than writing a wrong number) and body water % (no Health
-        // Connect record type for this exists at all).
-        val bodyFatPercent: Double? = null,
-        val boneMassLbs: Double? = null,
     )
 
     /**
@@ -104,11 +85,6 @@ object HealthConnectReader {
         HealthPermission.getReadPermission(OxygenSaturationRecord::class),
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(Vo2MaxRecord::class),
-        // v0.4.4 addition: weight (openScale writes WeightRecord to Health Connect)
-        HealthPermission.getReadPermission(WeightRecord::class),
-        // v0.4.5 additions: body fat %, bone mass
-        HealthPermission.getReadPermission(BodyFatRecord::class),
-        HealthPermission.getReadPermission(BoneMassRecord::class),
     )
 
     /**
@@ -205,9 +181,6 @@ object HealthConnectReader {
         val spo2 = readSpO2Stats(client, healthWindow)
         val hrv  = readHRVAvg(client, healthWindow)
         val vo2  = readLatestVO2Max(client)
-        val weight = readLatestWeight(client)
-        val bodyFat = readLatestBodyFat(client)
-        val boneMass = readLatestBoneMass(client)
 
         return Snapshot(
             steps = steps,
@@ -232,10 +205,6 @@ object HealthConnectReader {
             vo2Max = vo2,
             bedtime = sleep?.startInstant?.toString(),
             waketime = sleep?.endInstant?.toString(),
-            weight = weight?.first,
-            weightDate = weight?.second,
-            bodyFatPercent = bodyFat,
-            boneMassLbs = boneMass,
         )
     }
 
@@ -577,62 +546,6 @@ object HealthConnectReader {
         resp.records
             .maxByOrNull { it.time }
             ?.vo2MillilitersPerMinuteKilogram
-            ?.let(::round2)
-    }.getOrNull()
-
-    private val WEIGHT_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mmXX")
-
-    /**
-     * Most recent weight reading (any source writing WeightRecord to Health
-     * Connect -- openScale, in practice). No fixed lookback window: we want
-     * whatever the last known weigh-in is even if it's a few days old, same
-     * as the dashboard always showing the latest reading regardless of gap.
-     *
-     * Returns (weightLbs, dateString) where dateString is the RECORD's own
-     * timestamp -- not "now" -- formatted to match data.json's convention
-     * ("2026-08-23T09:21-0600"). Using the record's real time means repeat
-     * polls that keep finding the same still-latest weigh-in send the same
-     * date every time, so POST /weight/patch's merge-by-date logic treats
-     * them as a safe no-op replace instead of piling up duplicate entries.
-     */
-    private suspend fun readLatestWeight(client: HealthConnectClient): Pair<Double, String>? = runCatching {
-        val resp = client.readRecords(
-            ReadRecordsRequest(
-                recordType = WeightRecord::class,
-                timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
-            )
-        )
-        val latest = resp.records.maxByOrNull { it.time } ?: return@runCatching null
-        val lbs = round2(latest.weight.inPounds)
-        val dateStr = latest.time.atZone(ZoneId.systemDefault()).format(WEIGHT_DATE_FORMAT)
-        lbs to dateStr
-    }.getOrNull()
-
-    /** Most recent body fat % (BodyFatRecord). No fixed window, same reasoning as readLatestWeight. */
-    private suspend fun readLatestBodyFat(client: HealthConnectClient): Double? = runCatching {
-        val resp = client.readRecords(
-            ReadRecordsRequest(
-                recordType = BodyFatRecord::class,
-                timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
-            )
-        )
-        resp.records
-            .maxByOrNull { it.time }
-            ?.percentage?.value
-            ?.let(::round2)
-    }.getOrNull()
-
-    /** Most recent bone mass in lbs (BoneMassRecord). No fixed window, same reasoning as readLatestWeight. */
-    private suspend fun readLatestBoneMass(client: HealthConnectClient): Double? = runCatching {
-        val resp = client.readRecords(
-            ReadRecordsRequest(
-                recordType = BoneMassRecord::class,
-                timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
-            )
-        )
-        resp.records
-            .maxByOrNull { it.time }
-            ?.mass?.inPounds
             ?.let(::round2)
     }.getOrNull()
 
