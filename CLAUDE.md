@@ -65,9 +65,34 @@ instructions (e.g. the glucose tab).
 
 1. **Weight data** (the core dashboard: weight, BMI, body comp, goal
    projection) comes from a **different, private repo**
-   (`Weight-tracker`), fetched cross-origin via `DATA_URL` in
-   `app-config.js`. It's fed by openScale on the user's phone. This repo
-   does not contain that data or its ingestion pipeline.
+   (`Weight-tracker`), read live by the dashboard via the Worker's
+   Firebase-gated `GET /weight.json` (KV-backed), falling back to the
+   public `DATA_URL` in `app-config.js` if that fails. This repo does not
+   contain that data. Three independent pipelines can write to it, all
+   converging on the same KV key + git file:
+   - **MQTT bridge** (home PC, `mqtt_bridge.py`, see `MQTT_BRIDGE.md`) —
+     openScale → MQTT → bridge does a **full-array replace** of
+     `Weight-tracker/data.json`, git push triggers that repo's own
+     "Mirror weight data to Worker" Action to copy it into KV. Fragile by
+     design (any stale/partial payload wipes real data) — has a
+     retention-ratio guard (`is_safe_to_write`) but it's loose (50%) and
+     compares only against the bridge's own local cache, not live GitHub
+     state, so it's blind to writes from the other two pipelines below.
+   - **`add-weighin.html`** — manual single-entry form, browser-side
+     GET-sha-then-PUT straight to `Weight-tracker/data.json` via a
+     user-pasted GitHub PAT. Also triggers the mirror Action.
+   - **Kage** (`POST /weight/patch`, added v0.4.4) — reads Health
+     Connect's `WeightRecord` (populated by openScale, if its Health
+     Connect write setting is on) and periodically patches one reading at
+     a time. Unlike the other two, this merges by exact date match
+     **server-side in the Worker** (`mergeWeightEntry` in `worker.js`)
+     directly into KV, then best-effort mirrors that same merge back into
+     `Weight-tracker/data.json` itself (`mirrorWeightToGitHub`, needs the
+     `WEIGHT_GITHUB_TOKEN` Worker secret — a PAT scoped to
+     `contents:write` on `Weight-tracker`). If that secret is missing or
+     the git write fails, the KV write still succeeds and the response
+     reports `gitSynced: false` — the dashboard updates either way, but
+     git silently falls behind until the secret exists.
 2. **Activity/health data** (steps, sleep, HR, workouts, etc. — the
    Activity tab, driven by `activity.js`) comes from **this repo's**
    `health.json`, assembled from multiple sources that get merged

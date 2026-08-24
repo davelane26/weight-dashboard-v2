@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
     <uses-permission android:name="android.permission.health.READ_VO2_MAX" />
+    <!-- v0.4.4 addition: weight (openScale -> Health Connect -> /weight/patch) -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
 
     <!-- Foreground service for reliable 15-min sync + boot restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

@@ -79,6 +79,29 @@ object WorkerClient {
         return postJson("$workerUrl/health/patch", apiSecret, body.toString())
     }
 
+    /**
+     * POST { date, weight, ... } to $workerUrl/weight/patch.
+     *
+     * Deliberately a SEPARATE call from postSnapshot/health-patch, not bundled
+     * into the same body: /weight/patch merges into the weight array by exact
+     * date match (openScale-sourced history), a completely different store
+     * and merge semantics from /health/patch's per-day activity record.
+     * No-ops safely if snap.weight/weightDate are null (nothing to send).
+     */
+    fun postWeight(
+        workerUrl: String,
+        apiSecret: String,
+        snap: HealthConnectReader.Snapshot,
+    ): Result? {
+        val weight = snap.weight ?: return null
+        val date = snap.weightDate ?: return null
+        val body: JsonObject = buildJsonObject {
+            put("date", date)
+            put("weight", weight)
+        }
+        return postJson("$workerUrl/weight/patch", apiSecret, body.toString())
+    }
+
     private fun postJson(url: String, apiSecret: String, jsonBody: String): Result {
         var conn: HttpURLConnection? = null
         return try {
