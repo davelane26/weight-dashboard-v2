@@ -44,7 +44,22 @@ Store release path. After any `android/` change, a new APK must be
 downloaded from the Actions run and manually sideloaded — editing the
 Kotlin source does nothing to an already-installed phone until that
 happens. Bump `versionCode`/`versionName` in `android/app/build.gradle.kts`
-when changing what `WorkerClient.kt` sends, per existing convention.
+on every `android/` change, not just ones that change what `WorkerClient.kt`
+sends — Android's installer silently refuses to install an APK whose
+`versionCode` is lower than what's already on the phone (same signing
+cert = treated as a downgrade), surfaced as the generic, misleading "App
+not installed as package appears to be invalid" with no mention of
+versions. This bit us on 2026-08-24: a `git revert` of the Kage
+weight-sync detour correctly reverted the code but also reverted
+`versionCode` from 17 back down to 15, silently breaking sideloading for
+anyone who'd installed the detour builds. **Never let versionCode go
+backwards** — even a revert-to-earlier-behavior commit must use a new,
+higher versionCode than anything ever built and distributed. (The CI
+"Verify APK signing cert" step printing `Not a signed jar file` is a red
+herring, not a sign of a broken build: `keytool -printcert -jarfile` only
+understands the legacy JAR v1 signing scheme, not the APK Signature
+Scheme v2/v3 that AGP debug builds actually use — it prints that on every
+build, working ones included.)
 
 ## Architecture
 
