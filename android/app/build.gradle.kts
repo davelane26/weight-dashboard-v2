@@ -12,8 +12,20 @@ android {
         applicationId = "com.davelane.kagehealth"
         minSdk = 26          // Health Connect requires Android 8.0+
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.4.3"
+        // versionCode intentionally higher than 17 (the v0.4.5 detour build) even
+        // though this is a revert back to 0.4.3's feature set: the phone may already
+        // have v0.4.4/0.4.5 (versionCode 16/17) sideloaded from the Kage-weight-sync
+        // detour, and Android's installer silently refuses an APK with a LOWER
+        // versionCode than what's already installed (same signing cert) as a
+        // downgrade -- surfaced to the user as the generic, misleading "App not
+        // installed as package appears to be invalid" rather than any mention of
+        // versions. See 2026-08-24 troubleshooting: CI logs confirmed both this
+        // build and the previously-successful 0.4.4 build print the exact same
+        // (harmless, expected) "Not a signed jar file" from the keytool diagnostic
+        // -- that only means keytool can't read APK Signature Scheme v2/v3, not
+        // that signing failed -- so the version downgrade was the real cause.
+        versionCode = 18
+        versionName = "0.4.6"
     }
 
     signingConfigs {

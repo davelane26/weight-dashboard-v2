@@ -11,11 +11,11 @@
  *   GET  /glucose.json           ← dashboard reads from here
  *   GET  /workout-schedule       ← dashboard reads day-of-week overrides (token-gated)
  *   POST /workout-schedule       ← dashboard writes day-of-week overrides (token-gated)
- *   POST /weight/openscale-webhook ← openScale's built-in Webhook sync (KV-only, see its own comment)
+ *   POST /weight/openscale-webhook ← openScale's built-in Webhook sync (bulk syncs write KV + git, see its own comment)
  *
  * IMPORTANT — every runtime env var this Worker reads (API_SECRET,
- * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY) MUST be set as a
- * **Secret** in the dashboard/via `wrangler secret put`, never as a plain
+ * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY, WEIGHT_TRACKER_GITHUB_TOKEN)
+ * MUST be set as a **Secret** in the dashboard/via `wrangler secret put`, never as a plain
  * Variable. `wrangler deploy` treats wrangler.toml as the complete,
  * authoritative binding list for everything EXCEPT true secrets — a plain
  * Variable not declared in wrangler.toml gets silently deleted on the next
@@ -576,15 +576,20 @@ export default {
     //      { event, measurements: [ {...}, ... ] } -- the WHOLE history.
     //      Guarded full-replace, same regression protection as the MQTT
     //      bridge fix (refuse if it would shrink or go backwards in time).
+    //      2026-08-24: also commits that same full table to
+    //      Weight-tracker/data.json on GitHub (writeWeightToGitHub below) --
+    //      the same "every sync is a full-table rewrite" convention MQTT
+    //      already used, so a manual "Sync with Webhook" tap in openScale is
+    //      now a one-button way to get a git-backed backup/history snapshot
+    //      without the MQTT bridge running at all (see MQTT_BRIDGE.md -- MQTT
+    //      is now optional/dormant). Best-effort: a failed git commit never
+    //      blocks or fails the KV write, since KV is what the live dashboard
+    //      actually reads -- see GET /weight/openscale-webhook-debug for why.
     //   2. Real-time auto-fire (a genuine new weigh-in): a flat measurement
-    //      object directly, no wrapper. Safe merge-by-date upsert.
-    // Deliberately KV-only -- does NOT mirror to Weight-tracker/data.json.
-    // The MQTT bridge already writes there for the exact same openScale
-    // event (confirmed 2026-08-23: the same weigh-in reached both MQTT and
-    // this webhook), so a second git-writer here would reintroduce the
-    // same race that caused that day's data-loss incident. Git stays
-    // MQTT-bridge-owned; this endpoint only keeps the live dashboard (KV)
-    // fresh on days the home PC/bridge is down.
+    //      object directly, no wrapper. Safe merge-by-date upsert, KV-only --
+    //      committing git on every single auto-fire would mean a commit per
+    //      weigh-in instead of per-sync, so git just stays current as of the
+    //      last bulk sync (same lag MQTT always had between full-table runs).
     // Auth: openScale's Webhook UI only exposes a raw "Authorization
     // header" field (not a named custom header), so this checks the
     // OPENSCALE_WEBHOOK_SECRET Worker secret against that header's literal
@@ -654,7 +659,24 @@ export default {
         const sorted = converted.slice().sort((a, b) => (a.date > b.date ? 1 : -1))
           .map((e, i) => ({ ...e, id: i + 1 }));
         await env.GLUCOSE_KV.put('weight', JSON.stringify(sorted));
-        return cors(JSON.stringify({ ok: true, mode: 'bulk-replace', count: sorted.length }));
+
+        const gitResult = await writeWeightToGitHub(env, sorted);
+        if (!gitResult.committed) {
+          // Don't fail the request over this -- KV (the live dashboard) is
+          // already updated and that's the part that must not break.
+          // Capture the reason so it's inspectable instead of silently lost.
+          await env.GLUCOSE_KV.put('openscale_webhook_debug', JSON.stringify({
+            receivedAt: new Date().toISOString(),
+            note: 'bulk sync succeeded to KV but git commit failed',
+            reason: gitResult.reason,
+          }));
+        }
+        return cors(JSON.stringify({
+          ok: true,
+          mode: 'bulk-replace',
+          count: sorted.length,
+          git: gitResult.committed ? 'committed' : `skipped (${gitResult.reason})`,
+        }));
       }
 
       const { merged, entry } = mergeWeightEntry(stored, converted[0]);
@@ -747,6 +769,65 @@ function mergeWeightEntry(stored, entry) {
   const withId = { ...entry, id: (stored.reduce((m, r) => Math.max(m, r.id || 0), 0) || 0) + 1 };
   const merged = [...stored, withId].sort((a, b) => (a.date > b.date ? 1 : -1));
   return { merged, entry: withId };
+}
+
+// ── Commit the full weight table to Weight-tracker/data.json on GitHub ──────
+// Called only from the openScale webhook's bulk-sync branch above -- see the
+// comment there for why single-record auto-fires stay KV-only. Best-effort:
+// callers must not let a failure here block or fail the KV write, since KV
+// is what the live dashboard actually reads. Requires the WEIGHT_TRACKER_
+// GITHUB_TOKEN secret (a GitHub token with Contents: read/write on
+// davelane26/weight-tracker) -- set as a Secret, never a plain Variable,
+// same "wrangler deploy silently deletes undeclared plain Variables" trap
+// documented at the top of wrangler.toml. If it's unset, this endpoint just
+// skips the git write and keeps working KV-only, same as before 2026-08-24.
+async function writeWeightToGitHub(env, sorted) {
+  const token = env.WEIGHT_TRACKER_GITHUB_TOKEN;
+  if (!token) return { committed: false, reason: 'no WEIGHT_TRACKER_GITHUB_TOKEN configured' };
+
+  const apiUrl = 'https://api.github.com/repos/davelane26/weight-tracker/contents/data.json';
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'User-Agent': 'glucose-relay-worker',
+    Accept: 'application/vnd.github+json',
+  };
+
+  try {
+    // Need the current file's blob SHA -- GitHub's Contents API requires it
+    // on every update, as a safeguard against overwriting a change it hasn't
+    // seen (same idea as an ETag/If-Match).
+    const getRes = await fetch(`${apiUrl}?ref=main`, { headers });
+    if (!getRes.ok) {
+      return { committed: false, reason: `GET data.json failed: HTTP ${getRes.status}` };
+    }
+    const current = await getRes.json();
+
+    // Match data.json's existing formatting (2-space indent, trailing newline).
+    const content = JSON.stringify(sorted, null, 2) + '\n';
+    // btoa only handles Latin1; data.json is plain-ASCII JSON so this is
+    // safe, but the encodeURIComponent/unescape round-trip guards against
+    // any stray non-ASCII character (e.g. in a future note field) instead
+    // of throwing.
+    const encoded = btoa(unescape(encodeURIComponent(content)));
+
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `openScale webhook sync: ${sorted.length} entries`,
+        content: encoded,
+        sha: current.sha,
+        branch: 'main',
+      }),
+    });
+    if (!putRes.ok) {
+      const errText = await putRes.text().catch(() => '');
+      return { committed: false, reason: `PUT data.json failed: HTTP ${putRes.status} ${errText.slice(0, 200)}` };
+    }
+    return { committed: true };
+  } catch (e) {
+    return { committed: false, reason: `${e.name}: ${e.message}` };
+  }
 }
 
 // ── Normalise a raw health payload into a stored entry ──────────────────────

@@ -44,7 +44,22 @@ Store release path. After any `android/` change, a new APK must be
 downloaded from the Actions run and manually sideloaded — editing the
 Kotlin source does nothing to an already-installed phone until that
 happens. Bump `versionCode`/`versionName` in `android/app/build.gradle.kts`
-when changing what `WorkerClient.kt` sends, per existing convention.
+on every `android/` change, not just ones that change what `WorkerClient.kt`
+sends — Android's installer silently refuses to install an APK whose
+`versionCode` is lower than what's already on the phone (same signing
+cert = treated as a downgrade), surfaced as the generic, misleading "App
+not installed as package appears to be invalid" with no mention of
+versions. This bit us on 2026-08-24: a `git revert` of the Kage
+weight-sync detour correctly reverted the code but also reverted
+`versionCode` from 17 back down to 15, silently breaking sideloading for
+anyone who'd installed the detour builds. **Never let versionCode go
+backwards** — even a revert-to-earlier-behavior commit must use a new,
+higher versionCode than anything ever built and distributed. (The CI
+"Verify APK signing cert" step printing `Not a signed jar file` is a red
+herring, not a sign of a broken build: `keytool -printcert -jarfile` only
+understands the legacy JAR v1 signing scheme, not the APK Signature
+Scheme v2/v3 that AGP debug builds actually use — it prints that on every
+build, working ones included.)
 
 ## Architecture
 
@@ -71,28 +86,41 @@ instructions (e.g. the glucose tab).
    contain that data. Two independent pipelines feed it, both sourced
    from openScale on the phone, firing off the *same* underlying weigh-in
    event but writing to different places:
-   - **MQTT bridge** (home PC, `mqtt_bridge.py`, see `MQTT_BRIDGE.md`) —
-     the only one that writes to git (`Weight-tracker/data.json`), full
-     table rewrite each sync, mirrored into KV by that repo's own GitHub
-     Action.
    - **openScale's built-in Webhook service** → `POST
-     /weight/openscale-webhook` in `worker.js` — writes **KV only,
-     deliberately not git**, since the 2026-08-23 incident showed both
-     pipelines fire from the same event; a second concurrent git-writer
-     would reintroduce that exact race. This exists so the live dashboard
-     stays current even when the home PC/MQTT bridge is down. Three payload
-     shapes from openScale itself: a bulk `{event, measurements: [...]}`
-     dump (guarded full-replace) from manual Test/Sync taps, a flat
-     single-object payload (safe merge-by-date) on a real auto-fired
-     weigh-in, and `{event: "delete", date}` (removes the matching entry)
-     when a reading is deleted in the app — see
+     /weight/openscale-webhook` in `worker.js` — the primary pipeline as of
+     2026-08-24. Three payload shapes from openScale itself: a bulk
+     `{event, measurements: [...]}` dump (guarded full-replace) from manual
+     Test/Sync taps, a flat single-object payload (safe merge-by-date) on a
+     real auto-fired weigh-in, and `{event: "delete", date}` (removes the
+     matching entry) when a reading is deleted in the app — see
      `convertOpenScaleMeasurement`/`mergeWeightEntry`/`formatOpenScaleDate`
      in `worker.js`. Any other shape gets captured (not 400'd, so
      openScale's own retry queue doesn't get stuck) to KV for inspection
      via `GET /weight/openscale-webhook-debug?key=<OPENSCALE_WEBHOOK_SECRET>`.
      Gated by the `OPENSCALE_WEBHOOK_SECRET` Worker secret checked against
-     the raw `Authorization` header value (openScale's
-     Webhook UI only exposes that one auth field, not a named header).
+     the raw `Authorization` header value (openScale's Webhook UI only
+     exposes that one auth field, not a named header). **Bulk syncs write
+     both KV and git** (`writeWeightToGitHub` in `worker.js`, needs the
+     `WEIGHT_TRACKER_GITHUB_TOKEN` secret — a token scoped to Contents:
+     read/write on `davelane26/weight-tracker` only) — same "every sync is
+     a full-table rewrite" convention MQTT used, so tapping "Sync with
+     Webhook" in openScale is now a one-button way to get a git-backed
+     backup/history snapshot without the MQTT bridge running. A failed git
+     commit never blocks the KV write (KV is what the live dashboard
+     reads) — it's just captured to the same debug key for inspection.
+     Real-time single-record auto-fires stay KV-only (no commit-per-
+     weigh-in); git just lags to the last bulk sync, same as MQTT always did.
+   - **MQTT bridge** (home PC, `mqtt_bridge.py`, see `MQTT_BRIDGE.md`) — now
+     **optional/dormant**, kept only as a secondary backup/history writer to
+     git (`Weight-tracker/data.json`, full table rewrite each sync). Not
+     needed for the live dashboard to work — the webhook covers that on its
+     own. Safe to leave its autostart disabled and run it manually
+     (`schtasks /run /tn WeightTrackerMQTTBridge`) whenever you want a
+     cross-check/backup snapshot; every sync is a full-table dump so it
+     doesn't matter how long it's been off. `Weight-tracker`'s own git→KV
+     mirror Action (which used to be how MQTT's writes reached the live
+     dashboard) is now redundant now that the webhook writes both sides
+     directly — pending confirmation it's working, it can be retired.
 2. **Activity/health data** (steps, sleep, HR, workouts, etc. — the
    Activity tab, driven by `activity.js`) comes from **this repo's**
    `health.json`, assembled from multiple sources that get merged
