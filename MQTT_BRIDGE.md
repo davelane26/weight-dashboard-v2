@@ -17,6 +17,20 @@ data.json  →  push to davelane26/Weight-tracker  →  GitHub Pages
 Dashboard polls https://davelane26.github.io/Weight-tracker/data.json every 30s
 ```
 
+⚠️ **2026-08-24: MQTT is now optional/dormant.** openScale's built-in
+**Webhook** sync service (`POST /weight/openscale-webhook` in
+`cloudflare-worker/worker.js`) is the primary pipeline — it keeps the live
+dashboard (KV) current on every real weigh-in, and a manual "Sync with
+Webhook" tap in openScale now *also* commits the full table to
+`Weight-tracker/data.json` on GitHub, the same job this bridge does. See
+`CLAUDE.md`'s "Two separate data domains" section for the full picture.
+
+The bridge is no longer required for anything to work — it's kept purely as
+a secondary backup/cross-check writer, run manually rather than
+autostarted. See **Turning the bridge on/off**, below, before working
+through the rest of this doc as if it's the only path (most of it is still
+accurate, it's just no longer the *live* path).
+
 **Where things live (home PC, user `djtwo`):**
 
 | Thing | Location |
@@ -70,6 +84,41 @@ map back.
      ```
      netsh advfirewall firewall add rule name="Mosquitto MQTT" dir=in action=allow protocol=TCP localport=1883
      ```
+
+---
+
+## Turning the bridge on/off
+
+Now that the openScale Webhook covers the live dashboard on its own (see
+the note at the top of this doc), the bridge doesn't need to run
+continuously. All commands run in Command Prompt / PowerShell **as
+Administrator** on the home PC.
+
+**Disable autostart** (stops it launching at every logon):
+```
+schtasks /change /tn WeightTrackerMQTTBridge /disable
+```
+This only stops *future* logons from starting it — if it's already running
+(a minimized window, or a `python.exe` process for `mqtt_bridge.py` in Task
+Manager), close/end that separately if you want it fully stopped right now.
+Mosquitto itself is fine to leave running either way — harmless with
+nothing consuming from it.
+
+**Run it manually for a backup/history snapshot** (whenever you want one —
+no set schedule needed):
+```
+schtasks /run /tn WeightTrackerMQTTBridge
+```
+Starts it once immediately, no need to wait for a logon. Then trigger a
+sync from the phone. Since every openScale sync republishes its *entire*
+measurement table (see "Data recovery" below), one successful sync while
+the bridge is running fully catches git up — it doesn't matter how long the
+bridge was off in between, nothing is lost by it having been dormant.
+
+**Re-enable autostart** (back to the original always-on behavior):
+```
+schtasks /change /tn WeightTrackerMQTTBridge /enable
+```
 
 ---
 
