@@ -4,9 +4,17 @@
 # to auto-deploy on every push that touches cloudflare-worker/**, replacing the
 # old "paste into the Cloudflare dashboard Quick Edit UI" manual step.
 #
-# Secrets (API_SECRET, API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY) are
-# NOT declared here — they're set on the live Worker via the dashboard/
-# `wrangler secret put`, live server-side.
+# Secrets (API_SECRET, API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY,
+# OPENSCALE_WEBHOOK_SECRET, WEIGHT_TRACKER_GITHUB_TOKEN) are NOT declared
+# here — they're set on the live Worker via the dashboard/`wrangler secret
+# put`, live server-side.
+#
+# WEIGHT_TRACKER_GITHUB_TOKEN (added 2026-08-24): a GitHub token with
+# Contents: read/write on davelane26/weight-tracker only. Lets the
+# openScale webhook's bulk-sync handler commit data.json on GitHub directly
+# (see writeWeightToGitHub in worker.js), same "every sync is a full-table
+# rewrite" convention MQTT already used. If unset, that handler just skips
+# the git write and keeps working KV-only, same as before this existed.
 #
 # THIS ONLY WORKS IF THEIR TYPE IS ACTUALLY "Secret", NOT "Variable" —
 # wrangler treats wrangler.toml as the complete, authoritative config for
