@@ -118,9 +118,15 @@ instructions (e.g. the glucose tab).
      (`schtasks /run /tn WeightTrackerMQTTBridge`) whenever you want a
      cross-check/backup snapshot; every sync is a full-table dump so it
      doesn't matter how long it's been off. `Weight-tracker`'s own git→KV
-     mirror Action (which used to be how MQTT's writes reached the live
-     dashboard) is now redundant now that the webhook writes both sides
-     directly — pending confirmation it's working, it can be retired.
+     `mirror-weight.yml` Action (which used to be how MQTT's writes reached
+     the live dashboard) was **retired 2026-08-24** — confirmed redundant
+     once the webhook started writing both sides directly. `add-weighin.html`
+     (manual single-reading entry when the pipeline's down) used to depend
+     on that mirror too; it was switched the same day to POST to a new
+     `/weight/manual-add` Worker endpoint instead of committing to GitHub
+     straight from the browser, so it also writes KV + git directly and no
+     longer needs the mirror (or a browser-stored GitHub token — the Worker's
+     `API_SECRET` now covers it, same as Kage/xDrip+).
 2. **Activity/health data** (steps, sleep, HR, workouts, etc. — the
    Activity tab, driven by `activity.js`) comes from **this repo's**
    `health.json`, assembled from multiple sources that get merged

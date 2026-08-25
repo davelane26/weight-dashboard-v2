@@ -12,6 +12,7 @@
  *   GET  /workout-schedule       ← dashboard reads day-of-week overrides (token-gated)
  *   POST /workout-schedule       ← dashboard writes day-of-week overrides (token-gated)
  *   POST /weight/openscale-webhook ← openScale's built-in Webhook sync (bulk syncs write KV + git, see its own comment)
+ *   POST /weight/manual-add        ← add-weighin.html, one hand-entered reading (writes KV + git)
  *
  * IMPORTANT — every runtime env var this Worker reads (API_SECRET,
  * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY, WEIGHT_TRACKER_GITHUB_TOKEN)
@@ -570,6 +571,48 @@ export default {
       return cors(JSON.stringify({ ok: true, count: rows.length }));
     }
 
+    // ── POST /weight/manual-add  (add-weighin.html, a single hand-entered
+    // reading -- e.g. "the pipeline was down, log this one manually") ─────
+    // Protected by API_SECRET, same as /weight above -- add-weighin.html
+    // used to commit straight to GitHub from the browser with a user-pasted
+    // repo-scope PAT; as of 2026-08-24 it POSTs here instead, so the only
+    // credential that ever needs to live in a browser is the same scoped
+    // Worker API_SECRET other clients (Kage, xDrip+) already use, not a
+    // broad GitHub token. Body is a data.json-shaped entry (date string
+    // with its "-0600" offset already applied, weight, and any optional
+    // fields) -- no id; merge-by-date assigns one, same as everywhere else.
+    // Writes KV immediately, then also commits to Weight-tracker/data.json
+    // on GitHub (writeWeightToGitHub) since this is a rare, deliberate
+    // action -- unlike the webhook's real-time auto-fires, a commit per
+    // manual add is exactly the right frequency, not too noisy.
+    if (method === 'POST' && url.pathname === '/weight/manual-add') {
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      if (!body || typeof body.weight !== 'number' || typeof body.date !== 'string') {
+        return cors('{"error":"expected {date, weight, ...optional fields}"}', 400);
+      }
+
+      const stored = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
+      const { merged, entry } = mergeWeightEntry(stored, body);
+      await env.GLUCOSE_KV.put('weight', JSON.stringify(merged));
+
+      const gitResult = await writeWeightToGitHub(env, merged, `Add manual weigh-in: ${entry.weight} lb at ${entry.date}`);
+      if (!gitResult.committed) {
+        await env.GLUCOSE_KV.put('openscale_webhook_debug', JSON.stringify({
+          receivedAt: new Date().toISOString(),
+          note: 'manual-add succeeded to KV but git commit failed',
+          reason: gitResult.reason,
+        }));
+      }
+      return cors(JSON.stringify({
+        ok: true,
+        id: entry.id,
+        total: merged.length,
+        git: gitResult.committed ? 'committed' : `skipped (${gitResult.reason})`,
+      }));
+    }
+
     // ── POST /weight/openscale-webhook  (openScale's built-in Webhook sync) ─
     // Two payload shapes observed from openScale itself (2026-08-23):
     //   1. Bulk (fired by "Test connection" / "Sync with Webhook"):
@@ -660,7 +703,7 @@ export default {
           .map((e, i) => ({ ...e, id: i + 1 }));
         await env.GLUCOSE_KV.put('weight', JSON.stringify(sorted));
 
-        const gitResult = await writeWeightToGitHub(env, sorted);
+        const gitResult = await writeWeightToGitHub(env, sorted, `openScale webhook sync: ${sorted.length} entries`);
         if (!gitResult.committed) {
           // Don't fail the request over this -- KV (the live dashboard) is
           // already updated and that's the part that must not break.
@@ -772,16 +815,17 @@ function mergeWeightEntry(stored, entry) {
 }
 
 // ── Commit the full weight table to Weight-tracker/data.json on GitHub ──────
-// Called only from the openScale webhook's bulk-sync branch above -- see the
-// comment there for why single-record auto-fires stay KV-only. Best-effort:
-// callers must not let a failure here block or fail the KV write, since KV
-// is what the live dashboard actually reads. Requires the WEIGHT_TRACKER_
-// GITHUB_TOKEN secret (a GitHub token with Contents: read/write on
+// Called from the openScale webhook's bulk-sync branch and from
+// /weight/manual-add below -- see the webhook comment for why real-time
+// single-record auto-fires stay KV-only instead. Best-effort: callers must
+// not let a failure here block or fail the KV write, since KV is what the
+// live dashboard actually reads. Requires the WEIGHT_TRACKER_GITHUB_TOKEN
+// secret (a GitHub token with Contents: read/write on
 // davelane26/weight-tracker) -- set as a Secret, never a plain Variable,
 // same "wrangler deploy silently deletes undeclared plain Variables" trap
 // documented at the top of wrangler.toml. If it's unset, this endpoint just
 // skips the git write and keeps working KV-only, same as before 2026-08-24.
-async function writeWeightToGitHub(env, sorted) {
+async function writeWeightToGitHub(env, sorted, message) {
   const token = env.WEIGHT_TRACKER_GITHUB_TOKEN;
   if (!token) return { committed: false, reason: 'no WEIGHT_TRACKER_GITHUB_TOKEN configured' };
 
@@ -814,7 +858,7 @@ async function writeWeightToGitHub(env, sorted) {
       method: 'PUT',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: `openScale webhook sync: ${sorted.length} entries`,
+        message,
         content: encoded,
         sha: current.sha,
         branch: 'main',

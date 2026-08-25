@@ -83,7 +83,7 @@
 
   <a href="index.html" class="back">← Back to Dashboard</a>
   <h1>➕ Add Weigh-In</h1>
-  <p class="sub">Manually log a measurement that didn't come through openScale/MQTT. Pushes directly to <code>Weight-tracker/data.json</code>.</p>
+  <p class="sub">Manually log a measurement that didn't come through openScale/MQTT. Sends it to the Worker, which writes it live and backs it up to <code>Weight-tracker/data.json</code>.</p>
 
   <!-- ── Form ── -->
   <form id="weighinForm" autocomplete="off">
@@ -149,14 +149,14 @@
       </div>
     </div>
 
-    <!-- GitHub PAT -->
+    <!-- Worker API secret -->
     <div class="card">
-      <h2>🔑 GitHub Token <span style="font-size:0.7rem;color:var(--text-mute);font-weight:500">(saved locally, never sent anywhere else)</span></h2>
+      <h2>🔑 Worker API Secret <span style="font-size:0.7rem;color:var(--text-mute);font-weight:500">(saved locally, never sent anywhere else)</span></h2>
       <div>
-        <label for="ghToken">Personal Access Token (with <code>repo</code> scope)</label>
-        <input type="password" id="ghToken" placeholder="ghp_…" autocomplete="off">
+        <label for="apiSecret">API-SECRET</label>
+        <input type="password" id="apiSecret" placeholder="…" autocomplete="off">
         <p class="help">
-          Create one at <a href="https://github.com/settings/tokens/new?scopes=repo&description=Weight%20dashboard%20add-weighin" target="_blank" rel="noopener">github.com/settings/tokens/new</a> with <strong>repo</strong> scope. Stored in your browser's localStorage only.
+          Same secret Kage / xDrip+ use to authenticate to the Worker (Cloudflare dashboard → glucose-relay → Settings → Variables and Secrets → <code>API_SECRET</code>). Stored in your browser's localStorage only. (Before 2026-08-24 this page instead asked for a broad GitHub <code>repo</code>-scope token — this is narrower, it can only reach a couple of Worker endpoints.)
         </p>
       </div>
     </div>
@@ -187,7 +187,7 @@
 const REPO       = 'davelane26/Weight-tracker';
 const FILE_PATH  = 'data.json';
 const RAW_URL    = `https://raw.githubusercontent.com/${REPO}/main/${FILE_PATH}`;
-const API_BASE   = `https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`;
+const WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev';
 const HEIGHT_IN  = 75;          // 6'3" — derived from your existing data (BMI 35.96 @ 287.7 lb)
 const TZ_OFFSET  = '-0600';     // Match your existing data's offset (Mountain Time)
 
@@ -195,15 +195,15 @@ const $ = id => document.getElementById(id);
 
 // ── Element refs ─────────────────────────────────────────────────────
 const els = ['weight','datetime','bodyFat','muscle','water','bone',
-             'weight_kg','bmi','bmr','tdee','ghToken'].reduce((m,id) => (m[id]=$(id), m), {});
+             'weight_kg','bmi','bmr','tdee','apiSecret'].reduce((m,id) => (m[id]=$(id), m), {});
 
-// ── Local storage for token + last-known body comp ──────────────────
-const TOKEN_KEY = 'wd_gh_token_v1';
-const LAST_KEY  = 'wd_last_weighin_v1';
+// ── Local storage for secret + last-known body comp ──────────────────
+const SECRET_KEY = 'wd_worker_secret_v1';
+const LAST_KEY   = 'wd_last_weighin_v1';
 
-els.ghToken.value = localStorage.getItem(TOKEN_KEY) || '';
-els.ghToken.addEventListener('change', () =>
-  localStorage.setItem(TOKEN_KEY, els.ghToken.value.trim()));
+els.apiSecret.value = localStorage.getItem(SECRET_KEY) || '';
+els.apiSecret.addEventListener('change', () =>
+  localStorage.setItem(SECRET_KEY, els.apiSecret.value.trim()));
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const round = (v, n=2) => v == null || isNaN(v) ? null : Number(v.toFixed(n));
@@ -277,7 +277,7 @@ function autoCompute() {
 function resetForm() {
   document.getElementById('weighinForm').reset();
   ['weight_kg','bmi','bmr','tdee'].forEach(k => els[k].dataset.auto = '1');
-  els.ghToken.value = localStorage.getItem(TOKEN_KEY) || '';
+  els.apiSecret.value = localStorage.getItem(SECRET_KEY) || '';
   els.datetime.value = formatLocalDateTime();
   prefillFromLast();
   refreshPreview();
@@ -314,43 +314,25 @@ function setStatus(msg, kind='info') {
 }
 
 // ── Submit ───────────────────────────────────────────────────────────
-async function commitToGitHub(entry) {
-  const token = els.ghToken.value.trim();
-  if (!token) throw new Error('GitHub token required');
+// POST /weight/manual-add: the Worker does both writes -- KV immediately
+// (live dashboard), then a git commit to Weight-tracker/data.json
+// (writeWeightToGitHub in worker.js). No GitHub token needed in the
+// browser anymore -- see 2026-08-24 note in the API Secret card above.
+async function postToWorker(entry) {
+  const secret = els.apiSecret.value.trim();
+  if (!secret) throw new Error('Worker API secret required');
 
-  // 1. Get current file (need its SHA for the PUT)
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Accept':        'application/vnd.github.v3+json',
-  };
-  setStatus('Fetching current data.json…', 'info');
-  const getResp = await fetch(API_BASE + '?ref=main', { headers });
-  if (!getResp.ok) throw new Error(`GET data.json: ${getResp.status} ${await getResp.text()}`);
-  const meta = await getResp.json();
-
-  // 2. Decode, append, compute next ID
-  const current = JSON.parse(atob(meta.content.replace(/\n/g, '')));
-  if (!Array.isArray(current)) throw new Error('data.json is not an array');
-  const nextId = (current.reduce((m, r) => Math.max(m, r.id || 0), 0) || 0) + 1;
-  entry.id = nextId;
-  current.push(entry);
-  current.sort((a, b) => (a.date > b.date ? 1 : -1));
-
-  // 3. PUT it back
-  setStatus('Committing to GitHub…', 'info');
-  const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(current, null, 2))));
-  const putResp = await fetch(API_BASE, {
-    method: 'PUT', headers,
-    body: JSON.stringify({
-      message: `Add manual weigh-in: ${entry.weight} lb at ${entry.date}`,
-      content: newContent,
-      sha:     meta.sha,
-      branch:  'main',
-    }),
+  setStatus('Sending to Worker…', 'info');
+  const resp = await fetch(`${WORKER_URL}/weight/manual-add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'API-SECRET': secret },
+    body: JSON.stringify(entry),
   });
-  if (!putResp.ok) throw new Error(`PUT data.json: ${putResp.status} ${await putResp.text()}`);
-  const result = await putResp.json();
-  return { id: nextId, commit: result.commit?.sha?.slice(0,7), total: current.length };
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok || !result.ok) {
+    throw new Error(result.error || `HTTP ${resp.status}`);
+  }
+  return result; // { ok, id, total, git }
 }
 
 document.getElementById('weighinForm').addEventListener('submit', async (ev) => {
@@ -360,8 +342,9 @@ document.getElementById('weighinForm').addEventListener('submit', async (ev) => 
 
   $('submitBtn').disabled = true;
   try {
-    const { id, commit, total } = await commitToGitHub(entry);
-    setStatus(`✅ Committed entry #${id} (${total} total) · ${commit}. Dashboard refreshes in ~30s.`, 'ok');
+    const { id, total, git } = await postToWorker(entry);
+    const gitNote = git === 'committed' ? '· backed up to git' : `· git backup skipped (${git})`;
+    setStatus(`✅ Saved entry #${id} (${total} total) ${gitNote}. Live on the dashboard now.`, 'ok');
     // Persist this entry as new "last" for next prefill
     localStorage.setItem(LAST_KEY, JSON.stringify({ ...entry, weight: entry.weight }));
   } catch (e) {
