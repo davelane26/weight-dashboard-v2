@@ -9,8 +9,12 @@
  * Endpoints:
  *   POST /api/v1/entries       ← xDrip+ uploads here
  *   GET  /glucose.json         ← dashboard reads from here
- *   GET  /workout-schedule     ← dashboard reads day-of-week overrides (token-gated)
- *   POST /workout-schedule     ← dashboard writes day-of-week overrides (token-gated)
+ *   GET  /workout-schedule     ← dashboard reads day-of-week overrides (token-gated, per-user)
+ *   POST /workout-schedule     ← dashboard writes day-of-week overrides (token-gated, per-user)
+ *   GET  /weight.json          ← dashboard reads weight readings (token-gated, per-user)
+ *   POST /weight/add           ← dashboard adds one manual weigh-in (token-gated, per-user)
+ *   GET  /profile              ← dashboard reads start weight/date, height, goal (token-gated, per-user)
+ *   POST /profile              ← dashboard saves start weight/date, height, goal (token-gated, per-user)
  *
  * IMPORTANT — every runtime env var this Worker reads (API_SECRET,
  * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY) MUST be set as a
@@ -190,6 +194,28 @@ async function requireUser(request, env) {
   if (!allow.length) return null;
   if (!payload.email || !allow.includes(payload.email.toLowerCase())) return null;
   return payload;
+}
+
+// ── Multi-user KV namespacing ───────────────────────────────────────────
+// This Worker started life single-tenant: every KV key (weight, health,
+// photo:<slot>, workout_schedule) was global. Adding a second allowed
+// user means giving them their own weight/profile/photos/schedule instead
+// of silently sharing David's. To do that with ZERO migration risk to
+// existing production data, the ORIGINAL owner keeps the original,
+// unnamespaced keys (nsKey is a no-op for them) — only additional users
+// get a ":<email>" suffix. Update LEGACY_OWNER_EMAIL if that ever changes.
+//
+// NOTE: this only covers endpoints gated by a per-user Firebase token
+// (weight.json, /weight/add, /profile, /photo, /workout-schedule).
+// health.json / glucose.json stay global on purpose — they're fed by
+// API_SECRET-authenticated device pipelines (Samsung Health bridge, the
+// Kage Android app, xDrip+) that don't carry a per-user identity today,
+// so there's nothing to namespace them by yet without also changing
+// those clients.
+const LEGACY_OWNER_EMAIL = 'djtwo6@gmail.com';
+function nsKey(user, base) {
+  const email = (user.email || '').toLowerCase();
+  return email === LEGACY_OWNER_EMAIL ? base : `${base}:${email}`;
 }
 
 // ── Parse a single Nightscout entry → our format ─────────────────────────
@@ -480,8 +506,66 @@ export default {
     if (method === 'GET' && url.pathname === '/weight.json') {
       const user = await requireUser(request, env);
       if (!user) return cors('{"error":"Unauthorized"}', 401);
-      const data = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
+      const data = await env.GLUCOSE_KV.get(nsKey(user, 'weight'), { type: 'json' }) ?? [];
       return cors(JSON.stringify(data));
+    }
+
+    // ── POST /weight/add  (token-gated manual single-entry add) ────────
+    // For signed-in users who don't have David's GitHub-PAT-to-private-repo
+    // path (add-weighin.html's legacy flow) — appends/upserts one reading
+    // (by date) into the caller's own namespaced weight array.
+    if (method === 'POST' && url.pathname === '/weight/add') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      const w = Number(body.weight);
+      if (!body.date || !Number.isFinite(w) || w <= 0) {
+        return cors('{"error":"expected {date, weight, ...}"}', 400);
+      }
+      const key    = nsKey(user, 'weight');
+      const stored = await env.GLUCOSE_KV.get(key, { type: 'json' }) ?? [];
+      const dedup  = new Map(stored.map(r => [r.date, r]));
+      const entry  = { date: body.date, weight: w };
+      for (const k of ['weight_kg', 'bmi', 'bmr', 'tdee', 'bodyFat', 'bone', 'muscle', 'water']) {
+        const v = Number(body[k]);
+        if (Number.isFinite(v)) entry[k] = v;
+      }
+      dedup.set(entry.date, entry);
+      const sorted = [...dedup.values()].sort((a, b) => a.date < b.date ? -1 : 1);
+      await env.GLUCOSE_KV.put(key, JSON.stringify(sorted));
+      return cors(JSON.stringify({ ok: true, count: sorted.length }));
+    }
+
+    // ── GET/POST /profile  (token-gated per-user start weight/date/height/goal) ──
+    // The dashboard's START_WEIGHT/START_DATE/HEIGHT_IN were hardcoded
+    // constants tuned for one person. A second user needs their own —
+    // this is where those live for anyone who isn't LEGACY_OWNER_EMAIL
+    // (whose experience is unaffected: they never save one, so GET always
+    // returns {} for them and the hardcoded app-config.js defaults win).
+    if (url.pathname === '/profile') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const key = nsKey(user, 'profile');
+      if (method === 'GET') {
+        const profile = await env.GLUCOSE_KV.get(key, { type: 'json' }) ?? {};
+        return cors(JSON.stringify(profile));
+      }
+      if (method === 'POST') {
+        let body;
+        try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+        const n = v => { const x = Number(v); return Number.isFinite(x) ? x : null; };
+        const profile = {
+          startWeight: n(body.startWeight),
+          startDate:   typeof body.startDate === 'string' ? body.startDate.slice(0, 40) : null,
+          heightIn:    n(body.heightIn),
+          goalWeight:  n(body.goalWeight),
+          updatedAt:   new Date().toISOString(),
+        };
+        await env.GLUCOSE_KV.put(key, JSON.stringify(profile));
+        return cors(JSON.stringify({ ok: true, profile }));
+      }
+      return cors('{"error":"Method not allowed"}', 405);
     }
 
     // ── GET /photo?key=<slot>  (token-gated photo fetch) ───────────────
@@ -492,7 +576,7 @@ export default {
       if (!user) return cors('{"error":"Unauthorized"}', 401);
       const key = (url.searchParams.get('key') || '').toLowerCase();
       if (!ALLOWED_PHOTO_KEYS.includes(key)) return cors('{"error":"invalid key"}', 400);
-      const dataUrl = await env.GLUCOSE_KV.get('photo:' + key);
+      const dataUrl = await env.GLUCOSE_KV.get(nsKey(user, 'photo:' + key));
       return cors(JSON.stringify({ key, dataUrl: dataUrl || null }));
     }
 
@@ -512,7 +596,7 @@ export default {
       if (dataUrl.length > MAX_PHOTO_BYTES) {
         return cors('{"error":"image too large (limit ~15MB post-compression)"}', 413);
       }
-      await env.GLUCOSE_KV.put('photo:' + key, dataUrl);
+      await env.GLUCOSE_KV.put(nsKey(user, 'photo:' + key), dataUrl);
       return cors(JSON.stringify({ ok: true, key, bytes: dataUrl.length }));
     }
 
@@ -522,7 +606,7 @@ export default {
     if (method === 'GET' && url.pathname === '/workout-schedule') {
       const user = await requireUser(request, env);
       if (!user) return cors('{"error":"Unauthorized"}', 401);
-      const schedule = await env.GLUCOSE_KV.get('workout_schedule', { type: 'json' }) ?? {};
+      const schedule = await env.GLUCOSE_KV.get(nsKey(user, 'workout_schedule'), { type: 'json' }) ?? {};
       return cors(JSON.stringify({ schedule }));
     }
 
@@ -551,7 +635,7 @@ export default {
         }
         clean[dayId] = n;
       }
-      await env.GLUCOSE_KV.put('workout_schedule', JSON.stringify(clean));
+      await env.GLUCOSE_KV.put(nsKey(user, 'workout_schedule'), JSON.stringify(clean));
       return cors(JSON.stringify({ ok: true, schedule: clean }));
     }
 

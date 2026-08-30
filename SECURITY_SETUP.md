@@ -88,3 +88,44 @@ refresh, or keep the public JSON as the source and let the fallback serve it
   verifies the RS256 signature with WebCrypto, and checks `aud`/`iss`/`exp`.
 - Then it enforces `ALLOWED_EMAILS`. No match -> 401.
 - No external dependencies; pure WebCrypto.
+
+---
+
+## Adding a second person (their own, isolated data)
+
+As of the multi-user work, `weight.json`, `/weight/add`, `/profile`,
+`/photo`, and `/workout-schedule` are namespaced per signed-in user (see
+`nsKey()` in `cloudflare-worker/worker.js`) — David keeps the original,
+unnamespaced KV keys (zero migration needed), and anyone else gets their
+own `<key>:<their-email>` entries, completely separate from his.
+
+To let someone else in:
+
+1. **Add their email in two places** (both required — separate systems):
+   - `auth.js` → `ALLOWED_EMAILS` array (gates the page UI).
+   - The Worker's `ALLOWED_EMAILS` **Secret**, comma-separated (gates the
+     data endpoints — Settings → Variables and Secrets, type must stay
+     `Secret`, see the warning at the top of `worker.js`).
+2. They sign in with Google. Since they have no saved profile yet, the
+   dashboard shows a **"Set Up Your Profile"** prompt (height, starting
+   weight/date, optional goal) — this replaces the hardcoded
+   `START_WEIGHT`/`START_DATE`/`HEIGHT_IN` constants in `app-config.js`,
+   which stay exactly as-is and apply only to David.
+3. They log weigh-ins from `add-weighin.html` → **"💾 Save to Your
+   Dashboard"** card (Firebase-token gated, hits the Worker directly —
+   no GitHub PAT, since they don't have write access to David's private
+   `Weight-tracker` repo). David's own GitHub-token path is unchanged,
+   tucked under a collapsed "legacy path" section on that page.
+
+### Known limitation: Activity tab stays shared
+`health.json` (steps/sleep/HR/etc.) is **not** namespaced. It's fed by
+API_SECRET-authenticated device pipelines tied to David's own hardware —
+the Samsung Health bridge on his home PC and the Kage Android app on his
+phone (see `CLAUDE.md`'s "Activity data" section) — neither of which
+carries a per-user identity today. Giving a second person their own
+Activity data would mean either they run their own instance of one of
+those pipelines pointed at a new per-user endpoint, or the ingestion
+clients start sending a user id — both out of scope here. Their Weight,
+Charts, Goal/Projector, Photos, and Workout Schedule tabs are fully
+isolated and correct; Activity currently still shows David's data
+regardless of who's signed in.

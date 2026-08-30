@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Add Weigh-In · Weight Dashboard</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    window.HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev';
+    window.authReadyPromise = new Promise(function(r){ window._resolveAuthReady = r; });
+  </script>
+  <script type="module" src="auth.js?v=3"></script>
   <style>
     /* Match Charts tab dark slate aesthetic */
     :root {
@@ -76,6 +81,11 @@
                         font-weight: 600; padding: 0.3rem 0; list-style: none; }
     details > summary::before { content: "▸ "; }
     details[open] > summary::before { content: "▾ "; }
+    .divider { text-align: center; color: var(--text-mute); font-size: 0.72rem;
+               text-transform: uppercase; letter-spacing: 0.08em; margin: 0.9rem 0; }
+    .btn-worker { background: var(--link); color: #06121f; }
+    .btn-worker:hover, .btn-worker:focus { background: #7cb3ff; }
+    .btn-worker:disabled { background: var(--border); color: var(--text-mute); cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -149,18 +159,6 @@
       </div>
     </div>
 
-    <!-- GitHub PAT -->
-    <div class="card">
-      <h2>🔑 GitHub Token <span style="font-size:0.7rem;color:var(--text-mute);font-weight:500">(saved locally, never sent anywhere else)</span></h2>
-      <div>
-        <label for="ghToken">Personal Access Token (with <code>repo</code> scope)</label>
-        <input type="password" id="ghToken" placeholder="ghp_…" autocomplete="off">
-        <p class="help">
-          Create one at <a href="https://github.com/settings/tokens/new?scopes=repo&description=Weight%20dashboard%20add-weighin" target="_blank" rel="noopener">github.com/settings/tokens/new</a> with <strong>repo</strong> scope. Stored in your browser's localStorage only.
-        </p>
-      </div>
-    </div>
-
     <!-- Preview -->
     <div class="card">
       <details>
@@ -169,11 +167,33 @@
       </details>
     </div>
 
-    <!-- Actions -->
-    <div class="actions">
-      <button type="button" class="btn-secondary" onclick="resetForm()">Reset</button>
-      <button type="submit" id="submitBtn" class="btn-primary">📤 Submit weigh-in</button>
+    <!-- Save to dashboard (worker, Firebase-token gated) — the path for
+         anyone signed in who ISN'T David: no GitHub PAT to his private
+         Weight-tracker repo needed or possible. -->
+    <div class="card" id="worker-save-card">
+      <h2>💾 Save to Your Dashboard</h2>
+      <p class="help" id="worker-auth-status">Checking sign-in…</p>
+      <button type="button" id="workerSignInBtn" class="btn-secondary" style="width:100%;padding:0.7rem;border-radius:10px;margin-bottom:0.6rem;display:none">Sign in with Google</button>
+      <button type="button" id="workerSaveBtn" class="btn-worker" style="width:100%;padding:0.85rem 1rem;border-radius:10px;border:none;font-size:0.95rem;font-weight:800;cursor:pointer" disabled>💾 Save weigh-in to your dashboard</button>
     </div>
+
+    <div class="divider">— or, David's legacy path —</div>
+
+    <!-- GitHub PAT (David only — writes straight to the private Weight-tracker repo) -->
+    <div class="card">
+      <details>
+        <summary>🔑 GitHub Token path (David's original flow)</summary>
+        <div style="margin-top:0.6rem">
+          <label for="ghToken">Personal Access Token (with <code>repo</code> scope)</label>
+          <input type="password" id="ghToken" placeholder="ghp_…" autocomplete="off">
+          <p class="help">
+            Create one at <a href="https://github.com/settings/tokens/new?scopes=repo&description=Weight%20dashboard%20add-weighin" target="_blank" rel="noopener">github.com/settings/tokens/new</a> with <strong>repo</strong> scope. Stored in your browser's localStorage only. Writes directly to <code>davelane26/Weight-tracker</code> — only useful if you have write access to that private repo.
+          </p>
+          <button type="submit" id="submitBtn" class="btn-primary" style="width:100%;margin-top:0.6rem">📤 Submit via GitHub</button>
+        </div>
+      </details>
+    </div>
+
     <div id="status" class="status" role="status" aria-live="polite"></div>
 
   </form>
@@ -285,7 +305,24 @@ function resetForm() {
 window.resetForm = resetForm;
 
 // ── Pre-fill body comp from last weigh-in ────────────────────────────
+// RAW_URL is David's private Weight-tracker data — only fetch it as a
+// prefill source when a GitHub token is actually configured (i.e. the
+// legacy path is in play). Otherwise fall back to this browser's own
+// LAST_KEY cache so a second user isn't prefilled with David's numbers.
 async function prefillFromLast() {
+  if (!els.ghToken.value.trim()) {
+    try {
+      const last = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+      if (last) {
+        if (!els.bodyFat.value && last.bodyFat) els.bodyFat.value = last.bodyFat;
+        if (!els.muscle.value  && last.muscle)  els.muscle.value  = last.muscle;
+        if (!els.water.value   && last.water)   els.water.value   = last.water;
+        if (!els.bone.value    && last.bone)    els.bone.value    = last.bone;
+        autoCompute();
+      }
+    } catch {}
+    return;
+  }
   try {
     const r = await fetch(RAW_URL + '?t=' + Date.now());
     if (!r.ok) throw new Error('fetch data.json: ' + r.status);
@@ -371,6 +408,62 @@ document.getElementById('weighinForm').addEventListener('submit', async (ev) => 
     $('submitBtn').disabled = false;
   }
 });
+
+// ── Save to dashboard via the worker (Firebase-token gated, per-user) ──
+// This is the path for anyone who isn't David: no private-repo write
+// access needed. Hits POST /weight/add on the Worker (see worker.js),
+// which appends/upserts this one reading into the caller's own
+// namespaced weight array.
+async function saveToWorker(entry) {
+  const user = window.fbUser;
+  if (!user || typeof user.getIdToken !== 'function') throw new Error('Not signed in');
+  const token = await user.getIdToken();
+  const resp = await fetch(window.HEALTH_WORKER_URL + '/weight/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(entry),
+  });
+  if (!resp.ok) throw new Error(`Save failed: ${resp.status} ${await resp.text()}`);
+  return resp.json();
+}
+
+function refreshWorkerAuthUI() {
+  const statusEl  = $('worker-auth-status');
+  const signInBtn = $('workerSignInBtn');
+  const saveBtn   = $('workerSaveBtn');
+  const user = window.fbUser;
+  if (user) {
+    statusEl.textContent = `Signed in as ${user.email}. Saves go straight to your own dashboard data.`;
+    signInBtn.style.display = 'none';
+    saveBtn.disabled = false;
+  } else {
+    statusEl.textContent = 'Sign in to save a weigh-in to your dashboard.';
+    signInBtn.style.display = 'block';
+    saveBtn.disabled = true;
+  }
+}
+
+$('workerSignInBtn').addEventListener('click', () => window.fbSignIn && window.fbSignIn());
+
+$('workerSaveBtn').addEventListener('click', async () => {
+  const entry = buildEntry();
+  if (!entry) { setStatus('⚠️ Enter a valid weight', 'err'); return; }
+  $('workerSaveBtn').disabled = true;
+  try {
+    const result = await saveToWorker(entry);
+    setStatus(`✅ Saved to your dashboard (${result.count} total readings). Dashboard refreshes in ~30s.`, 'ok');
+    localStorage.setItem(LAST_KEY, JSON.stringify(entry));
+  } catch (e) {
+    console.error(e);
+    setStatus(`❌ ${e.message}`, 'err');
+  } finally {
+    $('workerSaveBtn').disabled = false;
+  }
+});
+
+if (window.authReadyPromise) window.authReadyPromise.then(refreshWorkerAuthUI).catch(refreshWorkerAuthUI);
+document.addEventListener('firebase-auth-changed', refreshWorkerAuthUI);
+refreshWorkerAuthUI();
 
 // ── Init ─────────────────────────────────────────────────────────────
 els.datetime.value = formatLocalDateTime();

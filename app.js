@@ -72,11 +72,13 @@ async function fetchWeightRaw() {
   }
 
   const workerUrl = window.WEIGHT_WORKER_URL;
+  let signedInEmail = null;
   if (workerUrl) {
     try {
       // Wait for Firebase to settle so we actually have a token on first load.
       if (window.authReadyPromise) { try { await window.authReadyPromise; } catch {} }
       const user = window.fbUser;
+      signedInEmail = user && user.email ? user.email.toLowerCase() : null;
       if (user && typeof user.getIdToken === 'function') {
         const token = await user.getIdToken();
         const resp = await fetch(workerUrl + '?t=' + Date.now(), {
@@ -89,7 +91,14 @@ async function fetchWeightRaw() {
       console.warn('[weight] worker fetch failed, falling back:', e.message);
     }
   }
-  // Public fallback (remove once cutover is complete).
+  // Public fallback (remove once cutover is complete). DATA_URL is David's
+  // own data (davelane26/Weight-tracker) — only fall back to it for David
+  // (or before we know who's signed in, e.g. DEV). For anyone else, a
+  // failed worker fetch must surface as "no data" rather than silently
+  // showing David's numbers under their login.
+  if (signedInEmail && signedInEmail !== LEGACY_OWNER_EMAIL) {
+    throw new Error('worker fetch failed and public fallback is David-only');
+  }
   const resp = await fetch(DATA_URL + '?t=' + Date.now());
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   return await resp.json();
@@ -143,6 +152,124 @@ async function loadAISummary() {
   }
 }
 
+// ── Per-user profile (start weight/date, height, goal) ─────────────────
+// David's numbers are the hardcoded defaults in app-config.js. Any other
+// signed-in user's numbers live in the worker's per-user /profile KV
+// entry (see cloudflare-worker/worker.js) and override those `let`
+// globals here, before the first render. `hasProfile` drives the
+// first-run "Set Up Your Profile" prompt in index.html.
+let hasProfile = true;
+
+async function loadProfile() {
+  const base = window.HEALTH_WORKER_URL;
+  if (!base) return;
+  try {
+    if (window.authReadyPromise) { try { await window.authReadyPromise; } catch {} }
+    const user = window.fbUser;
+    if (!user || typeof user.getIdToken !== 'function') return;
+    const email = (user.email || '').toLowerCase();
+    if (email === LEGACY_OWNER_EMAIL) return; // David keeps the hardcoded defaults, always
+    const token = await user.getIdToken();
+    const resp = await fetch(base + '/profile', { headers: { Authorization: 'Bearer ' + token } });
+    if (!resp.ok) { hasProfile = false; return; }
+    const p = await resp.json();
+    hasProfile = p && p.startWeight != null;
+    if (!hasProfile) return;
+    if (p.startWeight != null) START_WEIGHT = p.startWeight;
+    if (p.startDate)           START_DATE   = p.startDate;
+    if (p.heightIn != null)    HEIGHT_IN    = p.heightIn;
+    if (p.goalWeight != null && goalWeight == null) goalWeight = p.goalWeight;
+  } catch (e) {
+    console.warn('[profile] load failed:', e.message);
+    hasProfile = false;
+  }
+}
+
+// ── First-run profile setup UI (markup lives in index.html) ────────────
+const PROFILE_DISMISSED_KEY = 'wt_v2_profile_setup_dismissed';
+
+function maybeShowProfileSetup() {
+  const overlay = document.getElementById('profile-setup-overlay');
+  if (!overlay) return;
+  const user = window.fbUser;
+  const email = user && user.email ? user.email.toLowerCase() : null;
+  if (!email || email === LEGACY_OWNER_EMAIL || hasProfile) return;
+  if (sessionStorage.getItem(PROFILE_DISMISSED_KEY) === '1') return; // re-offered next session, not nagged mid-session
+  overlay.style.display = 'flex';
+  const d = new Date();
+  const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const dateEl = document.getElementById('profile-start-date');
+  if (dateEl && !dateEl.value) dateEl.value = iso;
+}
+
+// "David's Health Board" is the default/legacy title (his own name, since
+// he's the original single user). Any other signed-in user sees their own
+// first name instead, everywhere that title is shown.
+function updateHeaderTitle() {
+  const user = window.fbUser;
+  const email = user && user.email ? user.email.toLowerCase() : null;
+  if (!email || email === LEGACY_OWNER_EMAIL) return;
+  const first = (user.displayName || user.email.split('@')[0]).split(' ')[0];
+  const title = `${first}'s Health Board`;
+  const headerTitle = document.getElementById('header-title');
+  const authTitle   = document.getElementById('auth-title');
+  if (headerTitle) headerTitle.textContent = title;
+  if (authTitle)   authTitle.textContent   = title;
+  document.title = title;
+}
+document.addEventListener('firebase-auth-changed', updateHeaderTitle);
+
+window.dismissProfileSetup = function dismissProfileSetup() {
+  const overlay = document.getElementById('profile-setup-overlay');
+  if (overlay) overlay.style.display = 'none';
+  try { sessionStorage.setItem(PROFILE_DISMISSED_KEY, '1'); } catch {}
+};
+
+window.saveProfileSetup = async function saveProfileSetup() {
+  const errEl = document.getElementById('profile-setup-error');
+  const hide  = msg => { if (errEl) { errEl.style.display = 'none'; } };
+  const show  = msg => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  hide();
+
+  const heightIn = parseFloat(document.getElementById('profile-height').value);
+  const startW   = parseFloat(document.getElementById('profile-start-weight').value);
+  const startD   = document.getElementById('profile-start-date').value;
+  const goalW    = parseFloat(document.getElementById('profile-goal-weight').value);
+
+  if (!heightIn || heightIn < 36 || heightIn > 96) return show('Enter a valid height in inches.');
+  if (!startW || startW <= 0)                      return show('Enter a valid starting weight.');
+  if (!startD)                                      return show('Enter a starting date.');
+
+  const base = window.HEALTH_WORKER_URL;
+  const user = window.fbUser;
+  if (!base || !user || typeof user.getIdToken !== 'function') return show('Not signed in — try reloading.');
+
+  try {
+    const token = await user.getIdToken();
+    const resp  = await fetch(base + '/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({
+        heightIn, startWeight: startW,
+        startDate: new Date(startD + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        goalWeight: isNaN(goalW) ? null : goalW,
+      }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    // Apply immediately so this load's charts/KPIs are correct without a refresh.
+    HEIGHT_IN = heightIn;
+    START_WEIGHT = startW;
+    START_DATE = new Date(startD + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (!isNaN(goalW)) { goalWeight = goalW; try { localStorage.setItem('wt_v2_goal', goalWeight); } catch {} }
+    hasProfile = true;
+    const overlay = document.getElementById('profile-setup-overlay');
+    if (overlay) overlay.style.display = 'none';
+    if (allData.length) renderAll();
+  } catch (e) {
+    show('Save failed: ' + e.message + ' — try again.');
+  }
+};
+
 // ── Init ─────────────────────────────────────────────────────────────
 async function init() {
   restoreTabOrder();
@@ -150,6 +277,9 @@ async function init() {
   loadDark();
   loadActivityLevel();
   loadGoal();
+  await loadProfile();
+  if (typeof updateHeaderTitle === 'function') updateHeaderTitle(); // authReadyPromise may have resolved before this listener was registered
+  if (typeof maybeShowProfileSetup === 'function') maybeShowProfileSetup();
   // Load data FIRST while the weight tab is still visible so Chart.js
   // can measure the canvas at its real size. Switch to the saved tab
   // only after the initial render is done.

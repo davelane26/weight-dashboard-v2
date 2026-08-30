@@ -27,6 +27,20 @@ const FIREBASE_CONFIG = {
 // NOTE: this is a client-side gate. It stops casual access to the UI,
 // but the data.json is still public (see Fix #2 -- move data behind the
 // Cloudflare Worker with token verification to truly protect it).
+//
+// MULTI-USER: to let a second person in with their OWN isolated data
+// (their own weight/profile/photos/workout-schedule — see worker.js's
+// nsKey()), just add their email as another array entry below, e.g.:
+//   const ALLOWED_EMAILS = ['djtwo6@gmail.com', 'jane@example.com'];
+// Do NOT use the 'REPLACE_WITH_...' placeholder pattern for a real
+// second email -- isAllowed() below fails OPEN (lets anyone in) for as
+// long as ANY entry in this array starts with 'REPLACE_WITH_', which is
+// meant only to keep you from locking yourself out on first setup, not
+// as a way to "temporarily" add someone.
+//
+// You also need to add that same email to the Worker's ALLOWED_EMAILS
+// Secret (comma-separated) -- see SECURITY_SETUP.md step 2 -- since this
+// array only gates the page UI, not the token-gated data endpoints.
 const ALLOWED_EMAILS = [
   'djtwo6@gmail.com',
 ];

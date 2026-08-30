@@ -5,9 +5,22 @@
 
 // ── Config ───────────────────────────────────────────────────────────
 const DATA_URL     = 'https://davelane26.github.io/Weight-tracker/data.json';
-const START_WEIGHT = 315.0;
-const START_DATE   = 'Jan 29, 2026';
 const REFRESH_MS   = 30_000;
+
+// David's own account (see cloudflare-worker/worker.js LEGACY_OWNER_EMAIL).
+// Used client-side only to decide whether to show the first-run profile
+// setup prompt — David's profile is never saved to the worker, so without
+// this check every load would look like "new user, no profile saved yet".
+const LEGACY_OWNER_EMAIL = 'djtwo6@gmail.com';
+
+// START_WEIGHT/START_DATE/HEIGHT_IN are `let`, not `const`, on purpose:
+// they're David's own numbers below, but for any OTHER signed-in user
+// app.js's loadProfile() overwrites them at boot from the worker's
+// per-user /profile endpoint before the first render. Every other script
+// reads these by name (shared top-level scope, see file header) so a
+// reassignment here is picked up everywhere without touching those files.
+let START_WEIGHT = 315.0;
+let START_DATE   = 'Jan 29, 2026';
 
 // Reconciled Aug 12, 2026: doctor's office stadiometer reads 74.8 in
 // across multiple visits, which supersedes both openScale's default
@@ -17,7 +30,7 @@ const REFRESH_MS   = 30_000;
 // variation (~0.5-1 in through the day). BMI is recomputed against
 // this constant in loadData() so the correction applies across all
 // history, not just new readings.
-const HEIGHT_IN = 74.8;
+let HEIGHT_IN = 74.8; // `let`, not `const` — see START_WEIGHT/START_DATE above
 
 const ACTIVITY_LEVELS = {
   sedentary:   { label: 'Sedentary',   desc: 'Desk job, little or no exercise',       multiplier: 1.2   },
