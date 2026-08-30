@@ -202,23 +202,16 @@ function renderProjectorSlowdown() {
 }
 
 // ── Weight Projector ─────────────────────────────────────────────────
-// Headline numbers come from the exponential-decay model when there's
-// enough data to fit one: weight(t) = W_now - (R0/k)(1 - e^-kt), t in
-// weeks from today. R0 (current rate) and k (decay constant) are fit
-// from overlapping trailing rate windows — see computeExponentialDecayModel
-// in app-utils.js.
+// Headline pace = plain linear-regression rate over the last 28
+// calendar days of the FULL dataset — the exact same number and same
+// engine (regressionSlopeLbsPerDay) the "28-Day Trend" card uses, so
+// this card can never visually disagree with it.
 //
-// IMPORTANT: the fit is confined to the CURRENT dose window (mirrors
-// plateau-radar.js / titration-readiness.js). Pooling across a dose
-// transition would treat the post-titration loss burst as part of a
-// single decelerating trend, silently inflating R0 on the early side
-// and biasing k. Confining to the current dose makes R0 and k mean
-// what their labels say. The moment a new dose is logged, the fit
-// resets — which is correct: all pre-titration projections are stale.
-//
-// When k <= 0 (no deceleration signal), too few windows, or too little
-// data in the current dose, everything falls back to plain linear
-// extrapolation at the current rate.
+// Previously used an exponential-decay curve fit confined to the
+// current dose (see git history for computeExponentialDecayModel).
+// That number was a genuinely different, smoothed quantity and looked
+// like a bug sitting next to the 28-day trend card even though it
+// technically wasn't one — simpler and consistent wins here.
 function computeProjection() {
   const dateInput   = document.getElementById('proj-date-input');
   const weightInput = document.getElementById('proj-weight-input');
@@ -236,48 +229,30 @@ function computeProjection() {
   }
 
   const MS_PER_DAY = 86_400_000;
-
   const data = (typeof allData !== 'undefined' && allData.length) ? allData : null;
 
-  // Restrict the fit to the current dose window so a titration step
-  // can't pollute the deceleration read. Falls back to full history
-  // when we have no shot data or TitrationUtils isn't loaded yet.
-  let doseData = data, doseStart = null, currentDose = null;
+  const rate28   = data ? regressionSlopeLbsPerDay(data, 28) : null; // lbs/day, negative = losing
+  const useModel = rate28 != null && rate28 < 0;
+  const fmtLongDate = d => d.toLocaleDateString('en-US',
+    { month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Dose label is context only — the rate above is NOT dose-scoped.
+  let currentDose = null;
   try {
     const shots = JSON.parse(localStorage.getItem('glp1_v4')) || [];
     const norm  = shots
       .map(s => ({ ...s, _dt: new Date(s.date) }))
       .filter(s => !isNaN(s._dt) && typeof s.dose === 'number')
       .sort((a, b) => a._dt - b._dt);
-    if (norm.length && window.TitrationUtils) {
-      currentDose = norm[norm.length - 1].dose;
-      doseStart   = window.TitrationUtils.currentDoseStart(norm);
-      if (doseStart && data) {
-        doseData = window.TitrationUtils.readingsSince(doseStart, data);
-      }
-    }
-  } catch (e) { /* keep full-history fallback */ }
-
-  const model    = (doseData && doseData.length)
-    ? computeExponentialDecayModel(doseData) : null;
-  const useModel = !!model;
-  const fmtLongDate = d => d.toLocaleDateString('en-US',
-    { month: 'long', day: 'numeric', year: 'numeric' });
-
-  const doseLabel = currentDose != null ? `${currentDose}mg` : 'this dose';
-  const sinceLabel = doseStart
-    ? ` since ${doseStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-    : '';
+    if (norm.length) currentDose = norm[norm.length - 1].dose;
+  } catch (e) { /* label-only, fine to skip */ }
+  const dosePrefix = currentDose != null ? `On ${currentDose}mg. ` : '';
 
   const blurb = document.getElementById('proj-trend-blurb');
   if (blurb) {
-    if (useModel) {
-      const halfLifeWk = Math.log(2) / model.k;
-      const easePctWk  = model.k * 100;
-      blurb.textContent = `On ${doseLabel}${sinceLabel}. Losing ~${model.r0.toFixed(2)} lbs/wk right now, with adaptation slowing the pace ~${easePctWk.toFixed(1)}% per week (rate half-life ~${halfLifeWk.toFixed(0)} wk, fit from ${model.n} windows in the current dose). Pick a date or target below to see what this pace projects — assumes you stay on ${doseLabel}.`;
-    } else {
-      blurb.textContent = `On ${doseLabel}${sinceLabel} — not enough within-dose data yet to model deceleration, so projecting linearly at your current pace of ~${Math.abs(projSlopeLbsPerDay * 7).toFixed(2)} lbs/wk. Fit will improve as more ${doseLabel} readings accrue.`;
-    }
+    blurb.textContent = useModel
+      ? `${dosePrefix}Losing ~${Math.abs(rate28 * 7).toFixed(2)} lbs/wk over the last 28 days. Pick a date or target below to see what this pace projects.`
+      : `${dosePrefix}Not enough recent data (or trend is flat/gaining) to project a 28-day pace. Needs at least 3 weigh-ins in the last 28 days.`;
   }
 
   // ── Date → Projected weight ──
@@ -287,51 +262,27 @@ function computeProjection() {
     if (recentEl) recentEl.textContent = '';
     if (!targetDate || isNaN(targetDate)) {
       dateResult.textContent = 'Pick a date above';
+    } else if (!useModel) {
+      dateResult.textContent = 'Trend is flat or gaining — projection unavailable';
+      dateResult.style.color = '#6d7a95';
     } else {
-      const daysDiff = (targetDate - projLatestDate) / MS_PER_DAY;
-      const isFuture = daysDiff > 0;
-      const weeks    = daysDiff / 7;
-      const linear   = projLatestWeight + projSlopeLbsPerDay * daysDiff;
-
-      let projected = linear, projLow = null, projHigh = null;
-      if (useModel) {
-        const range = exponentialLossRange(model, weeks);
-        projected = projLatestWeight - range.loss;
-        projLow   = projLatestWeight - range.lossHigh; // more loss => lower weight
-        projHigh  = projLatestWeight - range.lossLow;
-      }
-
-      const rounded = Math.round(projected * 10) / 10;
+      const daysDiff  = (targetDate - projLatestDate) / MS_PER_DAY;
+      const isFuture  = daysDiff > 0;
+      const projected = projLatestWeight + rate28 * daysDiff;
+      const rounded   = Math.round(projected * 10) / 10;
       if (!isFuture) {
         dateResult.textContent = 'Pick a future date';
       } else if (rounded < 100) {
         dateResult.textContent = "Way beyond goal — you'd be a ghost 👻";
       } else {
-        const dateLabel  = fmtLongDate(targetDate);
-        const lostNow    = projLatestWeight - rounded;          // change from current
-        const lostTotal  = START_WEIGHT - rounded;              // total from 315.0
-        const lostNowStr = lostNow > 0
+        const dateLabel   = fmtLongDate(targetDate);
+        const lostNow     = projLatestWeight - rounded;          // change from current
+        const lostTotal   = START_WEIGHT - rounded;              // total from 315.0
+        const lostNowStr  = lostNow > 0
           ? `▼ ${fmt(lostNow)} lbs from now`
           : `▲ ${fmt(Math.abs(lostNow))} lbs from now`;
-        const rangeStr = (useModel && projLow != null && projHigh != null)
-          ? ` (range ${fmt(Math.round(projLow * 10) / 10)}–${fmt(Math.round(projHigh * 10) / 10)} lbs)`
-          : '';
-        const main = `~${fmt(rounded)} lbs${rangeStr} on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
-        dateResult.textContent = main;
+        dateResult.textContent = `~${fmt(rounded)} lbs on ${dateLabel} · ${lostNowStr} · ✅ ${fmt(lostTotal)} lbs lost from ${START_WEIGHT}`;
         dateResult.style.color = lostNow > 0 ? '#2a8703' : '#ea1100';
-
-        // Comparison line: what plain linear extrapolation would have said,
-        // plus a reminder this is a modeled scenario, not a guarantee.
-        if (recentEl && useModel) {
-          const linRounded = Math.round(linear * 10) / 10;
-          const diff = linRounded - rounded;
-          recentEl.textContent = `Assumes deceleration continues at the current trend. ⚖ Steady long-run average: ~${fmt(linRounded)} lbs` +
-            (Math.abs(diff) >= 0.1
-              ? ` (${diff > 0 ? '+' : ''}${fmt(diff)} lbs vs the modeled scenario).`
-              : ' (about the same).');
-        } else if (recentEl) {
-          recentEl.textContent = '';
-        }
       }
     }
   }
@@ -354,70 +305,31 @@ function computeProjection() {
       hide('', '#6d7a95');
     } else if (targetW >= projLatestWeight) {
       hide('Slide below your current weight');
-    } else if (projSlopeLbsPerDay >= 0 && !useModel) {
+    } else if (!useModel) {
       hide('Trend is flat or gaining — projection unavailable');
     } else {
-      const stillToGo = projLatestWeight - targetW;
-      const totalLost = START_WEIGHT - targetW;
-      const avgDays   = projSlopeLbsPerDay < 0
-        ? stillToGo / Math.abs(projSlopeLbsPerDay) : null;
+      const stillToGo   = projLatestWeight - targetW;
+      const totalLost   = START_WEIGHT - targetW;
+      const daysNeeded  = stillToGo / Math.abs(rate28);
+      const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
+      const daysRounded = Math.round(daysNeeded);
 
-      let daysNeeded = null, daysLow = null, daysHigh = null;
-      if (useModel) {
-        const wr = exponentialWeeksToLoseRange(model, stillToGo);
-        if (wr.weeks     != null) daysNeeded = wr.weeks * 7;
-        if (wr.weeksLow  != null) daysLow    = wr.weeksLow  * 7;
-        if (wr.weeksHigh != null) daysHigh   = wr.weeksHigh * 7;
-      } else {
-        daysNeeded = avgDays;
+      if (countdown) {
+        countdown.style.display = 'block';
+        document.getElementById('proj-cd-date').textContent  = fmtLongDate(arrivalDate);
+        document.getElementById('proj-cd-days').textContent  =
+          `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
+        document.getElementById('proj-cd-total').textContent =
+          `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
+        document.getElementById('proj-cd-togo').textContent  =
+          `${fmt(stillToGo)} lbs`;
+
+        // No model-vs-linear comparison anymore — there's only one
+        // projection now, so the comparison row stays hidden.
+        const adjWrap = document.getElementById('proj-cd-adjusted-wrap');
+        if (adjWrap) adjWrap.style.display = 'none';
       }
-
-      if (daysNeeded == null) {
-        // Target lies beyond what the within-dose deceleration reaches
-        // in finite time. Don't leak the asymptote as a headline number
-        // — it's a curve-fit artifact that swings wildly with water
-        // cycling. Just tell the user the target isn't reachable at
-        // the current within-dose pace and offer the linear estimate
-        // as a reference.
-        let msg = ` At the current within-dose pace, ${fmt(targetW)} lbs isn't reached before the model's deceleration flattens out. A dose change (or an intentional pace bump) would restart the projection.`;
-        if (avgDays != null) {
-          msg += ` For reference, at your steady long-run average you'd arrive ${fmtLongDate(new Date(projLatestDate.getTime() + avgDays * MS_PER_DAY))}.`;
-        }
-        hide(msg, '#995213');
-      } else {
-        const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
-        const daysRounded = Math.round(daysNeeded);
-
-        if (countdown) {
-          countdown.style.display = 'block';
-          document.getElementById('proj-cd-date').textContent  = fmtLongDate(arrivalDate);
-          document.getElementById('proj-cd-days').textContent  =
-            `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
-          document.getElementById('proj-cd-total').textContent =
-            `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
-          document.getElementById('proj-cd-togo').textContent  =
-            `${fmt(stillToGo)} lbs`;
-
-          // Range row: arrival date span implied by the decay-rate
-          // uncertainty band, not a "same model, different average" comparison.
-          const adjWrap = document.getElementById('proj-cd-adjusted-wrap');
-          const adjEl   = document.getElementById('proj-cd-adjusted');
-          if (adjWrap && adjEl) {
-            if (useModel && daysLow != null && daysHigh != null) {
-              const dateA = new Date(projLatestDate.getTime() + Math.min(daysLow, daysHigh) * MS_PER_DAY);
-              const dateB = new Date(projLatestDate.getTime() + Math.max(daysLow, daysHigh) * MS_PER_DAY);
-              adjEl.textContent = `${fmtLongDate(dateA)} – ${fmtLongDate(dateB)}`;
-              adjWrap.style.display = 'block';
-            } else if (useModel) {
-              adjEl.textContent = 'Range unavailable at this target';
-              adjWrap.style.display = 'block';
-            } else {
-              adjWrap.style.display = 'none';
-            }
-          }
-        }
-        weightResult.textContent = '';
-      }
+      weightResult.textContent = '';
     }
   }
 }
