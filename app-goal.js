@@ -34,15 +34,14 @@ function renderGoal(latest, data = []) {
   // Rate scenarios for range-based projections. Previously hardcoded
   // placeholder numbers (2.0/2.4/2.8) unrelated to actual trend data —
   // replaced with real regression rates off the shared engine so this
-  // range reflects what's actually happening, not a guess. Conservative
-  // = the slower 28-day trend, optimistic = the faster 14-day trend;
-  // anchored to your latest reading (the engine's default) so this
-  // freezes cleanly on days with no new weigh-in, like every other card.
+  // range reflects what's actually happening, not a guess. Anchored to
+  // your latest reading (the engine's default) so this freezes cleanly
+  // on days with no new weigh-in, like every other card.
   // regressionSlopeLbsPerDay returns lbs/DAY — must convert to lbs/wk.
   const rate14 = regressionSlopeLbsPerDay(data, 14);
   const rate28 = regressionSlopeLbsPerDay(data, 28);
-  const optimisticRate   = rate14 != null ? Math.abs(rate14) * 7 : null;
-  const conservativeRate = rate28 != null ? Math.abs(rate28) * 7 : null;
+  const rate14Abs = rate14 != null ? Math.abs(rate14) * 7 : null;
+  const rate28Abs = rate28 != null ? Math.abs(rate28) * 7 : null;
 
   const calcEta = (rate) => {
     const weeksLeft = remaining / rate;
@@ -51,11 +50,18 @@ function renderGoal(latest, data = []) {
 
   const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  if (optimisticRate && conservativeRate) {
-    const etaOpt  = calcEta(optimisticRate);
-    const etaCons = calcEta(conservativeRate);
-    const rangeStr = `${fmtShort(etaOpt)} - ${fmtShort(etaCons)}`;
-    setText('goal-eta', `${rangeStr} (currently ${conservativeRate.toFixed(2)} lbs/wk, 28-day)`);
+  if (rate14Abs && rate28Abs) {
+    const eta14 = calcEta(rate14Abs);
+    const eta28 = calcEta(rate28Abs);
+    // Don't assume the 14-day pace is always faster than the 28-day one
+    // (it flipped this earlier: 14-day had slowed below 28-day, which
+    // made the "always 14-day first" range print later-date-first).
+    // Order by the actual dates instead, so the range always reads
+    // soonest-to-latest regardless of which window is currently faster.
+    const etaSoon = eta14 <= eta28 ? eta14 : eta28;
+    const etaLate = eta14 <= eta28 ? eta28 : eta14;
+    const rangeStr = `${fmtShort(etaSoon)} - ${fmtShort(etaLate)}`;
+    setText('goal-eta', `${rangeStr} (currently ${rate28Abs.toFixed(2)} lbs/wk, 28-day)`);
   } else {
     setText('goal-eta', 'Not enough recent data to project a range yet');
   }
