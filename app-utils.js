@@ -99,6 +99,44 @@ function weightTrendSlope(data, days = 28) {
   return regressionSlopeLbsPerDay(data, days);
 }
 
+// ── Regression line (slope + anchor value) ───────────────────────────
+// Same OLS math as regressionSlopeLbsPerDay, but returns the FULL fitted
+// line: slope AND the line's y-value at the anchor date. That anchor-value
+// is the noise-filtered "where you actually are today" -- better than raw
+// weight for projection anchors, which otherwise inherit ±1.5 lb of daily
+// bounce and amplify it across every future date (one water day was moving
+// the Dec 11 projection by ~4 lb; anchoring to the trend line cuts that ~2x).
+//
+// Returns { slopePerDay, anchorValue } or null when the window is too sparse
+// (< 3 readings) to fit a line -- same fallback as regressionSlopeLbsPerDay.
+function regressionLineLbs(data, calendarDays = 28, opts = {}) {
+  const anchor = opts.anchor || 'latest';
+  const byDay  = {};
+  data.forEach(r => { byDay[r.date.toDateString()] = r; });
+  const daily  = Object.values(byDay).sort((a, b) => a.date - b.date);
+  if (!daily.length) return null;
+  const anchorMs = anchor === 'now'
+    ? Date.now()
+    : daily[daily.length - 1].date.getTime();
+  const cutoff = anchorMs - calendarDays * 86_400_000;
+  const win    = daily.filter(r => r.date.getTime() >= cutoff);
+  if (win.length < 3) return null;
+  const t0  = win[0].date.getTime();
+  const pts = win.map(r => [(r.date.getTime() - t0) / 86_400_000, r.weight]);
+  const n   = pts.length;
+  const sx  = pts.reduce((s, p) => s + p[0], 0);
+  const sy  = pts.reduce((s, p) => s + p[1], 0);
+  const sxy = pts.reduce((s, p) => s + p[0] * p[1], 0);
+  const sx2 = pts.reduce((s, p) => s + p[0] * p[0], 0);
+  const den = n * sx2 - sx * sx;
+  if (den === 0) return null;
+  const slopePerDay = (n * sxy - sx * sy) / den;
+  const intercept   = (sy - slopePerDay * sx) / n;
+  const anchorX     = (anchorMs - t0) / 86_400_000;
+  const anchorValue = intercept + slopePerDay * anchorX;
+  return { slopePerDay, anchorValue };
+}
+
 // ── Weight slowdown (deceleration) ───────────────────────────────────
 // Compares the regression rate of the most recent `windowDays` against
 // the window immediately before it (same length, ending where the

@@ -166,7 +166,17 @@ function renderJourney(latest, data) {
   if (slopePerDay != null && !isNaN(slopePerDay)) {
     projSlopeLbsPerDay = slopePerDay;   // already lbs/day, negative = losing
   }
-  projLatestWeight   = latest.weight;
+  // Anchor projections to the 28d regression line's value at today, not
+  // raw weight. A single water-bounce day was moving the Dec 11 projection
+  // by ~3.4 lb (raw 242.07 vs trend 238.66 today) and amplifying that swing
+  // across every future date. Anchoring to the line value cuts day-over-day
+  // projection noise ~50% (3.4 -> 1.6 lb) without changing the underlying
+  // slope math or any other card. Falls back to raw weight when the window
+  // is too sparse (< 3 readings) to fit a line -- matches slope fallback.
+  const line = regressionLineLbs(data, 28);
+  projLatestWeight = (line && !isNaN(line.anchorValue))
+    ? line.anchorValue
+    : latest.weight;
   projLatestDate     = latest.date;
 
   // Sync projector slider bounds with current weight
