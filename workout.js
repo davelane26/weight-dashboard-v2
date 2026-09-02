@@ -18,16 +18,20 @@
   // dow = JS getDay() index (0=Sun .. 6=Sat). Sunday's session is optional.
   const PROGRAM = [
     {
-      id: 'upperA', dow: 3, name: 'Upper A',
-      focus: 'Horizontal push / pull',
-      warmup: ['5 min easy cardio', '1-3 lighter prep sets before bench & rows'],
+      id: 'upperA', dow: 3, name: 'Upper A (Shoulder-Safe)',
+      focus: 'Pull-focused - all pressing on hold for L shoulder',
+      warmup: [
+        '5 min easy cardio',
+        'Rehab block: cable ER + serratus punch + face pull (below)',
+        '1-3 lighter prep sets before rows',
+      ],
       exercises: [
-        { m: 'Machine Chest Press',              s: '4 x 6-8',  rir: '2 RIR' },
-        { m: 'Chest-Supported Machine Row',      s: '4 x 8-10', rir: '2 RIR' },
-        { m: 'Incline Machine Press',            s: '3 x 8-12', rir: '1-2 RIR' },
-        { m: 'Lat Pulldown (or Pull-up)',        s: '3 x 10-12', rir: '1-2 RIR' },
-        { m: 'Machine Lateral Raise',            s: '3 x 12-15', rir: '1 RIR' },
-        { m: 'Triceps Pushdown',                 s: '3 x 10-15', rir: '1 RIR' },
+        { m: 'Rehab: Cable External Rotation (both sides)',   s: '3 x 15/side',     rir: 'Light - burn in rear shoulder, no pinch' },
+        { m: 'Rehab: Cable Serratus Punch (both sides)',      s: '2-3 x 12-15/side', rir: 'Light - reach for the mug at end' },
+        { m: 'Rehab: Face Pull (chest-height cable)',         s: '2-3 x 15-20',      rir: '2-3 RIR' },
+        { m: 'Chest-Supported Machine Row (neutral grip)',    s: '4 x 8-10',         rir: '2 RIR' },
+        { m: 'Neutral-grip Lat Pulldown',                     s: '3 x 10-12',        rir: '1-2 RIR' },
+        { m: 'Triceps Pushdown (elbows glued to sides)',      s: '3 x 10-15',        rir: '1 RIR' },
       ],
     },
     {
@@ -44,16 +48,21 @@
       ],
     },
     {
-      id: 'upperB', dow: 5, name: 'Upper B',
-      focus: 'Vertical push / pull',
-      warmup: ['5 min easy cardio', '1-3 lighter prep sets before overhead press & pulldown'],
+      id: 'upperB', dow: 5, name: 'Upper B (Shoulder-Safe)',
+      focus: 'Pull + rehab - all pressing on hold for L shoulder',
+      warmup: [
+        '5 min easy cardio',
+        'Rehab block: cable ER + serratus punch + face pull (below)',
+        '1-3 lighter prep sets before pulldown/row',
+      ],
       exercises: [
-        { m: 'Machine Shoulder Press',           s: '3 x 5-8',  rir: '1-3 RIR' },
-        { m: 'Neutral-grip Lat Pulldown',        s: '3 x 8-12', rir: '1-3 RIR' },
-        { m: 'Machine Chest Press',              s: '2 x 8-12', rir: '1-3 RIR' },
-        { m: 'Seated Cable Row',                 s: '2 x 8-12', rir: '1-3 RIR' },
-        { m: 'Rear-delt Fly',                    s: '2 x 12-20', rir: '1-3 RIR' },
-        { m: 'Machine Preacher Curl',            s: '2 x 10-15', rir: '1-3 RIR' },
+        { m: 'Rehab: Cable External Rotation (both sides)',   s: '3 x 15/side',      rir: 'Light - burn in rear shoulder, no pinch' },
+        { m: 'Rehab: Cable Serratus Punch (both sides)',      s: '2-3 x 12-15/side', rir: 'Light - reach for the mug at end' },
+        { m: 'Rehab: Face Pull (chest-height cable)',         s: '2-3 x 15-20',      rir: '2-3 RIR' },
+        { m: 'Neutral-grip Lat Pulldown',                     s: '3 x 8-12',         rir: '1-2 RIR' },
+        { m: 'Seated Cable Row (neutral grip)',               s: '3 x 10-12',        rir: '1-2 RIR' },
+        { m: 'Rear-delt Fly (thumbs-up, ~30 deg below horiz)',s: '2 x 12-20',        rir: '1-3 RIR' },
+        { m: 'Machine Preacher Curl',                         s: '2 x 10-15',        rir: '1-3 RIR' },
       ],
     },
     {
@@ -70,12 +79,15 @@
       ],
     },
     {
-      id: 'optional', dow: 0, name: 'Wing It (Sun)',
-      focus: 'Free day - your call',
+      id: 'optional', dow: 0, name: 'Wing It (Sun) - Shoulder-Safe',
+      focus: 'Arms only - keep elbows below shoulder height',
       exercises: [
-        { m: 'Chase a pump / hit a weak point (arms?)', s: 'Auto-regulate', rir: 'Your call' },
-        { m: 'OR longer incline walk',           s: '20-40 min',    rir: 'Easy' },
-        { m: 'OR full rest',                     s: '--',           rir: 'Recovery' },
+        { m: 'Machine Preacher Curl / Cable Curl',        s: '3 x 10-12',  rir: '1-2 RIR' },
+        { m: 'Triceps Pushdown (elbows tucked)',          s: '3 x 10-15',  rir: '1-2 RIR' },
+        { m: 'Concentration Curl or Hammer Curl',         s: '2 x 10-15',  rir: '1 RIR' },
+        { m: 'Cable Reverse Pushdown (rope)',             s: '2 x 12-15',  rir: '1 RIR' },
+        { m: 'SKIP: Overhead tricep extension (bad angle)', s: '--',       rir: 'Do NOT do' },
+        { m: 'OR longer incline walk / full rest',        s: '20-40 min',  rir: 'Easy' },
       ],
     },
   ];
@@ -319,8 +331,9 @@
       </div>
       <div id="wo-edit-panel" class="wo-edit-panel" hidden>${editPanelHtml}</div>
       <div class="wo-rules">
+        <div class="wo-rule"><b>SHOULDER MOD ACTIVE</b><span>L shoulder impingement. No pressing, no laterals, no overhead. Rehab warm-up on Wed &amp; Fri. See PT this week.</span></div>
         <div class="wo-rule"><b>Protein first</b><span>~175-215 g/day. Front-load it early - Mounjaro fills you up fast.</span></div>
-        <div class="wo-rule"><b>Keep it heavy</b><span>Maintain your loads. Cut sets before you ever cut weight.</span></div>
+        <div class="wo-rule"><b>Keep it heavy (below-neck lifts)</b><span>Rows and lower body: maintain loads. Rehab work: stay LIGHT, form over weight.</span></div>
       </div>
     `;
 
