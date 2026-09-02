@@ -475,12 +475,20 @@ export default {
       return cors(JSON.stringify({ answer }));
     }
 
-    // ── GET /weight.json  (token-gated dashboard fetch) ────────────────
-    // The private replacement for the public data.json. Requires a valid
-    // Firebase ID token whose email is on ALLOWED_EMAILS.
+    // ── GET /weight.json  (dashboard + server-to-server fetch) ─────────
+    // The private replacement for the public data.json. Two auth paths:
+    //   1. Firebase ID token whose email is on ALLOWED_EMAILS (dashboard).
+    //   2. API-SECRET header (server-to-server, e.g. the weekly-summary
+    //      GitHub Action). Same secret already used by every POST route --
+    //      keeps the auth model consistent instead of introducing a new one.
     if (method === 'GET' && url.pathname === '/weight.json') {
-      const user = await requireUser(request, env);
-      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      // Try the cheap header check first so server-to-server calls skip the
+      // JWKS fetch inside requireUser().
+      const hasSecret = request.headers.get('API-SECRET') || request.headers.get('api-secret');
+      const ok = hasSecret
+        ? await isAuthorized(request, env)
+        : !!(await requireUser(request, env));
+      if (!ok) return cors('{"error":"Unauthorized"}', 401);
       const data = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
       return cors(JSON.stringify(data));
     }

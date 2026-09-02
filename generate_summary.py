@@ -14,16 +14,20 @@ from datetime import datetime, timedelta, timezone
 import anthropic
 import requests
 
-# ── Config ─────────────────────────────────────────────────────────────────────
-WEIGHT_DATA_URL  = "https://davelane26.github.io/Weight-tracker/data.json"
+# ── Config ───────────────────────────────────────────────────────────────────────────────
+# The old public URL (davelane26.github.io/Weight-tracker/data.json) is dead.
+# Weight data now lives in the Cloudflare Worker's KV under the 'weight' key,
+# served by GET /weight.json. That endpoint accepts EITHER a Firebase ID token
+# (dashboard) or an API-SECRET header (server-to-server, this script).
+WEIGHT_DATA_URL  = "https://glucose-relay.djtwo6.workers.dev/weight.json"
 FIREBASE_URL     = "https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com"
 OUTPUT_FILE = "weekly-summary.json"
 START_WEIGHT = 315.0
 
 
-def fetch_json(url: str, timeout: int = 15) -> dict | list | None:
+def fetch_json(url: str, timeout: int = 15, headers: dict | None = None) -> dict | list | None:
     try:
-        r = requests.get(url, timeout=timeout)
+        r = requests.get(url, timeout=timeout, headers=headers or {})
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -139,12 +143,23 @@ def main():
         print("ERROR: ANTHROPIC_API_KEY secret not set", file=sys.stderr)
         sys.exit(1)
 
-    print("Fetching weight data…")
-    raw = fetch_json(WEIGHT_DATA_URL) or []
+    worker_secret = os.environ.get("API_SECRET")
+    if not worker_secret:
+        print("ERROR: API_SECRET secret not set (needed for Worker /weight.json)", file=sys.stderr)
+        sys.exit(1)
+
+    print("Fetching weight data\u2026")
+    raw = fetch_json(WEIGHT_DATA_URL, headers={"API-SECRET": worker_secret}) or []
+    if not raw:
+        print("ERROR: worker returned no weight data \u2014 aborting so we don't publish an empty summary.", file=sys.stderr)
+        sys.exit(1)
     wt  = recent_weight_stats(raw)
     print(f"Weight stats: {wt}")
+    if not wt:
+        print("ERROR: no weight readings in the last 14 days \u2014 aborting.", file=sys.stderr)
+        sys.exit(1)
 
-    print("Fetching activity data…")
+    print("Fetching activity data\u2026")
     act = recent_activity_stats(FIREBASE_URL)
     print(f"Activity stats: {act}")
 
