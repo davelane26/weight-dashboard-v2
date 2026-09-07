@@ -393,6 +393,9 @@ export default {
         // v0.3.4 Kage additions: distance today, blood oxygen, HRV, VO2 max,
         // bedtime/waketime bounds from the last sleep session.
         'distanceMeters','spo2Avg','spo2Min','hrvRmssd','vo2Max','bedtime','waketime',
+        // v0.4.7: experimental Health Connect weight test (Activity tab only --
+        // deliberately not "weight", not the Weight tab's data source).
+        'hcWeightTestLbs',
       ];
       for (const key of allowed) {
         if (body[key] !== undefined && body[key] !== null) patched[key] = body[key];

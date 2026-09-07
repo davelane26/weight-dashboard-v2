@@ -15,6 +15,7 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
+import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -65,6 +66,11 @@ object HealthConnectReader {
         val vo2Max: Double? = null,           // most recent VO2 max estimate (mL/kg/min)
         val bedtime: String? = null,          // last night sleep session startTime (ISO)
         val waketime: String? = null,         // last night sleep session endTime (ISO)
+        // v0.4.7: EXPERIMENTAL. Most recent WeightRecord from Health Connect,
+        // in lbs. Test-only field for the Activity tab -- deliberately NOT
+        // named "weight" and NOT wired into the Weight tab's data source
+        // (that stays on openScale/openScale-sync until this is proven out).
+        val hcWeightTestLbs: Double? = null,
     )
 
     /**
@@ -85,6 +91,8 @@ object HealthConnectReader {
         HealthPermission.getReadPermission(OxygenSaturationRecord::class),
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(Vo2MaxRecord::class),
+        // v0.4.7: experimental, see hcWeightTestLbs.
+        HealthPermission.getReadPermission(WeightRecord::class),
     )
 
     /**
@@ -181,6 +189,7 @@ object HealthConnectReader {
         val spo2 = readSpO2Stats(client, healthWindow)
         val hrv  = readHRVAvg(client, healthWindow)
         val vo2  = readLatestVO2Max(client)
+        val hcWeightTestLbs = readLatestWeightLbs(client)
 
         return Snapshot(
             steps = steps,
@@ -205,6 +214,7 @@ object HealthConnectReader {
             vo2Max = vo2,
             bedtime = sleep?.startInstant?.toString(),
             waketime = sleep?.endInstant?.toString(),
+            hcWeightTestLbs = hcWeightTestLbs,
         )
     }
 
@@ -546,6 +556,28 @@ object HealthConnectReader {
         resp.records
             .maxByOrNull { it.time }
             ?.vo2MillilitersPerMinuteKilogram
+            ?.let(::round2)
+    }.getOrNull()
+
+    /**
+     * EXPERIMENTAL (v0.4.7): most recent WeightRecord in lbs, looking back 30
+     * days (scales don't write daily). Test-only -- see hcWeightTestLbs on
+     * Snapshot. Whatever wrote it (a scale's own app, manually added via the
+     * system Health Connect app for testing, etc.) is read the same way;
+     * this doesn't distinguish sources the way the sum-type metrics above do,
+     * since there's no double-counting risk for a single most-recent value.
+     */
+    private suspend fun readLatestWeightLbs(client: HealthConnectClient): Double? = runCatching {
+        val since = Instant.now().minus(Duration.ofDays(30))
+        val resp = client.readRecords(
+            ReadRecordsRequest(
+                recordType = WeightRecord::class,
+                timeRangeFilter = TimeRangeFilter.after(since),
+            )
+        )
+        resp.records
+            .maxByOrNull { it.time }
+            ?.weight?.inPounds
             ?.let(::round2)
     }.getOrNull()
 

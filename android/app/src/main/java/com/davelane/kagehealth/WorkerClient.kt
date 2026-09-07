@@ -75,6 +75,8 @@ object WorkerClient {
             snap.vo2Max?.let           { put("vo2Max", it) }
             snap.bedtime?.let          { put("bedtime", it) }
             snap.waketime?.let         { put("waketime", it) }
+            // v0.4.7: experimental Health Connect weight test, Activity tab only.
+            snap.hcWeightTestLbs?.let  { put("hcWeightTestLbs", it) }
         }
         return postJson("$workerUrl/health/patch", apiSecret, body.toString())
     }

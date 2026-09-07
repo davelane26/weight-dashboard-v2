@@ -227,6 +227,12 @@ async function loadActivityData() {
   } else {
     _set('act-updated', `via ${source} · checked ${nowStr}`);
   }
+
+  // v0.4.7 EXPERIMENTAL: Health Connect weight test -- see AndroidManifest.xml
+  // and HealthConnectReader.kt comments. Not wired to the Weight tab.
+  if (data.hcWeightTestLbs != null) {
+    _set('act-hc-weight-test', `🧪 HC weight test: ${data.hcWeightTestLbs} lbs (experimental, not the Weight tab)`);
+  }
 }
 
 // ── KPI Cards ──────────────────────────────────────────────────────

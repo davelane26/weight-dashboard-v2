@@ -24,8 +24,8 @@ android {
         // (harmless, expected) "Not a signed jar file" from the keytool diagnostic
         // -- that only means keytool can't read APK Signature Scheme v2/v3, not
         // that signing failed -- so the version downgrade was the real cause.
-        versionCode = 18
-        versionName = "0.4.6"
+        versionCode = 19
+        versionName = "0.4.7"
     }
 
     signingConfigs {
