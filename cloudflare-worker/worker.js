@@ -726,6 +726,28 @@ export default {
                    `well below the ${stored.length} already live -- looks stale/malformed`,
           }), 409);
         }
+
+        // Degenerate-batch guard, 2026-09-07: a real weight history varies
+        // day to day -- it should never have the same value repeated across
+        // most of a multi-month history. This catches a plausibility-range
+        // passing but still-garbage sync (e.g. every entry stuck at the same
+        // reading from some other glitch) that the range/shrink guards above
+        // wouldn't, without needing to know what "wrong" looks like ahead
+        // of time.
+        const MAX_REPEATED_VALUE_RATIO = 0.5;
+        if (converted.length > 5) {
+          const counts = new Map();
+          for (const e of converted) counts.set(e.weight, (counts.get(e.weight) || 0) + 1);
+          const [mostCommonValue, mostCommonCount] = [...counts.entries()]
+            .sort((a, b) => b[1] - a[1])[0];
+          if (mostCommonCount > converted.length * MAX_REPEATED_VALUE_RATIO) {
+            return cors(JSON.stringify({
+              error: `refusing: ${mostCommonCount} of ${converted.length} entries all read ` +
+                     `${mostCommonValue} lbs -- looks like a stuck/garbage sync, not real history`,
+            }), 409);
+          }
+        }
+
         const sorted = converted.slice().sort((a, b) => (a.date > b.date ? 1 : -1))
           .map((e, i) => ({ ...e, id: i + 1 }));
         await env.GLUCOSE_KV.put('weight', JSON.stringify(sorted));
@@ -794,12 +816,13 @@ function formatOpenScaleDate(isoUtc) {
 }
 
 function convertOpenScaleMeasurement(m) {
-  // weight > 0 (not just "is a number") -- 2026-09-07: a bulk sync sent
-  // weight: 0 for every measurement (a real number, so the old check let
-  // it through) and the guarded full-replace below happily overwrote the
+  // "is a number" isn't enough -- 2026-09-07: a bulk sync sent weight: 0
+  // for every measurement (a real number, so this check alone let it
+  // through) and the guarded full-replace below happily overwrote the
   // entire live history with zeros, since a same-or-larger count doesn't
-  // trip the shrink guard. No real weigh-in is ever <= 0.
-  if (!m || typeof m.weight !== 'number' || m.weight <= 0 || !m.date) return null;
+  // trip the shrink guard. The plausibility range below (not just this
+  // type check) is what actually catches a zero/garbage value now.
+  if (!m || typeof m.weight !== 'number' || !m.date) return null;
   const dateStr = formatOpenScaleDate(m.date);
   if (!dateStr) return null;
 
@@ -812,9 +835,16 @@ function convertOpenScaleMeasurement(m) {
   }
   const round2 = (n) => Math.round(n * 100) / 100;
 
+  const weightLbs = round2(m.weight * KG_TO_LBS);
+  // Plausibility floor/ceiling, not just "> 0" -- 2026-09-07 hardening.
+  // Generous on purpose (this only needs to catch unit/glitch garbage:
+  // zero, a kg-as-lbs mixup, a stray extra digit -- not flag a real
+  // extreme weight), so it should never reject an actual human reading.
+  if (weightLbs < 50 || weightLbs > 600) return null;
+
   const entry = {
     date: dateStr,
-    weight: round2(m.weight * KG_TO_LBS),
+    weight: weightLbs,
     weight_kg: round2(m.weight),
   };
   if (typeof byKey.bmi === 'number')  entry.bmi = round2(byKey.bmi);
