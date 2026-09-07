@@ -794,7 +794,12 @@ function formatOpenScaleDate(isoUtc) {
 }
 
 function convertOpenScaleMeasurement(m) {
-  if (!m || typeof m.weight !== 'number' || !m.date) return null;
+  // weight > 0 (not just "is a number") -- 2026-09-07: a bulk sync sent
+  // weight: 0 for every measurement (a real number, so the old check let
+  // it through) and the guarded full-replace below happily overwrote the
+  // entire live history with zeros, since a same-or-larger count doesn't
+  // trip the shrink guard. No real weigh-in is ever <= 0.
+  if (!m || typeof m.weight !== 'number' || m.weight <= 0 || !m.date) return null;
   const dateStr = formatOpenScaleDate(m.date);
   if (!dateStr) return null;
 
