@@ -12,6 +12,8 @@
  *   GET  /workout-schedule       ← dashboard reads day-of-week overrides (token-gated)
  *   POST /workout-schedule       ← dashboard writes day-of-week overrides (token-gated)
  *   POST /weight/openscale-webhook ← openScale's built-in Webhook sync (bulk syncs write KV + git, see its own comment)
+ *   POST /cases                  ← USCIS Case Status Tracker app mirrors its cases here (API-SECRET)
+ *   GET  /cases.json             ← cases.html reads that mirror back (token-gated)
  *
  * IMPORTANT — every runtime env var this Worker reads (API_SECRET,
  * API_SECRET_V2, ALLOWED_EMAILS, ANTHROPIC_API_KEY, WEIGHT_TRACKER_GITHUB_TOKEN)
@@ -66,6 +68,24 @@ const NUM_TO_DIR = {
   1: 'DoubleUp', 2: 'SingleUp', 3: 'FortyFiveUp',
   4: 'Flat', 5: 'FortyFiveDown', 6: 'SingleDown', 7: 'DoubleDown',
 };
+
+// ── POST /cases input sanitizers ─────────────────────────────────────────
+// The Case Status Tracker app is the only writer, but the payload is still
+// bounded and type-checked field by field so a buggy build can't stuff KV
+// with arbitrary junk that cases.html then has to defend against.
+const MAX_CASES   = 50;
+const MAX_HISTORY = 50;
+const str = (v, max) => (typeof v === 'string' && v.length ? v.slice(0, max) : null);
+const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+function cleanSnapshot(s) {
+  if (!s || typeof s !== 'object') return null;
+  return {
+    statusTitle:       str(s.statusTitle, 200),
+    statusDescription: str(s.statusDescription, 2000),
+    fetchedAt:         num(s.fetchedAt),
+    statusEffectiveAt: num(s.statusEffectiveAt),
+  };
+}
 
 // ── CORS headers ─────────────────────────────────────────────────────────
 const CORS = {
@@ -554,6 +574,56 @@ export default {
       }
       await env.GLUCOSE_KV.put('workout_schedule', JSON.stringify(clean));
       return cors(JSON.stringify({ ok: true, schedule: clean }));
+    }
+
+    // ── POST /cases  (USCIS Case Status Tracker app → KV mirror) ────────
+    // The Android app (davelane26/uscis-case-tracker) does the actual USCIS
+    // scraping on-device -- a real WebView that clears Cloudflare's managed
+    // challenge, which a server-side fetch can't do reliably -- and mirrors
+    // its whole table here after every refresh. Full replace every time,
+    // same "every sync is a full-table rewrite" convention as openScale/
+    // MQTT, so a case deleted in the app disappears here too. This is a
+    // mirror only: nothing here can trigger a USCIS lookup, so the data is
+    // exactly as fresh as the last refresh tapped on the phone. cases.html
+    // reads it back via GET /cases.json. Gated by API-SECRET like
+    // /health/patch (the app sends API_SECRET_V2, same as Kage).
+    if (method === 'POST' && url.pathname === '/cases') {
+      if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
+      let body;
+      try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
+      if (!body || !Array.isArray(body.cases)) return cors('{"error":"expected {cases: [...]}"}', 400);
+      if (body.cases.length > MAX_CASES) return cors('{"error":"too many cases"}', 400);
+      const clean = [];
+      for (const c of body.cases) {
+        const receiptNumber = str(c && c.receiptNumber, 20);
+        if (!receiptNumber) return cors('{"error":"each case needs a receiptNumber"}', 400);
+        const history = Array.isArray(c.history) ? c.history.slice(0, MAX_HISTORY).map(cleanSnapshot) : [];
+        clean.push({
+          receiptNumber,
+          label:         str(c.label, 80) ?? receiptNumber,
+          createdAt:     num(c.createdAt),
+          lastCheckedAt: num(c.lastCheckedAt),
+          lastError:     str(c.lastError, 300),
+          latest:        c.latest ? cleanSnapshot(c.latest) : null,
+          history,
+        });
+      }
+      const payload = {
+        cases:    clean,
+        syncedAt: new Date().toISOString(),
+        source:   str(body.source, 80),
+      };
+      await env.GLUCOSE_KV.put('cases', JSON.stringify(payload));
+      return cors(JSON.stringify({ ok: true, count: clean.length }));
+    }
+
+    // ── GET /cases.json  (token-gated, read by cases.html) ─────────────
+    if (method === 'GET' && url.pathname === '/cases.json') {
+      const user = await requireUser(request, env);
+      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const data = await env.GLUCOSE_KV.get('cases', { type: 'json' })
+        ?? { cases: [], syncedAt: null, source: null };
+      return cors(JSON.stringify(data));
     }
 
     // ── POST /weight  (sync job pushes the full weight array) ──────────
