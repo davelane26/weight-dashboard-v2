@@ -125,6 +125,10 @@
       style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);text-decoration:none;display:inline-block">
        <span class="add-weighin-label">Add Weigh-In</span>
     </a>
+    <a id="doctor-report-btn" href="doctor-report.html" aria-label="Open Doctor Visit Report"
+      style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);text-decoration:none;display:inline-block">
+       <span>🩺 Clinical Report</span>
+    </a>
     <button id="header-signout-btn" onclick="window.fbSignOut && window.fbSignOut()" aria-label="Sign out"
       style="display:none;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
       Sign Out
@@ -359,13 +363,16 @@
       <p id="mwt-divergence-hint" style="display:none;font-size:0.78rem;color:var(--text-sub);margin:0.7rem 0 0 0;padding:0.55rem 0.75rem;background:var(--stat-box-bg);border-left:3px solid var(--blue-100);border-radius:6px;line-height:1.45"></p>
     </section>
 
-    <section class="card fade-in" aria-label="Weight milestones">
+    <section class="card fade-in" id="milestones-section" aria-label="Weight milestones and decade badges history">
       <button class="collapse-toggle" onclick="toggleMilestones()"
         aria-expanded="false" id="milestones-toggle">
-        <span>🏅 10 lb Milestones</span>
+        <span>🏅 Milestones &amp; Decade Badges History</span>
         <span class="collapse-chevron closed" id="milestones-chevron">▲</span>
       </button>
-      <div id="milestones-row" class="milestones-row" style="display:none"></div>
+      <div id="milestones-content" style="display:none">
+        <div id="milestones-row" class="milestones-row"></div>
+        <div id="decade-history-container" class="decade-history-container"></div>
+      </div>
     </section>
 
     <section class="card fade-in" aria-label="BMI milestone timeline">
@@ -1404,6 +1411,22 @@
     <span>Health</span>
   </button>
 </nav>
+
+<!-- Milestone Celebration Modal -->
+<div id="milestone-modal" class="milestone-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="milestone-modal-title">
+  <div class="milestone-modal-backdrop" onclick="window.closeMilestoneCelebration && window.closeMilestoneCelebration()"></div>
+  <div class="milestone-modal-card">
+    <button class="milestone-modal-close" onclick="window.closeMilestoneCelebration && window.closeMilestoneCelebration()" aria-label="Close dialog">&times;</button>
+    <div class="milestone-modal-icon" id="milestone-modal-icon">🏆</div>
+    <h3 class="milestone-modal-title" id="milestone-modal-title">Milestone Achieved!</h3>
+    <p class="milestone-modal-desc" id="milestone-modal-desc"></p>
+    <div class="milestone-modal-stats" id="milestone-modal-stats"></div>
+    <div style="display:flex;gap:0.6rem;justify-content:center;margin-top:1.2rem">
+      <button class="milestone-modal-btn" onclick="window.triggerConfettiAgain && window.triggerConfettiAgain()">🎉 Celebrate Again!</button>
+      <button class="milestone-modal-btn secondary" onclick="window.closeMilestoneCelebration && window.closeMilestoneCelebration()">Done</button>
+    </div>
+  </div>
+</div>
 
 <button id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top" type="button">↑</button>
 

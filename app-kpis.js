@@ -249,13 +249,14 @@ function toggleWeightTrend() {
 }
 
 function toggleMilestones() {
-  const row     = document.getElementById('milestones-row');
+  const content = document.getElementById('milestones-content') || document.getElementById('milestones-row');
   const chevron = document.getElementById('milestones-chevron');
   const toggle  = document.getElementById('milestones-toggle');
+  if (!content || !toggle) return;
   const isOpen  = toggle.getAttribute('aria-expanded') === 'true';
-  row.style.display = isOpen ? 'none' : '';
+  content.style.display = isOpen ? 'none' : '';
   toggle.setAttribute('aria-expanded', !isOpen);
-  chevron.classList.toggle('closed', isOpen);
+  if (chevron) chevron.classList.toggle('closed', isOpen);
 }
 
 function toggleBMI() {
@@ -303,27 +304,193 @@ function computeBestWeek(readings) {
   }
 }
 
-// ── Milestones ───────────────────────────────────────────────────────
+// ── Milestones & Decade Badges History ────────────────────────────────
 function renderMilestones(latest, data) {
   const row = el('milestones-row');
-  if (!row) return;
+  const historyContainer = el('decade-history-container');
+  if (!row && !historyContainer) return;
+
   const allTimeLow = Math.min(...data.map(d => d.weight));
   // Build milestones every 10 lbs from START_WEIGHT down to goal or 220
   const floor = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
+  const startDecade = Math.floor(START_WEIGHT / 10) * 10;
   const steps = [];
-  for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
+  for (let w = startDecade; w >= floor; w -= 10) steps.push(w);
   const nextIdx = steps.findIndex(w => allTimeLow > w);
-  row.innerHTML = steps.map((w, i) => {
-    const done   = allTimeLow <= w;   // earned if all-time low crossed it
-    const isCurr = i === nextIdx;
-    const cls    = done ? 'done' : isCurr ? 'current' : 'future';
-    const icon   = done ? '✓' : isCurr ? '▼' : w;
-    return `<div class="milestone-ring ${cls}">
-      <div class="milestone-circle">${icon}</div>
-      <div class="milestone-label">${w} lbs</div>
-    </div>`;
-  }).join('');
+
+  // 1. Render milestone rings
+  if (row) {
+    row.innerHTML = steps.map((w, i) => {
+      const done   = allTimeLow <= w;   // earned if all-time low crossed it
+      const isCurr = i === nextIdx;
+      const cls    = done ? 'done' : isCurr ? 'current' : 'future';
+      const icon   = done ? '✓' : isCurr ? '▼' : w;
+      return `<div class="milestone-ring ${cls}" onclick="window.celebrateMilestone && window.celebrateMilestone(${w})" style="cursor:pointer" role="button" tabindex="0" title="${done ? 'Click to celebrate the ' + w + ' lbs milestone!' : w + ' lbs target'}">
+        <div class="milestone-circle">${icon}</div>
+        <div class="milestone-label">${w} lbs</div>
+      </div>`;
+    }).join('');
+  }
+
+  // 2. Compute Decade History
+  const history = [];
+  let prevDate = new Date(START_DATE);
+  let prevWeight = START_WEIGHT;
+
+  // Start / Baseline
+  history.push({
+    weight: startDecade,
+    label: `The ${startDecade}s Club (Baseline)`,
+    isStart: true,
+    done: true,
+    date: prevDate,
+    dateStr: prevDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    daysTaken: 0,
+    pace: 0
+  });
+
+  // Chronological scan for each milestone
+  steps.forEach(w => {
+    if (w >= startDecade) return;
+    const hit = data.find(r => r.weight <= w);
+    const done = allTimeLow <= w;
+
+    if (done && hit) {
+      const hitDate = new Date(hit.date);
+      const daysTaken = Math.max(1, Math.round((hitDate - prevDate) / 86400000));
+      const lbsLostInStep = prevWeight - w;
+      const pace = daysTaken > 0 ? (lbsLostInStep / daysTaken) * 7 : 0;
+
+      history.push({
+        weight: w,
+        label: `The ${w}s Club`,
+        isStart: false,
+        done: true,
+        date: hitDate,
+        dateStr: hitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        daysTaken,
+        pace: Math.max(0, pace)
+      });
+
+      prevDate = hitDate;
+      prevWeight = w;
+    } else {
+      history.push({
+        weight: w,
+        label: `The ${w}s Club`,
+        isStart: false,
+        done: false,
+        date: null,
+        dateStr: null,
+        daysTaken: null,
+        pace: null
+      });
+    }
+  });
+
+  window._milestoneHistory = history;
+
+  // 3. Render Decade History Timeline & Active Milestone Card
+  if (historyContainer) {
+    const achieved = history.filter(h => h.done);
+    const nextMilestone = steps.find(w => allTimeLow > w);
+    const currentDecade = Math.floor(latest.weight / 10) * 10;
+    const lbsToNext = nextMilestone ? (latest.weight - nextMilestone).toFixed(1) : '0.0';
+
+    let etaStr = '';
+    const slope = weightTrendSlope(data); // lbs/day
+    if (nextMilestone && slope && slope < 0) {
+      const daysToNext = (latest.weight - nextMilestone) / Math.abs(slope);
+      const estDate = new Date(latest.date.getTime() + daysToNext * 86400000);
+      etaStr = ` · Est. ${estDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+
+    let activeCardHtml = '';
+    if (nextMilestone) {
+      const decadeSpan = 10;
+      const progressInDecade = Math.min(10, Math.max(0, ((currentDecade + 10) - latest.weight)));
+      const pctInDecade = Math.min(100, Math.max(0, (progressInDecade / decadeSpan) * 100));
+
+      activeCardHtml = `
+        <div class="current-decade-card">
+          <div class="current-decade-header">
+            <div>
+              <span class="decade-badge-chip">Active Milestone</span>
+              <strong style="margin-left:0.4rem;font-size:0.95rem;color:var(--blue-100)">Currently in the ${currentDecade}s</strong>
+            </div>
+            <div style="font-size:0.8rem;font-weight:600;color:var(--text-sub)">
+              ${lbsToNext} lbs until ${nextMilestone} lbs${etaStr}
+            </div>
+          </div>
+          <div class="decade-progress-bar-bg">
+            <div class="decade-progress-bar-fill" style="width:${pctInDecade.toFixed(1)}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    const timelineHtml = achieved.slice().reverse().map(item => {
+      if (item.isStart) {
+        return `
+          <div class="decade-history-item start" onclick="window.celebrateMilestone(${item.weight})" role="button" tabindex="0">
+            <div class="decade-item-icon">🚩</div>
+            <div class="decade-item-info">
+              <div class="decade-item-title">${item.label}</div>
+              <div class="decade-item-sub">Started at ${START_WEIGHT} lbs on ${item.dateStr}</div>
+            </div>
+            <div class="decade-item-badge">Baseline</div>
+          </div>
+        `;
+      }
+      return `
+        <div class="decade-history-item unlocked" onclick="window.celebrateMilestone(${item.weight})" role="button" tabindex="0">
+          <div class="decade-item-icon">🏆</div>
+          <div class="decade-item-info">
+            <div class="decade-item-title">${item.label} (${item.weight} lbs)</div>
+            <div class="decade-item-sub">
+              Crossed on <strong>${item.dateStr}</strong> &bull; Took <strong>${item.daysTaken} days</strong> (${item.pace.toFixed(2)} lbs/wk)
+            </div>
+          </div>
+          <button class="decade-item-btn" type="button" aria-label="Celebrate this milestone">🎉 Celebrate</button>
+        </div>
+      `;
+    }).join('');
+
+    historyContainer.innerHTML = `
+      ${activeCardHtml}
+      <div class="decade-timeline-title">
+        <span>🏆 Unlocked Decade Badges</span>
+        <span style="font-size:0.75rem;font-weight:normal;color:var(--text-sub)">Click any badge to celebrate</span>
+      </div>
+      <div class="decade-history-list">
+        ${timelineHtml}
+      </div>
+    `;
+  }
 }
+
+// Global celebration helper
+window.celebrateMilestone = function(weight) {
+  const m = (window._milestoneHistory || []).find(x => x.weight === weight);
+  if (!m) return;
+  if (typeof window.triggerMilestoneCelebration === 'function') {
+    window.triggerMilestoneCelebration({
+      icon: m.isStart ? '🚩' : '🏆',
+      title: m.isStart ? `Journey Baseline: ${m.weight}s!` : `🎉 ${m.label} Unlocked!`,
+      desc: m.isStart 
+        ? `Day 1 of your journey at ${START_WEIGHT} lbs on ${m.dateStr}.`
+        : `You officially crossed below ${m.weight} lbs on ${m.dateStr}!`,
+      stats: m.isStart ? [
+        { val: `${START_WEIGHT} lbs`, lbl: 'Starting Weight' },
+        { val: m.dateStr, lbl: 'Launch Date' }
+      ] : [
+        { val: m.dateStr, lbl: 'Date Unlocked' },
+        { val: `${m.daysTaken} days`, lbl: 'Days from prior badge' },
+        { val: `${m.pace.toFixed(2)} lbs/wk`, lbl: 'Loss Velocity' }
+      ]
+    });
+  }
+};
 
 // ── BMI Timeline ─────────────────────────────────────────────────────
 function renderBMITimeline(data, latest) {
@@ -398,6 +565,16 @@ function renderTrendHero(data) {
     const decade = Math.floor(trend / 10) * 10;
     badge.style.display = 'block';
     badge.innerHTML = `You're in the<br><strong>${decade}s!</strong>`;
+    badge.style.cursor = 'pointer';
+    badge.title = 'Click to view Milestones & Decade Badges History';
+    badge.onclick = () => {
+      const content = document.getElementById('milestones-content') || document.getElementById('milestones-row');
+      const toggle = document.getElementById('milestones-toggle');
+      if (content && toggle && content.style.display === 'none') {
+        toggleMilestones();
+      }
+      document.getElementById('milestones-section')?.scrollIntoView({ behavior: 'smooth' });
+    };
   }
 }
 

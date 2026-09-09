@@ -114,6 +114,38 @@
     return { spawn };
   })();
 
+  // Expose global celebration helpers
+  window.triggerConfettiAgain = (n = 120) => {
+    Confetti.spawn(n);
+  };
+
+  window.triggerMilestoneCelebration = (info) => {
+    Confetti.spawn(140);
+    const modal = document.getElementById('milestone-modal');
+    if (!modal) return;
+    const iconEl = document.getElementById('milestone-modal-icon');
+    const titleEl = document.getElementById('milestone-modal-title');
+    const descEl = document.getElementById('milestone-modal-desc');
+    const statsEl = document.getElementById('milestone-modal-stats');
+    if (iconEl) iconEl.textContent = info.icon || '🏆';
+    if (titleEl) titleEl.textContent = info.title || 'Milestone Achieved!';
+    if (descEl) descEl.textContent = info.desc || '';
+    if (statsEl) {
+      statsEl.innerHTML = (info.stats || []).map(s => `
+        <div class="m-stat-box">
+          <div class="m-stat-val">${s.val}</div>
+          <div class="m-stat-lbl">${s.lbl}</div>
+        </div>
+      `).join('');
+    }
+    modal.style.display = 'flex';
+  };
+
+  window.closeMilestoneCelebration = () => {
+    const modal = document.getElementById('milestone-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
   // Track previously-done milestone count in localStorage so we only
   // celebrate fresh ones, not every page load.
   function watchMilestones() {
