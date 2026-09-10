@@ -258,7 +258,7 @@
 </div>
 
 <!-- Auth overlay shown when user is not signed in -->
-<div id="auth-overlay" style="position:fixed;inset:0;background:#fff;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem">
+<div id="auth-overlay" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem">
   <div style="text-align:center;max-width:340px">
     <div style="font-size:3rem">&#9878;</div>
     <h1 style="font-size:1.6rem;font-weight:800;color:#1a2340;letter-spacing:-0.02em;margin-top:0.4rem">David&apos;s Health Board</h1>
@@ -273,18 +273,19 @@
 </div>
 
 <div class="report" id="report-root">
-  <div class="loading">Loading data&hellip; sign in if prompted.</div>
+  <div class="loading">Loading clinical data&hellip;</div>
 </div>
 
 <!-- Define auth promise and endpoints BEFORE auth.js executes -->
 <script>
   window.HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev';
   window.WEIGHT_WORKER_URL = window.HEALTH_WORKER_URL + '/weight.json';
-  window._authReady = new Promise(res => { window._resolveAuthReady = res; });
+  window.authReadyPromise = new Promise(res => { window._resolveAuthReady = res; });
+  window._authReady = window.authReadyPromise;
 </script>
 
 <!-- Firebase auth (module) - handles sign-in flow -->
-<script type="module" src="./auth.js"></script>
+<script type="module" src="./auth.js?v=4"></script>
 
 <script>
   const DATA_URL        = 'https://davelane26.github.io/Weight-tracker/data.json';
@@ -320,16 +321,22 @@
       } catch (e) {}
     }
 
-    // 2. Token-gated Cloudflare Worker fetch
-    const workerUrl = window.WEIGHT_WORKER_URL || (window.HEALTH_WORKER_URL ? window.HEALTH_WORKER_URL + '/weight.json' : null);
-    let user = window.fbUser;
-    if (!user && window._authReady) {
+    // Wait briefly for auth if not ready yet
+    if (!window.fbUser && window._authReady) {
       try {
-        user = await Promise.race([
+        await Promise.race([
           window._authReady,
-          new Promise(r => setTimeout(() => r(null), 2500))
+          new Promise(r => setTimeout(r, 2000))
         ]);
       } catch (e) {}
+    }
+
+    // 2. Token-gated Cloudflare Worker fetch
+    const workerUrl = window.WEIGHT_WORKER_URL || 'https://glucose-relay.djtwo6.workers.dev/weight.json';
+    const user = window.fbUser;
+
+    if (!user) {
+      return null;
     }
 
     if (workerUrl && user && typeof user.getIdToken === 'function') {
@@ -346,10 +353,12 @@
             return data;
           }
         } else {
-          console.warn('[report] worker fetch returned', resp.status);
+          console.warn('[report] worker fetch returned HTTP', resp.status);
+          throw new Error(`Worker returned HTTP ${resp.status}`);
         }
       } catch (e) {
         console.warn('[report] worker fetch error:', e);
+        throw e;
       }
     }
 
@@ -364,22 +373,20 @@
       }
     } catch (e) {}
 
-    if (!user) {
-      throw new Error('Please sign in with Google to load your health data.');
-    }
-    throw new Error('Weight data fetch failed from worker. Check your network or permissions.');
+    throw new Error('Weight data fetch failed from worker. Please verify your connection.');
   }
 
   async function loadFirebaseNode(path) {
-    let user = window.fbUser;
-    if (!user && window._authReady) {
-      user = await window._authReady;
-    }
+    const user = window.fbUser;
     if (!user) return null;
-    const token = await user.getIdToken();
-    const r = await fetch(`${FIREBASE}${path}?auth=${token}`);
-    if (!r.ok) return null;
-    return r.json();
+    try {
+      const token = await user.getIdToken();
+      const r = await fetch(`${FIREBASE}${path}?auth=${token}`);
+      if (!r.ok) return null;
+      return r.json();
+    } catch (e) {
+      return null;
+    }
   }
 
   // ── Math & Helpers ─────────────────────────────────────────
@@ -849,8 +856,24 @@
 
   // ── Initial Load Pipeline ──────────────────────────────────
   async function render() {
+    const root = document.getElementById('report-root');
     try {
+      if (!window.fbUser && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+        root.innerHTML = '<div class="loading">Please sign in with Google above to view your clinical report.</div>';
+        return;
+      }
+
+      root.innerHTML = '<div class="loading">Loading clinical data&hellip;</div>';
       _rawWeightData = await loadWeightData();
+      if (!_rawWeightData || !_rawWeightData.length) {
+        if (!window.fbUser) {
+          root.innerHTML = '<div class="loading">Please sign in with Google above to view your clinical report.</div>';
+          return;
+        }
+        root.innerHTML = '<div class="loading">No weight data available.</div>';
+        return;
+      }
+
       try {
         _rawEvents = await loadFirebaseNode('/medication/events.json');
         _rawShots  = await loadFirebaseNode('/medication/shots.json');
@@ -860,21 +883,27 @@
 
       updateView();
     } catch (e) {
-      document.getElementById('report-root').innerHTML =
+      root.innerHTML =
         `<div class="loading" style="color:var(--bad)">Failed to load: ${e.message}</div>`;
       console.error(e);
     }
   }
 
-  // Trigger render when auth resolves
-  if (window._authReady) {
-    window._authReady.then(() => {
+  // ── Listen for Firebase Auth events ─────────────────────────
+  document.addEventListener('firebase-auth-changed', e => {
+    if (e.detail && e.detail.user) {
       render();
+    }
+  });
+
+  if (window._authReady) {
+    window._authReady.then(user => {
+      if (user) render();
     });
   }
-  // Fallback if auth already resolved or in local dev
+
   setTimeout(() => {
-    if (!_rawWeightData) render();
+    if (!_rawWeightData && window.fbUser) render();
   }, 1200);
 </script>
 
