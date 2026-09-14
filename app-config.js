@@ -28,7 +28,7 @@ const ACTIVITY_LEVELS = {
 };
 
 const BMI_CATS = [
-  { label: 'Normal Weight',  range: 'BMI < 25',    min: 18.5, max: 25,       icon: '🟢' },
+  { label: 'Normal Weight', range: 'BMI < 25',     min: 18.5, max: 25,       icon: '🟢' },
   { label: 'Overweight',     range: 'BMI 25–29.9', min: 25,   max: 30,       icon: '🟡' },
   { label: 'Obese I',        range: 'BMI 30–34.9', min: 30,   max: 35,       icon: '🟠' },
   { label: 'Obese II',       range: 'BMI 35–39.9', min: 35,   max: 40,       icon: '🔴' },
@@ -41,10 +41,12 @@ const BMI_CATS = [
 // fetch pipeline -- flip back ON months later and the data is still
 // there, no re-wiring needed.
 const SHOW_GLUCOSE  = false;  // flip to true when tracking resumes
+const SHOW_WORKOUT  = false;  // flip to true when tracking resumes
 
 const ALL_TABS      = ['weight', 'charts', 'glucose', 'activity', 'workout', 'projector', 'medication', 'photos', 'health'];
 const HIDDEN_TABS   = new Set([
   ...(SHOW_GLUCOSE ? [] : ['glucose']),
+  ...(SHOW_WORKOUT ? [] : ['workout']),
 ]);
 const TABS          = ALL_TABS.filter(t => !HIDDEN_TABS.has(t));
 const TAB_ORDER_KEY = 'wt_v2_tab_order';
@@ -63,4 +65,3 @@ let activityLevel      = 'moderate';
 let projSlopeLbsPerDay = null;   // negative = losing weight
 let projLatestWeight   = null;
 let projLatestDate     = null;
-
