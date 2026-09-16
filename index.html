@@ -259,15 +259,18 @@
     </section>
 
     <!-- ── Muscle vs. Fat Loss Quality ── -->
-    <section class="card fade-in" style="margin-top:1.25rem;border-top:3px solid #0891b2;" aria-label="Muscle vs Fat loss quality">
-      <h2 class="card-title">🛡️ Muscle vs. Fat Loss</h2>
-      <p id="lq-summary" style="font-size:0.9rem;font-weight:700;color:#1a2340;margin:0.5rem 0;">Loading…</p>
-      <div class="progress-track" style="height:0.75rem;">
-        <div id="lq-bar" class="progress-fill" style="width:0%;background:#22c55e;transition:width 0.4s ease;"></div>
+    <section class="card fade-in card--accent-green" style="margin-top: 1.25rem;" aria-label="Muscle vs Fat loss quality">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+        <h2 class="card-title" style="margin:0;">🛡️ Muscle vs. Fat Loss</h2>
+        <span id="lq-badge" style="font-size:0.7rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:99px; background:var(--stat-box-bg, #f1f5f9); color:var(--text-sub, #6d7a95);">—</span>
       </div>
-      <p id="lq-msg" style="font-size:0.75rem;color:#6d7a95;margin-top:0.4rem;"></p>
+      <p id="lq-summary" style="font-size:0.9rem; font-weight:700; color:var(--text, #1a2340); margin:0.4rem 0;">Loading…</p>
+      <div class="progress-track" style="height:0.75rem;">
+        <div id="lq-bar" class="progress-fill" style="width:0%; background:#22c55e; transition:width 0.4s ease;"></div>
+      </div>
+      <p id="lq-msg" style="font-size:0.75rem; color:var(--text-sub, #6d7a95); margin-top:0.4rem;"></p>
     </section>
-
+    
     <section class="card fade-in card--accent-gold" aria-label="Weight loss journey">
       <h2 class="card-title">🏆 Weight Loss Journey</h2>
       <p id="journey-duration" style="font-size:0.82rem;color:#6d7a95;margin:-0.25rem 0 0.85rem;font-weight:600">Computing…</p>
@@ -1410,5 +1413,59 @@
     });
   })();
 </script>
+<script>
+    (function initLeanLossTracker() {
+      function compute() {
+        const wtEl = document.getElementById('snap-weight') || document.getElementById('journey-current');
+        const fatEl = document.getElementById('kpi-fat');
+
+        if (!wtEl || !fatEl) return false;
+
+        const currentWeight = parseFloat(wtEl.textContent.replace(/[^0-9.]/g, ''));
+        const currentFat = parseFloat(fatEl.textContent.replace(/[^0-9.]/g, ''));
+
+        if (isNaN(currentWeight) || isNaN(currentFat)) return false;
+
+        const startWeight = 315.0;
+        const startFatPct = 44.0;
+
+        const totalLost = startWeight - currentWeight;
+        const fatLost = (startWeight * (startFatPct / 100)) - (currentWeight * (currentFatPct / 100));
+        const fatPct = totalLost > 0 ? Math.round((fatLost / totalLost) * 100) : 0;
+
+        const summary = document.getElementById('lq-summary');
+        const bar = document.getElementById('lq-bar');
+        const msg = document.getElementById('lq-msg');
+        const badge = document.getElementById('lq-badge');
+
+        if (!summary || !bar || !msg) return false;
+
+        summary.textContent = `${fatPct}% of lost weight is pure fat`;
+        bar.style.width = `${Math.min(100, Math.max(0, fatPct))}%`;
+
+        if (badge) badge.textContent = `${fatPct}% FAT`;
+
+        if (fatPct >= 75) {
+          bar.style.background = '#22c55e';
+          msg.textContent = '✅ Optimal: Muscle mass is protected.';
+        } else if (fatPct >= 65) {
+          bar.style.background = '#eab308';
+          msg.textContent = '⚠️ Borderline: Watch protein intake.';
+        } else {
+          bar.style.background = '#ef4444';
+          msg.textContent = '🚨 Elevated lean loss: Prioritize protein & resistance training.';
+        }
+
+        return true;
+      }
+
+      if (!compute()) {
+        const timer = setInterval(() => {
+          if (compute()) clearInterval(timer);
+        }, 500);
+      }
+    })();
+</script>
+  
 </body>
 </html>
