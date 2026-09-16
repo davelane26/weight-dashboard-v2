@@ -1418,31 +1418,27 @@
       function parseNum(id) {
         const el = document.getElementById(id);
         if (!el) return NaN;
-        // Strip out units, labels, and whitespace
         const clean = el.textContent.replace(/[^0-9.]/g, '');
         return clean ? parseFloat(clean) : NaN;
       }
 
       function compute() {
-        // Try snapshot weight first, then journey current, then main charts
         let curWeight = parseNum('snap-weight');
         if (isNaN(curWeight)) curWeight = parseNum('journey-current');
         if (isNaN(curWeight)) curWeight = parseNum('ct-weight');
 
-        // Try body fat from KPI card, then DEXA/rate-analysis
         let curFat = parseNum('kpi-fat');
         if (isNaN(curFat)) curFat = parseNum('ra-bc-fat');
 
-        // Still waiting for openScale to populate numbers
         if (isNaN(curWeight) || isNaN(curFat) || curWeight <= 0 || curFat <= 0) {
           return false;
         }
 
-        const startWeight = 315.0; // Baseline Jan 23
-        const startFatPct = 44.0;  // Baseline Body Fat %
+        const startWeight = 315.0;
+        const startFatPct = 44.0;
 
         const totalLost = startWeight - curWeight;
-        const fatLost = (startWeight * (startFatPct / 100)) - (curWeight * (curFatPct / 100));
+        const fatLost = (startWeight * (startFatPct / 100)) - (curWeight * (curFat / 100));
         const fatRatio = totalLost > 0 ? Math.max(0, Math.min(100, Math.round((fatLost / totalLost) * 100))) : 0;
 
         const summary = document.getElementById('lq-summary');
@@ -1473,7 +1469,6 @@
         return true;
       }
 
-      // Check every 400ms until openScale async sync finishes, up to 10 seconds
       let attempts = 0;
       const timer = setInterval(() => {
         attempts++;
