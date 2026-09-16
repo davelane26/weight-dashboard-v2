@@ -14,7 +14,7 @@
   <meta name="description" content="David's personal health dashboard — weight, glucose, sleep, activity & more" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <title>David's Health Board </title>
+  <title>David's Health Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -25,67 +25,53 @@
   <link rel="stylesheet" href="tokens.css?v=2" />
   <link rel="stylesheet" href="a11y.css?v=1" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
     window.HEALTH_WORKER_URL = 'https://glucose-relay.djtwo6.workers.dev';
     window.GLUCOSE_WORKER_URL = window.HEALTH_WORKER_URL + '/glucose.json';
     window.AI_HEALTH_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-health';
     window.AI_ASK_WORKER_URL = window.HEALTH_WORKER_URL + '/ai-ask';
 
-    // -- Google Drive / Photos picker config ---------------------------
-    // Fill these in with values from Google Cloud Console (same project
-    // as Firebase). See PHOTO_PICKER_SETUP.md for the 5-min walkthrough.
-    // While blank, the picker buttons show a helpful error instead of
-    // silently failing.
     window.GOOGLE_OAUTH_CLIENT_ID = '811571888069-kibtn95tcn6ao6ce5a25vk8rt9mnme6q.apps.googleusercontent.com';
     window.GOOGLE_API_KEY         = 'AIzaSyDXkJd61sUGWdcTm5sOe7fIKxPNu-z0DjY';
-    window.GOOGLE_APP_ID          = '811571888069';   // Cloud project number (Drive Picker only)
-    // Token-gated private weight data (Fix #2). While set, app.js fetches
-    // weight readings from the worker with the signed-in user's Firebase
-    // token, and only falls back to the public DATA_URL if that fails.
-    // After you migrate data into the worker and DELETE the public JSON,
-    // this becomes the sole (authenticated) source.
-    window.WEIGHT_WORKER_URL = window.HEALTH_WORKER_URL + '/weight.json';
+    window.GOOGLE_APP_ID          = '811571888069';
+    window.WEIGHT_WORKER_URL      = window.HEALTH_WORKER_URL + '/weight.json';
   </script>
   <script>window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});</script>
   <script type="module" src="auth.js?v=3"></script>
-  <!-- Modular app split — load in dependency order, all defer = parsed in HTML order, executed after DOM ready -->
-<script src="app-config.js?v=1"   defer></script>
-<script src="app-utils.js?v=6"    defer></script>
-<script src="app-tabs.js?v=3"     defer></script>
-<script src="app-kpis.js?v=2"     defer></script>
-<script src="app-charts.js?v=1"   defer></script>
-<script src="multi-window-trends.js?v=6" defer></script>
-<script src="app-goal.js?v=5"     defer></script>
-<script src="app-insights.js?v=1" defer></script>
-<script src="app.js?v=102"        defer></script>
-<script src="weight-qa.js?v=1"    defer></script>
+  <!-- Modular app split -->
+  <script src="app-config.js?v=1"   defer></script>
+  <script src="app-utils.js?v=6"    defer></script>
+  <script src="app-tabs.js?v=3"     defer></script>
+  <script src="app-kpis.js?v=2"     defer></script>
+  <script src="app-charts.js?v=1"   defer></script>
+  <script src="multi-window-trends.js?v=6" defer></script>
+  <script src="app-goal.js?v=5"     defer></script>
+  <script src="app-insights.js?v=1" defer></script>
+  <script src="app.js?v=102"        defer></script>
+  <script src="weight-qa.js?v=1"    defer></script>
   <script src="heatmap.js?v=1" defer></script>
-  <!-- Eagerly loaded: these render into the default Weight tab + header button. -->
   <script src="healthscore.js?v=1" defer></script>
   <script src="reportcard.js?v=1" defer></script>
   <script src="healthcard.js?v=1" defer></script>
-  <!-- Also eager: their data feeds the Weight tab snapshot strip
-       (#snap-glucose / #snap-steps / #snap-sleep). -->
   <script src="glucose.js?v=102" defer></script>
   <script src="activity.js?v=99" defer></script>
-<script src="workout.js?v=2" defer></script>
+  <script src="workout.js?v=2" defer></script>
   <script src="enhancements.js?v=5" defer></script>
-  <!-- Lazy-loaded by enhancements.js on first tab activation: medication.js -->
-<script src="photos.js?v=3" defer></script>
-<script src="photo-picker.js?v=1" defer></script>
-<script src="charts-tab.js?v=2" defer></script>
-<script src="dexa.js?v=1" defer></script>
-<script src="rate-analysis.js?v=4" defer></script>
-<script src="titration-utils.js?v=4" defer></script>
-<script src="events.js?v=2" defer></script>
-<script src="titration-trajectory.js?v=7" defer></script>
-<script src="titration-readiness.js?v=16" defer></script>
-<script src="plateau-radar.js?v=3" defer></script>
-<script src="trend-check.js?v=1" defer></script>
-<script src="dose-comparison.js?v=5" defer></script>
-<script src="health.js?v=12"  defer></script>
-<script src="calm-mode.js?v=7" defer></script>
+  <script src="photos.js?v=3" defer></script>
+  <script src="photo-picker.js?v=1" defer></script>
+  <script src="charts-tab.js?v=2" defer></script>
+  <script src="dexa.js?v=1" defer></script>
+  <script src="rate-analysis.js?v=4" defer></script>
+  <script src="titration-utils.js?v=4" defer></script>
+  <script src="events.js?v=2" defer></script>
+  <script src="titration-trajectory.js?v=7" defer></script>
+  <script src="titration-readiness.js?v=16" defer></script>
+  <script src="plateau-radar.js?v=3" defer></script>
+  <script src="trend-check.js?v=1" defer></script>
+  <script src="dose-comparison.js?v=5" defer></script>
+  <script src="health.js?v=12"  defer></script>
+  <script src="calm-mode.js?v=7" defer></script>
 </head>
 <body>
 
@@ -102,7 +88,6 @@
   </button>
   <p id="auth-error" style="color:#ea1100;font-size:0.82rem;font-weight:600;display:none">Sign-in failed. Please try again.</p>
 </div>
-
 
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -184,7 +169,7 @@
       </div>
     </section>
 
-    <!-- Plateau / Deceleration Radar Card (moved to main Weight tab for visibility) -->
+    <!-- Plateau / Deceleration Radar Card -->
     <section class="card fade-in" aria-label="Plateau deceleration radar"
       style="margin-top:1.25rem;border-top:3px solid #12b5a5">
       <h2 class="card-title">&#128225; Plateau Radar</h2>
@@ -196,7 +181,7 @@
       </div>
     </section>
 
-    <!-- Trend Check Card: one question, one answer. -->
+    <!-- Trend Check Card -->
     <section class="card fade-in" aria-label="Trend check"
       style="margin-top:1.25rem;border-top:3px solid #2a8703">
       <h2 class="card-title">&#128200; Trend Check</h2>
@@ -211,8 +196,6 @@
     <section class="fade-in" aria-label="Body composition">
       <h2 class="card-title" style="margin-bottom:0.75rem">Body Composition</h2>
       <div class="kpi-grid">
-        <!-- BMI card tone is updated by renderKPIs based on the value
-             (green < 25, gold 25–34.9, red ≥ 35). Default = gold. -->
         <div class="kpi kpi--gold" id="kpi-bmi-card">
           <p class="kpi-label">&#128203; BMI</p>
           <p class="kpi-value skel" id="kpi-bmi">—</p>
@@ -273,6 +256,16 @@
           <p class="kpi-unit">kcal/day total burn</p>
         </div>
       </div>
+    </section>
+
+    <!-- ── Muscle vs. Fat Loss Quality ── -->
+    <section class="card fade-in" style="margin-top:1.25rem;border-top:3px solid #0891b2;" aria-label="Muscle vs Fat loss quality">
+      <h2 class="card-title">🛡️ Muscle vs. Fat Loss</h2>
+      <p id="lq-summary" style="font-size:0.9rem;font-weight:700;color:#1a2340;margin:0.5rem 0;">Loading…</p>
+      <div class="progress-track" style="height:0.75rem;">
+        <div id="lq-bar" class="progress-fill" style="width:0%;background:#22c55e;transition:width 0.4s ease;"></div>
+      </div>
+      <p id="lq-msg" style="font-size:0.75rem;color:#6d7a95;margin-top:0.4rem;"></p>
     </section>
 
     <section class="card fade-in card--accent-gold" aria-label="Weight loss journey">
@@ -473,7 +466,6 @@
       </div>
     </section>
 
-
     <section class="card fade-in card--accent-purple" aria-label="AI weekly summary" id="ai-summary-section">
       <button class="collapse-toggle" onclick="toggleCollapsible('ai-summary-content','ai-summary-toggle','ai-summary-chevron')"
         aria-expanded="false" id="ai-summary-toggle">
@@ -557,7 +549,7 @@
           <p id="proj-weight-result" style="margin-top:0.6rem;font-size:0.85rem;font-weight:700;color:#ea1100;min-height:1.2rem"></p>
         </div>
       </div>
-      <!-- Slowdown check: recent 4-wk pace vs the 4 weeks before it -->
+      <!-- Slowdown check -->
       <div id="proj-slowdown" style="display:none;margin-top:1.2rem;background:#f8f9fe;border:1.5px solid #d0d5e8;border-radius:12px;padding:0.9rem 1rem">
         <p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:0.6rem">🐢 Slowdown Check</p>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;text-align:center;margin-bottom:0.55rem">
@@ -568,6 +560,7 @@
         <p id="proj-sd-note" style="font-size:0.7rem;color:#6d7a95;line-height:1.45"></p>
       </div>
     </section>
+
     <!-- 7.5mg Titration Trajectory Card -->
     <section class="card fade-in" aria-label="7.5mg titration trajectory"
       style="margin-top:1.25rem;border-top:3px solid #0053e2">
@@ -578,7 +571,6 @@
         &middot; Journey start <strong>315.0 lbs (Jan 29)</strong>
       </p>
 
-      <!-- Stats strip -->
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-bottom:1.25rem">
         <div style="background:#f0f4ff;border-radius:10px;padding:0.7rem;text-align:center">
           <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Days on 7.5mg</p>
@@ -590,21 +582,14 @@
         </div>
       </div>
 
-      <!-- Current pace badge -->
       <div id="tj-pace-badge"
         style="background:#f8f9fe;border:1.5px solid #d0d5e8;border-radius:10px;
                padding:0.65rem 1rem;margin-bottom:1.25rem;min-height:2.5rem">
       </div>
 
-      <!-- Projection chart -->
       <div style="position:relative;height:260px;margin-bottom:1.5rem">
         <canvas id="tj-chart"></canvas>
       </div>
-
-      <!-- Scenario legend removed: Chart.js renders it dynamically at the
-           top of the canvas from the SCENARIOS array in titration-trajectory.js.
-           Keeping a hardcoded copy here caused label/rate drift. Single source
-           of truth wins. -->
 
       <p style="font-size:0.65rem;color:#9aa5b4;margin-top:1rem">
         Projections use linear rates derived from your 5mg history.
@@ -679,13 +664,12 @@
           <p id="ct-to-goal" style="font-size:0.95rem;font-weight:900;color:#60a5fa;line-height:1.2">—</p>
         </div>
       </div>
-      <!-- Dose-colored weight chart -->
       <div style="position:relative;height:420px;margin:0 -0.25rem">
         <canvas id="ct-mainChart" aria-label="Weight progress colored by Mounjaro dose phase"></canvas>
       </div>
       <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Color-coded by Mounjaro dose phase · openScale data</p>
 
-      <!-- ── Rate Analysis (de-skewed weekly rate) ── -->
+      <!-- Rate Analysis -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin:2rem 0 0.9rem">
         <h2 style="color:#f1f5f9;font-size:1.1rem;font-weight:800;margin:0">🎯 Real Weekly Rate</h2>
         <span style="font-size:0.7rem;color:#64748b;font-weight:600">de-skewed for water/inflammation</span>
@@ -721,7 +705,7 @@
         </div>
       </div>
 
-      <!-- ── Body Composition chart ── -->
+      <!-- Body Composition chart -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin:2rem 0 0.9rem">
         <h2 style="color:#f1f5f9;font-size:1.1rem;font-weight:800;margin:0">💪 Body Composition</h2>
         <span id="ra-bc-summary" style="font-size:0.7rem;color:#64748b;font-weight:600">—</span>
@@ -743,14 +727,14 @@
       </div>
       <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Body fat ↓ + muscle ↑ = losing fat, not muscle. 🎯</p>
 
-      <!-- ── DEXA Scan Calibration ── -->
+      <!-- DEXA Scan Calibration -->
       <div style="margin-top:1.5rem;background:#1e293b;border-radius:12px;padding:1rem 1.1rem;border:1px solid #334155">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
           <h3 style="color:#f1f5f9;font-size:0.85rem;font-weight:800;margin:0">🎯 DEXA Scan Calibration</h3>
           <button onclick="toggleDexaForm()" id="dexa-toggle-btn" style="background:none;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:0.25rem 0.6rem;font-size:0.65rem;font-weight:700;cursor:pointer">+ Add scan</button>
         </div>
         <p style="font-size:0.68rem;color:#64748b;line-height:1.5;margin-bottom:0.75rem">
-          DEXA is the gold-standard body-comp measurement. Log a scan here and the scale's Body Fat and Muscle % above get calibrated against it going forward. "Lean mass %" is the report's raw whole-body figure (organs/water/bone included) — shown only as a chart reference point, not used for calibration. "Total skeletal muscle %" is the number that's actually calibrated against the scale's Muscle %. Don't have that figure? Enter your report's appendicular lean mass (lb) + scan weight and hit Convert — we'll estimate total skeletal muscle via the Kim-2002 equation.
+          DEXA is the gold-standard body-comp measurement. Log a scan here and the scale's Body Fat and Muscle % above get calibrated against it going forward.
         </p>
         <div id="dexa-form" style="display:none;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.75rem">
           <div>
@@ -861,9 +845,6 @@
       </div>
     </section>
     <section class="card fade-in"><h2 class="card-title">🏋️ Today's Activities</h2><div id="act-list"></div></section>
-    <!-- 4 activity cards in a responsive grid: auto-fits 1-2 columns based
-         on viewport width. minmax(320px, 1fr) means each card wants at least
-         320px; if there's room for two, they go side-by-side; otherwise stack. -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:0.75rem;padding:0 1rem">
 
     <section class="card fade-in" style="margin:0">
@@ -899,17 +880,13 @@
       <div id="actSystemHealth" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.72rem;line-height:1.7;color:#475569">-</div>
     </section>
 
-    </div><!-- /activity cards grid -->
+    </div>
     <p style="font-size:0.65rem;color:#6d7a95;margin:0.5rem 1rem;text-align:right" id="act-updated"></p>
-    <!-- v0.4.7 EXPERIMENTAL: Health Connect weight test. Not the Weight tab's
-         data source, just proving the read/display path before committing
-         to it for anything real. Remove once evaluated either way. -->
     <p style="font-size:0.65rem;color:#94a3b8;margin:0 1rem 0.5rem;text-align:right" id="act-hc-weight-test"></p>
   </div><!-- /tab-activity -->
 
   <!-- ── Medication tab ── -->
   <div id="tab-medication" role="tabpanel" aria-labelledby="tab-btn-medication" hidden>
-    <!-- Sub-tab nav -->
     <div style="display:flex;gap:0.25rem;overflow-x:auto;padding:0.75rem 1rem 0;background:#f5f6f8;border-bottom:1px solid #e5e7eb;-webkit-overflow-scrolling:touch;scrollbar-width:none">
       <button id="medtab-btn-dashboard" onclick="switchMedTab('dashboard')" style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:#534ab7;color:#fff">📊 Dashboard</button>
       <button id="medtab-btn-phases"    onclick="switchMedTab('phases')"    style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">🌀 Phases</button>
@@ -919,11 +896,9 @@
       <button id="medtab-btn-history"   onclick="switchMedTab('history')"   style="white-space:nowrap;border:none;border-radius:8px 8px 0 0;padding:0.4rem 0.9rem;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#6d7a95">📋 History</button>
     </div>
 
-    <!-- ── Dashboard panel ── -->
+    <!-- Dashboard panel -->
     <div id="medpanel-dashboard">
-      <!-- Shot sync status -->
       <p id="g1-sync-status" hidden style="margin:0.5rem 1rem 0;font-size:0.7rem;font-weight:700;color:#6d7a95"></p>
-      <!-- Shot reminder banner -->
       <div id="g1-reminder" hidden style="margin:0.75rem 1rem 0;padding:0.65rem 1rem;border-radius:10px;border-left:4px solid #f59f00;background:#fff9db">
         <p style="font-size:0.82rem;font-weight:700;margin:0" id="g1-reminder-text"></p>
       </div>
@@ -963,7 +938,7 @@
       </section>
     </div><!-- /medpanel-dashboard -->
 
-    <!-- ── Phases panel ── -->
+    <!-- Phases panel -->
     <div id="medpanel-phases" hidden>
       <section class="card fade-in" style="margin-top:0.75rem">
         <h2 class="card-title" style="margin-bottom:0.25rem">🌀 Weekly Phase Cycle</h2>
@@ -975,7 +950,7 @@
       </section>
     </div><!-- /medpanel-phases -->
 
-    <!-- ── Log Shot panel ── -->
+    <!-- Log Shot panel -->
     <div id="medpanel-logshot" hidden>
       <section class="card fade-in" style="margin-top:0.75rem">
         <h2 class="card-title" style="margin-bottom:1rem">💉 Log Injection</h2>
@@ -1042,7 +1017,7 @@
       </section>
     </div><!-- /medpanel-logshot -->
 
-    <!-- ── Symptoms panel ── -->
+    <!-- Symptoms panel -->
     <div id="medpanel-symptoms" hidden>
       <section class="card fade-in" style="margin-top:0.75rem">
         <h2 class="card-title" style="margin-bottom:0.35rem">🩺 Symptom Tracker</h2>
@@ -1055,7 +1030,7 @@
       </section>
     </div><!-- /medpanel-symptoms -->
 
-    <!-- ── Supply panel ── -->
+    <!-- Supply panel -->
     <div id="medpanel-supply" hidden>
       <section class="card fade-in card--accent-blue" style="margin-top:0.75rem">
         <h2 class="card-title" style="margin-bottom:0.75rem">📦 Supply Tracker</h2>
@@ -1094,7 +1069,7 @@
       </section>
     </div><!-- /medpanel-supply -->
 
-    <!-- ── History panel ── -->
+    <!-- History panel -->
     <div id="medpanel-history" hidden>
       <section class="card fade-in card--accent-green" style="margin-top:0.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
@@ -1125,7 +1100,6 @@
 
   <!-- Photos tab -->
   <div id="tab-photos" role="tabpanel" aria-labelledby="tab-btn-photos" hidden>
-
     <div id="photos-content">
       <p style="font-size:0.72rem;color:#6d7a95;margin:0 0 0.85rem;text-align:center">
         Photos sync to the cloud while you're signed in and appear on every device.
@@ -1176,17 +1150,14 @@
         </div>
       </div>
     </div>
-
   </div><!-- /tab-photos -->
 
   <!-- Health tab -->
   <div id="tab-health" role="tabpanel" aria-labelledby="tab-btn-health" hidden>
-
     <section class="card fade-in card--accent-purple" aria-label="AI health analysis">
       <h2 class="card-title">&#129302; AI Health Analysis</h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">Upload or paste a health summary, lab results, or doctor notes — Claude will explain what they mean in plain language.</p>
 
-      <!-- Upload / Paste -->
       <div style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1rem">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
           <input type="file" id="health-doc-input" accept=".txt,.md,.pdf,image/*,application/pdf" style="display:none" />
@@ -1201,7 +1172,6 @@
 
       <button id="health-analyze-btn" onclick="healthAnalyzeDoc()" class="btn-primary" style="width:100%;padding:0.65rem;font-size:0.9rem;font-weight:700">Analyze My Health</button>
 
-      <!-- Result -->
       <div id="health-analysis-wrap" style="display:none;margin-top:1.25rem;padding:1rem;background:linear-gradient(135deg,#f5f0ff,#faf5ff);border-radius:10px;border:1.5px solid #c4b5fd">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.85rem">
           <p style="font-size:0.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.08em;margin:0">AI Analysis</p>
@@ -1314,7 +1284,6 @@
         style="padding:0.55rem 0.7rem;border:1.5px solid #d0d5e8;border-radius:8px;font-size:0.9rem;font-weight:600;color:#1a2340;width:100%;box-sizing:border-box" />
     </section>
 
-
     <section class="card fade-in" aria-label="Visit history and comparison">
       <h2 class="card-title">&#128203; Visit History &amp; Comparison</h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">Save snapshots of your current metrics and AI analysis to track and compare changes between visits.</p>
@@ -1349,7 +1318,7 @@
 
   </div><!-- /tab-health -->
 
-  <!-- Workout tab (populated by workout.js) -->
+  <!-- Workout tab -->
   <div id="tab-workout" role="tabpanel" aria-labelledby="tab-btn-workout" hidden></div>
 
 </main>
@@ -1357,9 +1326,6 @@
 <footer>Built fresh by Code Puppy 🐶 · Data from openScale · Auto-refreshes every 30s</footer>
 
 <script>
-  // Service worker is now registered properly by enhancements.js.
-  // ONE-TIME purge of any stale cache from the over-aggressive
-  // cache-first SW that shipped briefly. Self-removing on next load.
   (function purgeStaleSwOnce() {
     var KEY = 'wt_v2_sw_purge_v3_done';
     if (localStorage.getItem(KEY) === '1') return;
@@ -1431,7 +1397,6 @@
 <button id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top" type="button">↑</button>
 
 <script>
-  // Scroll-to-top button — show after user scrolls 400px down
   (function () {
     const btn = document.getElementById('scroll-top-btn');
     if (!btn) return;
@@ -1446,4 +1411,4 @@
   })();
 </script>
 </body>
-  </html>
+</html>
