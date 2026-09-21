@@ -1,6 +1,16 @@
 {
-  "generated_at": "2026-08-16T13:29:22.533278+00:00",
-  "week_ending": "2026-08-16",
-  "summary": "I'd be happy to help write David's weekly summary, but I notice that the specific data points are all showing as \"unknown\" \u2014 including his current weight, total loss, the change over the past 14 days, his weekly loss rate, and days logged. Without these actual numbers, I can't write the specific, personalized summary you're looking for.\n\nCould you provide David's real stats for this period? Once I have details like his current weight, how much he's lost in the past two weeks, and his logging consistency, I'll write a warm, encouraging summary that reflects his actual progress and gives him concrete feedback to build on.",
-  "stats": {}
+  "generated_at": "2026-09-21T18:49:02.292349+00:00",
+  "week_ending": "2026-09-21",
+  "summary": "David is currently at 261.0 lbs, bringing his total progress to 54.0 lbs down from his starting weight. Activity remained strong with an average of 4,661 daily steps and 5.7 hours of nightly sleep supporting healthy recovery. Pacing is on track at 1.5 lbs/week\u2014continue prioritizing protein intake and hydration to protect lean muscle into the upcoming week.",
+  "stats": {
+    "days_with_readings": 12,
+    "latest_weight": 261.0,
+    "total_lost_from_start": 54.0,
+    "change_last_14d": -3.0,
+    "rate_lbs_per_week": 1.5,
+    "avg_weight": 261.0,
+    "avg_steps_7d": 4661,
+    "avg_sleep_hrs_7d": 5.7,
+    "total_workout_mins_7d": 206
+  }
 }
