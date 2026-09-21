@@ -44,6 +44,20 @@
     'Hair Loss','Muscle Aches',
   ];
 
+  const SITES = [
+    'Abdomen Upper Left', 'Abdomen Upper Right',
+    'Abdomen Upper Center Left', 'Abdomen Upper Center Right',
+    'Abdomen Left Side', 'Abdomen Right Side',
+    'Abdomen Lower Center Left', 'Abdomen Lower Center Right',
+    'Abdomen Lower Left', 'Abdomen Lower Right'
+  ];
+
+  function normalizeSite(name) {
+    if (!name) return SITES[0];
+    if (name === 'Lower Mid') return 'Abdomen Lower Center Left';
+    return SITES.includes(name) ? name : SITES[0];
+  }
+
   const SHOT_SEED = [
     { id:'i1',  date:'2026-01-29T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Abdomen Lower Left', imported:true, weight:null  },
     { id:'i2',  date:'2026-02-05T17:30', med:'Mounjaro 2.5mg', dose:2.5, site:'Lower Mid',          imported:true, weight:null  },
@@ -235,7 +249,7 @@
     });
     if (name === 'dashboard') renderGlp1Dashboard();
     if (name === 'phases')    renderGlp1Dial();
-    if (name === 'logshot')   initLogShotForm();
+    if (name === 'logshot')   { initLogShotForm(); renderBodyMap(); }
     if (name === 'symptoms')  renderGlp1Symptoms();
     if (name === 'supply')    renderGlp1Supply();
     if (name === 'history')   renderGlp1History();
@@ -244,6 +258,116 @@
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   let g1PkChart = null;
+
+  // ── Pharmacokinetic Accumulation & Steady-State ───────────────────────────
+  function calculateActivePlasma() {
+    const shots = loadShots();
+    if (!shots.length) return null;
+
+    const now = Date.now();
+    let totalActiveMg = 0;
+    const last = shots[shots.length - 1];
+    const lastElapsedH = getElapsedHours(last);
+
+    // Multi-dose accumulation across last 30 days (~6 half-lives)
+    const recentShots = shots.filter(s => {
+      const h = (now - new Date(s.date).getTime()) / 3600000;
+      return h >= 0 && h <= 720;
+    });
+
+    recentShots.forEach(s => {
+      const h = (now - new Date(s.date).getTime()) / 3600000;
+      const doseMatch = (s.med || '').match(/(\d+(?:\.\d+)?)\s*mg/);
+      const dose = doseMatch ? parseFloat(doseMatch[1]) : (s.dose || 5.0);
+      const frac = pkNorm(h);
+      totalActiveMg += dose * frac;
+    });
+
+    const curDoseMatch = (last.med || '').match(/(\d+(?:\.\d+)?)\s*mg/);
+    const curDose = curDoseMatch ? parseFloat(curDoseMatch[1]) : (last.dose || 7.5);
+
+    // Steady-state factor R = 1 / (1 - exp(-ke * 168))
+    const accFactor = 1 / (1 - Math.exp(-PK.ke * 168));
+    const ssPeakMg = curDose * accFactor;
+    const ssTroughMg = curDose * (accFactor - 1);
+    const pctOfPeak = ssPeakMg > 0 ? Math.min(100, Math.round((totalActiveMg / ssPeakMg) * 100)) : 0;
+
+    return {
+      activeMg: +totalActiveMg.toFixed(2),
+      ssPeakMg: +ssPeakMg.toFixed(1),
+      ssTroughMg: +ssTroughMg.toFixed(1),
+      pctOfPeak,
+      elapsedH: lastElapsedH,
+      curDose,
+    };
+  }
+
+  function renderPlasmaGauge() {
+    const cardEl = document.getElementById('g1-plasma-gauge-card');
+    if (!cardEl) return;
+
+    const data = calculateActivePlasma();
+    if (!data) {
+      cardEl.style.display = 'none';
+      return;
+    }
+    cardEl.style.display = 'block';
+
+    const mgEl   = document.getElementById('g1-plasma-mg');
+    const peakEl = document.getElementById('g1-plasma-peak');
+    const pctEl  = document.getElementById('g1-plasma-pct');
+    const barEl  = document.getElementById('g1-plasma-bar');
+    const pillEl = document.getElementById('g1-plasma-status-pill');
+    const noteEl = document.getElementById('g1-plasma-note');
+
+    if (mgEl)   mgEl.textContent = data.activeMg.toFixed(1);
+    if (peakEl) peakEl.textContent = data.ssPeakMg.toFixed(1);
+    if (pctEl)  pctEl.textContent = data.pctOfPeak + '%';
+    if (barEl)  barEl.style.width = Math.min(100, Math.max(5, data.pctOfPeak)) + '%';
+
+    const elapsed = data.elapsedH;
+    const hInCycle = elapsed !== null ? ((elapsed % 168) + 168) % 168 : null;
+
+    if (hInCycle !== null) {
+      if (hInCycle < 12) {
+        if (pillEl) { pillEl.textContent = '💉 Launch & Absorbing'; pillEl.style.background = '#fff9db'; pillEl.style.color = '#f59f00'; }
+        if (noteEl) noteEl.textContent = `Drug is absorbing subcutaneously. Climbing toward peak saturation in ~${Math.round(68 - hInCycle)}h.`;
+      } else if (hInCycle < 36) {
+        if (pillEl) { pillEl.textContent = '📈 Climbing to Peak'; pillEl.style.background = '#f0fdf4'; pillEl.style.color = '#2f9e44'; }
+        if (noteEl) noteEl.textContent = `Plasma levels rising rapidly toward maximum receptor saturation (~${data.ssPeakMg.toFixed(1)}mg peak).`;
+      } else if (hInCycle <= 84) {
+        if (pillEl) { pillEl.textContent = '⚡ Peak Therapeutic Window'; pillEl.style.background = '#f0eeff'; pillEl.style.color = '#534ab7'; }
+        if (noteEl) noteEl.textContent = `Maximum receptor activation. Full appetite suppression and peak glycemic control active (~${data.activeMg.toFixed(1)}mg active).`;
+      } else if (hInCycle <= 132) {
+        if (pillEl) { pillEl.textContent = '🛳️ Stable Cruise Phase'; pillEl.style.background = '#eff4ff'; pillEl.style.color = '#1971c2'; }
+        if (noteEl) noteEl.textContent = `Steady therapeutic clearance. Sustained appetite control with ~${data.activeMg.toFixed(1)}mg remaining in circulation.`;
+      } else {
+        if (pillEl) { pillEl.textContent = '⏰ Pre-Shot Trough'; pillEl.style.background = '#fef2f2'; pillEl.style.color = '#c92a2a'; }
+        const hLeft = Math.max(0, Math.round(168 - hInCycle));
+        if (noteEl) noteEl.textContent = `Approaching cycle trough (~${data.ssTroughMg.toFixed(1)}mg baseline). Next weekly dose due in ${hLeft}h.`;
+      }
+    }
+  }
+
+  function updateRotationBanner() {
+    const shots = loadShots();
+    const last = shots.length ? shots[shots.length - 1] : null;
+    const lastSite = last ? normalizeSite(last.site) : null;
+    const lastIdx = SITES.indexOf(lastSite);
+    const nextRecommended = lastIdx >= 0 ? SITES[(lastIdx + 1) % SITES.length] : SITES[0];
+
+    const nextEl = document.getElementById('g1-banner-next-site');
+    const lastEl = document.getElementById('g1-banner-last-site');
+    if (nextEl) nextEl.textContent = nextRecommended;
+    if (lastEl) {
+      if (last) {
+        const d = new Date(last.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        lastEl.textContent = `Last site: ${last.site || '—'} (${d} · ${last.med || ''})`;
+      } else {
+        lastEl.textContent = 'No previous injections recorded.';
+      }
+    }
+  }
 
   function renderGlp1Dashboard() {
     const shots   = loadShots();
@@ -291,6 +415,8 @@
     }
 
     updateReminder(elapsed);
+    updateRotationBanner();
+    renderPlasmaGauge();
     drawPkChart(elapsed);
     renderProgressCharts();
   }
@@ -588,40 +714,174 @@
     }).join('');
   }
 
+  // ── Injection Site Body Map & Rotation ───────────────────────────────────
+  function renderBodyMap() {
+    const svgEl = document.getElementById('g1-body-map');
+    if (!svgEl) return;
+
+    const shots = loadShots();
+    const last = shots.length ? shots[shots.length - 1] : null;
+    const lastSite = last ? normalizeSite(last.site) : null;
+    const lastIdx = SITES.indexOf(lastSite);
+    const nextRecommended = lastIdx >= 0 ? SITES[(lastIdx + 1) % SITES.length] : SITES[0];
+
+    const siteEl = document.getElementById('g1-shot-site');
+    const curSelected = siteEl && siteEl.value ? normalizeSite(siteEl.value) : nextRecommended;
+
+    const labelEl = document.getElementById('g1-selected-site-label');
+    if (labelEl && siteEl) labelEl.textContent = siteEl.value || curSelected;
+
+    const siteLayout = {
+      'Abdomen Upper Right':        { x: 30,  y: 44, w: 72, h: 32, label: 'Upper R', sub: 'Outer' },
+      'Abdomen Upper Center Right': { x: 110, y: 44, w: 74, h: 32, label: 'Up Center R', sub: 'Inner' },
+      'Abdomen Upper Center Left':  { x: 196, y: 44, w: 74, h: 32, label: 'Up Center L', sub: 'Inner' },
+      'Abdomen Upper Left':         { x: 278, y: 44, w: 72, h: 32, label: 'Upper L', sub: 'Outer' },
+      'Abdomen Right Side':         { x: 24,  y: 112, w: 76, h: 34, label: 'Right Side', sub: 'Flank' },
+      'Abdomen Left Side':          { x: 280, y: 112, w: 76, h: 34, label: 'Left Side', sub: 'Flank' },
+      'Abdomen Lower Right':        { x: 30,  y: 180, w: 72, h: 32, label: 'Lower R', sub: 'Outer' },
+      'Abdomen Lower Center Right': { x: 110, y: 180, w: 74, h: 32, label: 'Low Center R', sub: 'Inner' },
+      'Abdomen Lower Center Left':  { x: 196, y: 180, w: 74, h: 32, label: 'Low Center L', sub: 'Inner' },
+      'Abdomen Lower Left':         { x: 278, y: 180, w: 72, h: 32, label: 'Lower L', sub: 'Outer' },
+    };
+
+    let svg = `
+      <defs>
+        <filter id="glow-next" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#2f9e44" flood-opacity="0.5"/>
+        </filter>
+        <filter id="shadow-card" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.06"/>
+        </filter>
+        <linearGradient id="navel-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#94a3b8"/>
+          <stop offset="100%" stop-color="#475569"/>
+        </linearGradient>
+      </defs>
+      <rect x="6" y="6" width="368" height="238" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5" />
+      <path d="M 45 22 C 100 35, 140 38, 190 38 C 240 38, 280 35, 335 22 C 325 90, 310 130, 320 230 C 265 236, 215 238, 190 238 C 165 238, 115 236, 60 230 C 70 130, 55 90, 45 22 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.85" />
+    `;
+
+    const CX = 190, CY = 129;
+    svg += `<circle cx="${CX}" cy="${CY}" r="27" fill="#fef2f2" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.8" />`;
+    svg += `<circle cx="${CX}" cy="${CY}" r="7" fill="url(#navel-grad)" />`;
+    svg += `<circle cx="${CX}" cy="${CY}" r="3" fill="#1e293b" />`;
+    svg += `<text x="${CX}" y="${CY + 18}" text-anchor="middle" font-size="7.5" font-family="system-ui,sans-serif" font-weight="700" fill="#dc2626">2″ NO-INJECT</text>`;
+    svg += `<text x="${CX}" y="${CY - 12}" text-anchor="middle" font-size="7" font-family="system-ui,sans-serif" font-weight="700" fill="#64748b">NAVEL</text>`;
+
+    svg += `<text x="35" y="24" font-size="8.5" font-family="system-ui,sans-serif" font-weight="800" fill="#475569" letter-spacing="0.04em">RIGHT SIDE</text>`;
+    svg += `<text x="345" y="24" text-anchor="end" font-size="8.5" font-family="system-ui,sans-serif" font-weight="800" fill="#475569" letter-spacing="0.04em">LEFT SIDE</text>`;
+    svg += `<text x="${CX}" y="22" text-anchor="middle" font-size="7" font-family="system-ui,sans-serif" fill="#94a3b8">(Your perspective looking down)</text>`;
+
+    Object.keys(siteLayout).forEach(siteName => {
+      const pos = siteLayout[siteName];
+      const isLast = siteName === lastSite;
+      const isNext = siteName === nextRecommended;
+      const isSelected = siteName === curSelected;
+
+      let fill = '#ffffff';
+      let stroke = '#cbd5e1';
+      let strokeWidth = 1.2;
+      let filter = 'url(#shadow-card)';
+      let textColor = '#334155';
+      let badge = '';
+
+      if (isNext) {
+        fill = '#f0fdf4';
+        stroke = '#2f9e44';
+        strokeWidth = 2.5;
+        filter = 'url(#glow-next)';
+        textColor = '#166534';
+        badge = `<rect x="${pos.x + pos.w - 28}" y="${pos.y - 6}" width="26" height="12" rx="6" fill="#2f9e44"/>
+                 <text x="${pos.x + pos.w - 15}" y="${pos.y + 2.5}" text-anchor="middle" font-size="6.5" font-family="system-ui,sans-serif" font-weight="800" fill="#ffffff">NEXT</text>`;
+      }
+
+      if (isLast) {
+        fill = '#f5f3ff';
+        stroke = '#534ab7';
+        strokeWidth = 2.5;
+        textColor = '#4338ca';
+        badge = `<rect x="${pos.x + 2}" y="${pos.y - 6}" width="28" height="12" rx="6" fill="#534ab7"/>
+                 <text x="${pos.x + 16}" y="${pos.y + 2.5}" text-anchor="middle" font-size="6.5" font-family="system-ui,sans-serif" font-weight="800" fill="#ffffff">LAST 📍</text>`;
+      }
+
+      if (isSelected) {
+        stroke = '#2563eb';
+        strokeWidth = 3;
+        if (!isNext && !isLast) {
+          fill = '#eff6ff';
+          textColor = '#1d4ed8';
+        }
+      }
+
+      svg += `
+        <g style="cursor:pointer" onclick="selectInjectionSite('${siteName}')" role="button" aria-label="${siteName}">
+          <rect x="${pos.x}" y="${pos.y}" width="${pos.w}" height="${pos.h}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" filter="${filter}" />
+          ${badge}
+          <text x="${pos.x + pos.w / 2}" y="${pos.y + 15}" text-anchor="middle" font-size="7.5" font-family="system-ui,sans-serif" font-weight="700" fill="${textColor}">${pos.label}</text>
+          <text x="${pos.x + pos.w / 2}" y="${pos.y + 25}" text-anchor="middle" font-size="6" font-family="system-ui,sans-serif" font-weight="500" fill="#94a3b8">${pos.sub}</text>
+        </g>
+      `;
+    });
+
+    svgEl.innerHTML = svg;
+  }
+
+  function selectInjectionSite(siteName) {
+    const siteEl = document.getElementById('g1-shot-site');
+    if (siteEl) {
+      for (const opt of siteEl.options) {
+        if (opt.value === siteName) { opt.selected = true; break; }
+      }
+    }
+    const labelEl = document.getElementById('g1-selected-site-label');
+    if (labelEl) labelEl.textContent = siteName;
+    renderBodyMap();
+  }
+  window.selectInjectionSite = selectInjectionSite;
+
+  function selectRecommendedSite() {
+    const shots = loadShots();
+    const last = shots.length ? shots[shots.length - 1] : null;
+    const lastSite = last ? normalizeSite(last.site) : null;
+    const lastIdx = SITES.indexOf(lastSite);
+    const nextRecommended = lastIdx >= 0 ? SITES[(lastIdx + 1) % SITES.length] : SITES[0];
+    selectInjectionSite(nextRecommended);
+  }
+  window.selectRecommendedSite = selectRecommendedSite;
+
   // ── Log Shot form ─────────────────────────────────────────────────────────
   function initLogShotForm() {
     const dtEl = document.getElementById('g1-shot-dt');
-    if (!dtEl || dtEl.value) return;
-    const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    dtEl.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T17:30`;
+    if (dtEl && !dtEl.value) {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      dtEl.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T17:30`;
+    }
 
     // Auto-rotate injection site
     const shots = loadShots();
-    // Kept in sync with the <option> list in index.html (#g1-shot-site).
-    // Abdomen-only by request. Order walks a ring around the navel
-    // (upper strip -> sides -> lower strip) so rotation steps to a
-    // genuinely different spot each shot. "Center Left/Right" pairs
-    // flank the navel rather than sitting on it, respecting the usual
-    // ~2" exclusion zone around it.
-    const sites = [
-      'Abdomen Upper Left', 'Abdomen Upper Right',
-      'Abdomen Upper Center Left', 'Abdomen Upper Center Right',
-      'Abdomen Left Side', 'Abdomen Right Side',
-      'Abdomen Lower Center Left', 'Abdomen Lower Center Right',
-      'Abdomen Lower Left', 'Abdomen Lower Right'
-    ];
-    if (shots.length) {
-      const last    = shots[shots.length - 1];
-      const lastIdx = sites.indexOf(last.site);
-      const next    = sites[(lastIdx + 1) % sites.length];
-      const siteEl  = document.getElementById('g1-shot-site');
-      if (siteEl) {
+    const last    = shots.length ? shots[shots.length - 1] : null;
+    const lastSite = last ? normalizeSite(last.site) : null;
+    const lastIdx = SITES.indexOf(lastSite);
+    const next    = lastIdx >= 0 ? SITES[(lastIdx + 1) % SITES.length] : SITES[0];
+    const siteEl  = document.getElementById('g1-shot-site');
+    if (siteEl) {
+      if (!siteEl.value) {
         for (const opt of siteEl.options) {
           if (opt.value === next) { opt.selected = true; break; }
         }
       }
+      if (!siteEl._hasListener) {
+        siteEl._hasListener = true;
+        siteEl.addEventListener('change', () => {
+          const labelEl = document.getElementById('g1-selected-site-label');
+          if (labelEl) labelEl.textContent = siteEl.value;
+          renderBodyMap();
+        });
+      }
     }
+
+    renderBodyMap();
 
     // Auto-prefill weight from most recent scale reading (today or yesterday)
     const weightEl   = document.getElementById('g1-shot-weight');
@@ -682,6 +942,8 @@
     if (weightNote){ weightNote.style.display = 'none'; weightNote.textContent = ''; }
 
     switchMedTab('dashboard');
+    updateRotationBanner();
+    renderPlasmaGauge();
   }
   window.saveGlp1Shot = saveGlp1Shot;
 

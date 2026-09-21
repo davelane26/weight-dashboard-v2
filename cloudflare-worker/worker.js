@@ -500,10 +500,11 @@ export default {
 
     // ── GET /weight.json  (token-gated dashboard fetch) ────────────────
     // The private replacement for the public data.json. Requires a valid
-    // Firebase ID token whose email is on ALLOWED_EMAILS.
+    // Firebase ID token whose email is on ALLOWED_EMAILS, or an authorized API-SECRET.
     if (method === 'GET' && url.pathname === '/weight.json') {
-      const user = await requireUser(request, env);
-      if (!user) return cors('{"error":"Unauthorized"}', 401);
+      const authHeader = request.headers.get('API-SECRET') || request.headers.get('api-secret');
+      const authorized = authHeader ? await isAuthorized(request, env) : !!(await requireUser(request, env));
+      if (!authorized) return cors('{"error":"Unauthorized"}', 401);
       const data = await env.GLUCOSE_KV.get('weight', { type: 'json' }) ?? [];
       return cors(JSON.stringify(data));
     }

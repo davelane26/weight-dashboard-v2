@@ -26,6 +26,8 @@ jobs:
       - name: Generate weekly summary
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          API_SECRET: ${{ secrets.API_SECRET }}
+          WEIGHT_TRACKER_GITHUB_TOKEN: ${{ secrets.WEIGHT_TRACKER_GITHUB_TOKEN }}
         run: python generate_summary.py
 
       - name: Commit weekly-summary.json

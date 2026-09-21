@@ -905,6 +905,16 @@
       <div id="g1-reminder" hidden style="margin:0.75rem 1rem 0;padding:0.65rem 1rem;border-radius:10px;border-left:4px solid #f59f00;background:#fff9db">
         <p style="font-size:0.82rem;font-weight:700;margin:0" id="g1-reminder-text"></p>
       </div>
+      <div id="g1-site-rotation-banner" style="margin:0.75rem 1rem 0;padding:0.75rem 1rem;background:#f0fdf4;border-left:4px solid #2f9e44;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+        <div>
+          <span style="font-size:0.68rem;font-weight:800;color:#2f9e44;letter-spacing:0.04em;text-transform:uppercase">Next Recommended Injection Site</span>
+          <p style="font-size:0.88rem;font-weight:800;color:#1f2937;margin:0.15rem 0 0" id="g1-banner-next-site">Abdomen Upper Left</p>
+          <span style="font-size:0.7rem;color:#6d7a95" id="g1-banner-last-site">Last site: —</span>
+        </div>
+        <button onclick="switchMedTab('logshot')" style="background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.85rem;font-size:0.75rem;font-weight:700;cursor:pointer">
+          Open Body Map &amp; Log →
+        </button>
+      </div>
       <section class="fade-in" style="padding:0.75rem 1rem 0">
         <div class="kpi-grid">
           <div class="kpi" style="border-top-color:#534ab7;background:linear-gradient(135deg,#f0eeff 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#534ab7">💉 Total Shots</p><p class="kpi-value" style="color:#534ab7" id="g1-total-shots">—</p><p class="kpi-unit">injections</p></div>
@@ -915,6 +925,53 @@
           <div class="kpi" style="border-top-color:#2f9e44;background:linear-gradient(135deg,#f0fdf4 0%,rgba(255,255,255,0) 65%)"><p class="kpi-label" style="color:#2f9e44">🏆 Total Lost</p><p class="kpi-value" style="color:#2f9e44" id="g1-total-lost">—</p><p class="kpi-unit">lbs since Jan 29</p></div>
         </div>
       </section>
+
+      <!-- Active Plasma Concentration Gauge -->
+      <section class="card fade-in" id="g1-plasma-gauge-card" style="margin-top:0.75rem;border-left:4px solid #534ab7">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">
+          <div>
+            <h2 class="card-title" style="margin-bottom:0.2rem">⚡ Active Plasma Level &amp; Steady-State</h2>
+            <p style="font-size:0.72rem;color:#6d7a95;margin:0">Estimated active circulating tirzepatide based on multi-dose accumulation</p>
+          </div>
+          <span id="g1-plasma-status-pill" style="font-size:0.72rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:20px;background:#f0eeff;color:#534ab7">Calculating…</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:0.75rem;margin:1rem 0 0.85rem">
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
+            <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">ESTIMATED ACTIVE DRUG</span>
+            <span id="g1-plasma-mg" style="font-size:1.35rem;font-weight:800;color:#534ab7">—</span>
+            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">mg equiv</span>
+          </div>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
+            <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">STEADY-STATE PEAK</span>
+            <span id="g1-plasma-peak" style="font-size:1.35rem;font-weight:800;color:#2f9e44">—</span>
+            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">mg at ~68h</span>
+          </div>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
+            <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">CYCLE RETENTION</span>
+            <span id="g1-plasma-pct" style="font-size:1.35rem;font-weight:800;color:#1971c2">—</span>
+            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">% of cycle peak</span>
+          </div>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
+            <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">HALF-LIFE REMAINING</span>
+            <span id="g1-plasma-halflife" style="font-size:1.35rem;font-weight:800;color:#e67700">5.0d</span>
+            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">(~120h)</span>
+          </div>
+        </div>
+
+        <div style="margin-top:0.5rem">
+          <div style="display:flex;justify-content:space-between;font-size:0.68rem;font-weight:700;margin-bottom:0.35rem">
+            <span style="color:#c92a2a">Pre-Shot Trough</span>
+            <span style="color:#2f9e44">Optimal Therapeutic Zone</span>
+            <span style="color:#534ab7">Peak Activation (~68h)</span>
+          </div>
+          <div style="position:relative;height:14px;background:#e5e7eb;border-radius:7px;overflow:hidden">
+            <div id="g1-plasma-bar" style="position:absolute;top:0;left:0;bottom:0;width:0%;background:linear-gradient(90deg, #f59f00 0%, #2f9e44 50%, #534ab7 100%);border-radius:7px;transition:width 0.6s ease-in-out"></div>
+          </div>
+          <p id="g1-plasma-note" style="font-size:0.72rem;color:#4b5563;margin:0.5rem 0 0;line-height:1.4"></p>
+        </div>
+      </section>
+
       <section class="card fade-in" style="margin-top:0.75rem">
         <h2 class="card-title" style="margin-bottom:0.5rem">💊 Drug Concentration Curve</h2>
         <div style="height:175px"><canvas id="g1PkChart"></canvas></div>
@@ -957,6 +1014,35 @@
     <div id="medpanel-logshot" hidden>
       <section class="card fade-in" style="margin-top:0.75rem">
         <h2 class="card-title" style="margin-bottom:1rem">💉 Log Injection</h2>
+
+        <!-- Interactive Injection Site Rotation Map -->
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.85rem 1rem;margin-bottom:1.25rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem">
+            <div>
+              <span style="font-size:0.85rem;font-weight:800;color:#1f2937">📍 Injection Site Rotation Map</span>
+              <p style="font-size:0.72rem;color:#6d7a95;margin:0.15rem 0 0">Click any site to select it. Avoid injecting within 2″ of the navel.</p>
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:center">
+              <span style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.68rem;font-weight:700;color:#534ab7"><span style="width:9px;height:9px;border-radius:50%;background:#534ab7;display:inline-block"></span> Last Injected</span>
+              <span style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.68rem;font-weight:700;color:#2f9e44"><span style="width:9px;height:9px;border-radius:50%;background:#2f9e44;display:inline-block"></span> Next Recommended</span>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:center;margin:0.25rem 0">
+            <svg id="g1-body-map" viewBox="0 0 380 250" style="max-width:100%;height:auto;user-select:none"></svg>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed #e5e7eb;font-size:0.75rem;flex-wrap:wrap;gap:0.5rem">
+            <div>
+              <span style="color:#6d7a95">Selected Site: </span>
+              <strong id="g1-selected-site-label" style="color:#534ab7">Abdomen Upper Left</strong>
+            </div>
+            <button type="button" onclick="selectRecommendedSite()" style="border:none;background:#2f9e44;color:#fff;border-radius:6px;padding:0.35rem 0.8rem;font-size:0.72rem;font-weight:700;cursor:pointer">
+              ↺ Select Recommended Site
+            </button>
+          </div>
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
           <div>
             <label style="font-size:0.65rem;font-weight:700;color:#6d7a95;display:block;margin-bottom:0.25rem">MEDICATION</label>
