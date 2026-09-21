@@ -49,6 +49,11 @@ function renderAll() {
   // Expose globally so medication.js can use weight readings for effectiveness calc
   window.allWeightData = allData;
 
+  // Refresh AI summary dynamically from live scale readings
+  if (typeof generateDynamicAISummary === 'function') {
+    generateDynamicAISummary(false);
+  }
+
   // Cache the parsed data so reloads have something to draw if the fetch fails
   try { localStorage.setItem('wt_v2_data', JSON.stringify(allData)); } catch {}
 }
@@ -117,8 +122,189 @@ async function loadData() {
   }
 }
 
-// ── AI Weekly Summary loader ─────────────────────────────────────────
+// ── AI Weekly Summary Engine (Dynamic + Live Scale Data) ─────────────
+function computeAISummaryStats() {
+  if (!allData || !allData.length) return null;
+  const latest = allData[allData.length - 1];
+  const latestWeight = Number(latest.weight);
+  const startWeight = (typeof START_WEIGHT !== 'undefined') ? START_WEIGHT : 315.0;
+  const totalLost = startWeight - latestWeight;
+  const pctLost = ((totalLost / startWeight) * 100).toFixed(1);
+
+  // 14-day window relative to latest reading date
+  const cutoff14d = new Date(latest.date.getTime() - 14 * 86400000);
+  const recent14d = allData.filter(r => r.date >= cutoff14d);
+  let change14d = 0;
+  let ratePerWeek = 0;
+  if (recent14d.length > 1) {
+    const firstInWindow = recent14d[0];
+    const daysDiff = Math.max(1, (latest.date - firstInWindow.date) / 86400000);
+    change14d = latestWeight - Number(firstInWindow.weight);
+    ratePerWeek = (Number(firstInWindow.weight) - latestWeight) / (daysDiff / 7);
+  } else if (allData.length > 1) {
+    const prev = allData[allData.length - 2];
+    change14d = latestWeight - Number(prev.weight);
+    ratePerWeek = -change14d;
+  }
+
+  // Activity & Sleep from window.snapActivityDays
+  const actDays = window.snapActivityDays || [];
+  let avgSteps = null;
+  let avgSleep = null;
+  if (actDays.length) {
+    const recentAct = actDays.slice(-7);
+    const stepDays = recentAct.filter(d => typeof d.steps === 'number' && d.steps > 0);
+    if (stepDays.length) {
+      avgSteps = Math.round(stepDays.reduce((s, d) => s + d.steps, 0) / stepDays.length);
+    }
+    const sleepDays = recentAct.filter(d => typeof d.sleepHours === 'number' && d.sleepHours > 0);
+    if (sleepDays.length) {
+      avgSleep = Number((sleepDays.reduce((s, d) => s + d.sleepHours, 0) / sleepDays.length).toFixed(1));
+    }
+  }
+
+  const dateStr = latest.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return {
+    latestWeight,
+    startWeight,
+    totalLost,
+    pctLost,
+    change14d,
+    ratePerWeek,
+    avgSteps,
+    avgSleep,
+    dateStr,
+    latestDate: latest.date
+  };
+}
+
+function generateLocalAISummaryText(stats) {
+  const lostStr = `${stats.totalLost.toFixed(1)} lbs down from his starting weight (${stats.pctLost}% overall)`;
+  let paceStr;
+  if (stats.ratePerWeek >= 0.5) {
+    paceStr = `Pacing is strong at ${stats.ratePerWeek.toFixed(1)} lbs/week over the last 14 days`;
+  } else if (stats.ratePerWeek > 0) {
+    paceStr = `Weight is progressing steadily at ${stats.ratePerWeek.toFixed(1)} lbs/week over the last 14 days`;
+  } else if (Math.abs(stats.change14d) <= 0.3) {
+    paceStr = `Weight has held stable within ${Math.abs(stats.change14d).toFixed(1)} lbs over the last 14 days`;
+  } else {
+    paceStr = `Weight fluctuated ${stats.change14d > 0 ? '+' : ''}${stats.change14d.toFixed(1)} lbs over the last 14 days as part of normal fluid variance`;
+  }
+
+  let actStr = '';
+  if (stats.avgSteps && stats.avgSleep) {
+    actStr = ` Daily habits remain consistent with an average of ${stats.avgSteps.toLocaleString()} steps and ${stats.avgSleep} hours of sleep nightly.`;
+  } else if (stats.avgSteps) {
+    actStr = ` Activity averaged ${stats.avgSteps.toLocaleString()} daily steps.`;
+  } else if (stats.avgSleep) {
+    actStr = ` Sleep averaged ${stats.avgSleep} hours nightly.`;
+  }
+
+  return `David is currently at ${stats.latestWeight.toFixed(1)} lbs, bringing his total progress to ${lostStr}. ${paceStr}.${actStr} Continue prioritizing lean protein intake, hydration, and steady recovery into the upcoming week.`;
+}
+
+function renderAISummaryToDOM(summaryText, label) {
+  const textEl = document.getElementById('ai-summary-text');
+  const dateEl = document.getElementById('ai-summary-date');
+  if (textEl) textEl.textContent = summaryText;
+  if (dateEl && label) dateEl.textContent = label;
+}
+
+async function generateDynamicAISummary(forceRefresh = false) {
+  const stats = computeAISummaryStats();
+  if (!stats) {
+    return loadAISummary();
+  }
+
+  // Check cached summary from localStorage
+  if (!forceRefresh) {
+    try {
+      const saved = localStorage.getItem('wt_live_ai_summary');
+      if (saved) {
+        const cached = JSON.parse(saved);
+        const age = Date.now() - (cached.timestamp || 0);
+        if (cached.summary && cached.latestWeight === stats.latestWeight && age < 12 * 3600 * 1000) {
+          renderAISummaryToDOM(cached.summary, cached.updatedLabel || 'Live scale data');
+          return;
+        }
+      }
+    } catch {}
+  }
+
+  let summaryText = null;
+
+  // Attempt to call AI Worker endpoint if configured
+  if (window.AI_ASK_WORKER_URL) {
+    try {
+      const digest = [
+        `Latest scale reading (${stats.dateStr}): ${stats.latestWeight.toFixed(1)} lbs`,
+        `Starting weight: ${stats.startWeight.toFixed(1)} lbs (Total lost: ${stats.totalLost.toFixed(1)} lbs, ${stats.pctLost}% body weight)`,
+        `14-day weight change: ${stats.change14d > 0 ? '+' : ''}${stats.change14d.toFixed(1)} lbs (Pace: ${stats.ratePerWeek.toFixed(1)} lbs/week)`,
+        stats.avgSteps ? `7-day average steps: ${stats.avgSteps.toLocaleString()} steps/day` : null,
+        stats.avgSleep ? `7-day average sleep: ${stats.avgSleep} hours/night` : null
+      ].filter(Boolean).join('\n');
+
+      const resp = await fetch(window.AI_ASK_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: 'Write a 3-4 sentence weekly health progress summary for David using ONLY the provided numbers. Mention his current weight, total loss, recent 14-day pacing, and activity/sleep consistency. Keep it clinical, positive, and motivating, with one habit tip for next week.',
+          digest
+        })
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.answer && !json.error) {
+          summaryText = json.answer.trim();
+        }
+      }
+    } catch (err) {
+      console.warn('[AI Summary] Worker call skipped/failed, using local generator:', err);
+    }
+  }
+
+  // Resilient fallback with exact live metrics
+  if (!summaryText) {
+    summaryText = generateLocalAISummaryText(stats);
+  }
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const updatedLabel = `Updated today at ${timeStr} · Live scale data`;
+
+  renderAISummaryToDOM(summaryText, updatedLabel);
+
+  try {
+    localStorage.setItem('wt_live_ai_summary', JSON.stringify({
+      summary: summaryText,
+      latestWeight: stats.latestWeight,
+      updatedLabel,
+      timestamp: Date.now()
+    }));
+  } catch {}
+}
+window.generateDynamicAISummary = generateDynamicAISummary;
+
+// ── AI Weekly Summary initial loader ─────────────────────────────────
 async function loadAISummary() {
+  // 1. Instant paint from cached live summary if available
+  try {
+    const saved = localStorage.getItem('wt_live_ai_summary');
+    if (saved) {
+      const cached = JSON.parse(saved);
+      if (cached.summary) {
+        renderAISummaryToDOM(cached.summary, cached.updatedLabel || 'Live scale data');
+      }
+    }
+  } catch {}
+
+  // 2. If allData is already populated, run dynamic generator
+  if (allData && allData.length > 0) {
+    return generateDynamicAISummary(false);
+  }
+
+  // 3. Fall back to static weekly-summary.json until scale data arrives
   const textEl = document.getElementById('ai-summary-text');
   const dateEl = document.getElementById('ai-summary-date');
   if (!textEl) return;
@@ -126,20 +312,18 @@ async function loadAISummary() {
     const resp = await fetch('./weekly-summary.json?t=' + Date.now());
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-    if (data.summary) {
+    if (data.summary && (!textEl.textContent || textEl.textContent === 'Loading…')) {
       textEl.textContent = data.summary;
       if (dateEl && data.week_ending) {
         const d = new Date(data.week_ending + 'T12:00:00');
         dateEl.textContent = 'Week of ' + d.toLocaleDateString('en-US',
           { month: 'long', day: 'numeric', year: 'numeric' });
       }
-    } else {
-      textEl.textContent = 'Your first AI summary will appear here after the workflow runs on Sunday. '
-        + 'You can also trigger it manually from the GitHub Actions tab.';
-      if (dateEl) dateEl.textContent = 'Not yet generated';
     }
   } catch(e) {
-    if (textEl) textEl.textContent = 'Could not load AI summary (offline or not yet generated).';
+    if (textEl && (!textEl.textContent || textEl.textContent === 'Loading…')) {
+      textEl.textContent = 'Could not load AI summary (offline or scale data pending).';
+    }
   }
 }
 
@@ -176,63 +360,29 @@ init();
 setInterval(loadData, REFRESH_MS);
 loadAISummary();
 
-// ── Manual trigger for the AI Summary workflow ────────────────────────
-// We don't ship a Personal Access Token in client-side JS (the repo is
-// public — that'd leak it instantly). Instead, pop the GitHub Actions
-// page in a new tab where the user is already authenticated and can hit
-// "Run workflow" with one click. After they trigger it, we poll
-// weekly-summary.json every 20s for ~10 minutes so the new summary
-// appears the moment the workflow commits.
-const REPO_ACTIONS_URL =
-  'https://github.com/davelane26/weight-dashboard-v2/actions/workflows/weekly-summary.yml';
-
-function triggerWeeklySummary() {
-  const btn   = document.getElementById('ai-summary-trigger');
+// ── Manual trigger for the AI Summary ─────────────────────────────────
+async function triggerWeeklySummary() {
+  const btn    = document.getElementById('ai-summary-trigger');
   const dateEl = document.getElementById('ai-summary-date');
-
-  // Open the Actions page in a new tab — single click of "Run workflow" there.
-  window.open(REPO_ACTIONS_URL, '_blank', 'noopener');
 
   if (btn) {
     btn.classList.add('is-loading');
     btn.disabled = true;
-    btn.textContent = '⏳ Waiting for new summary…';
+    btn.textContent = '⏳ Generating…';
   }
   if (dateEl) {
-    const prev = dateEl.textContent;
-    dateEl.textContent = 'Run "Weekly AI Health Summary" in the new tab — this page will auto-refresh.';
-    dateEl.dataset.prev = prev;
+    dateEl.textContent = 'Generating fresh AI summary from your live scale data…';
   }
 
-  // Poll the JSON for up to ~10 minutes. As soon as the week_ending
-  // changes (or first appears) we know the workflow finished.
-  const startedAt = Date.now();
-  const POLL_MS   = 20_000;
-  const MAX_MS    = 10 * 60_000;
+  try {
+    await generateDynamicAISummary(true);
+  } catch (err) {
+    console.error('Failed to generate dynamic AI summary:', err);
+    resetTriggerBtn('Generation encountered an issue — please try again.');
+    return;
+  }
 
-  // Capture the current summary so we know when it changes.
-  let baseline = null;
-  fetch('./weekly-summary.json?t=' + Date.now())
-    .then(r => r.ok ? r.json() : null)
-    .then(j => { baseline = j ? j.week_ending + '|' + (j.summary || '').length : ''; })
-    .catch(() => { baseline = ''; });
-
-  const tick = async () => {
-    if (Date.now() - startedAt > MAX_MS) return resetTriggerBtn('Timed out — refresh the page once the workflow finishes.');
-    try {
-      const resp = await fetch('./weekly-summary.json?t=' + Date.now(), { cache: 'no-store' });
-      if (resp.ok) {
-        const j   = await resp.json();
-        const sig = (j.week_ending || '') + '|' + ((j.summary || '').length);
-        if (baseline !== null && sig !== baseline && j.summary) {
-          await loadAISummary();
-          return resetTriggerBtn();
-        }
-      }
-    } catch (e) { /* network blip — try again next tick */ }
-    setTimeout(tick, POLL_MS);
-  };
-  setTimeout(tick, POLL_MS);
+  resetTriggerBtn();
 }
 window.triggerWeeklySummary = triggerWeeklySummary;
 
