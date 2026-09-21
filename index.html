@@ -37,7 +37,17 @@
     window.GOOGLE_APP_ID          = '811571888069';
     window.WEIGHT_WORKER_URL      = window.HEALTH_WORKER_URL + '/weight.json';
   </script>
-  <script>window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});</script>
+  <script>
+    window.authReadyPromise = new Promise(function(r){window._resolveAuthReady=r;});
+    // Auto-bypass auth-overlay for local file preview (file://) or localhost
+    if (location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(location.hostname)) {
+      document.addEventListener('DOMContentLoaded', function() {
+        var overlay = document.getElementById('auth-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (window._resolveAuthReady) { window._resolveAuthReady(null); window._resolveAuthReady = null; }
+      });
+    }
+  </script>
   <script type="module" src="auth.js?v=3"></script>
   <!-- Modular app split -->
   <script src="app-config.js?v=1"   defer></script>
