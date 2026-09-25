@@ -24,9 +24,9 @@ START_WEIGHT      = 315.0
 
 # Supported Anthropic Claude models in priority order
 CLAUDE_MODELS = [
-    "claude-3-5-haiku-20241022",
-    "claude-3-haiku-20240307",
-    "claude-3-5-sonnet-20241022",
+    "claude-sonnet-5",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001",
 ]
 
 

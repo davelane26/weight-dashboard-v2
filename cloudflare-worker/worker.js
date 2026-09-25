@@ -436,7 +436,7 @@ export default {
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({ model: 'claude-3-5-sonnet-20241022', max_tokens: 1500,
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1500,
           messages: [{ role: 'user', content: msgContent }] }),
       });
 
@@ -488,7 +488,7 @@ export default {
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({ model: 'claude-3-5-sonnet-20241022', max_tokens: 300,
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300,
           messages: [{ role: 'user', content: prompt }] }),
       });
 
