@@ -251,14 +251,17 @@
   //    Note: this requires removing those <script> tags from
   //    index.html <head>. Done in companion commit.
   // ─────────────────────────────────────────────────────────────
-  // Only medication.js is lazy now — glucose.js + activity.js feed the
-  // Weight tab snapshot strip, so they must be eager-loaded.
-  const LAZY_TAB_SCRIPTS = {
-    medication: ['medication.js?v=207'],
-  };
+  // All core tab modules (including medication.js) are now eager-loaded in
+  // index.html for instant tab switching and shared state initialization.
+  const LAZY_TAB_SCRIPTS = {};
   const _loaded = new Set();
   function loadScriptOnce(src) {
     if (_loaded.has(src)) return Promise.resolve();
+    const baseSrc = src.split('?')[0];
+    if (document.querySelector(`script[src*="${baseSrc}"]`)) {
+      _loaded.add(src);
+      return Promise.resolve();
+    }
     _loaded.add(src);
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -271,8 +274,13 @@
   }
   function lazyLoadFor(tabName) {
     const list = LAZY_TAB_SCRIPTS[tabName];
-    if (!list) return;
-    list.forEach(src => loadScriptOnce(src));
+    if (!list || !list.length) return Promise.resolve();
+    return Promise.all(list.map(loadScriptOnce)).then(() => {
+      const active = localStorage.getItem('wt_v2_tab');
+      if (active === tabName && typeof window.switchTab === 'function') {
+        window.switchTab(tabName);
+      }
+    }).catch(err => console.warn('Lazy load failed for ' + tabName, err));
   }
 
   // Wrap switchTab once it's defined.

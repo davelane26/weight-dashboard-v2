@@ -125,9 +125,13 @@ function switchTab(name) {
   }
   if (name === 'medication') {
     setTimeout(() => {
-      if (window.medChartInst)   window.medChartInst.resize();
-      if (window.medEffChart)    window.medEffChart.resize();
-      else if (typeof initMedication === 'function') initMedication();
+      if (typeof window.renderMedicationTab === 'function') {
+        window.renderMedicationTab();
+      } else if (typeof window.initMedication === 'function') {
+        window.initMedication();
+      } else if (typeof window.initGlp1 === 'function') {
+        window.initGlp1();
+      }
     }, 50);
   }
   if (name === 'charts') {

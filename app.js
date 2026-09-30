@@ -49,6 +49,12 @@ function renderAll() {
   // Expose globally so medication.js can use weight readings for effectiveness calc
   window.allWeightData = allData;
 
+  // Refresh medication tab live weight and charts if currently visible
+  if (typeof renderMedicationTab === 'function') {
+    const medPanel = document.getElementById('tab-medication');
+    if (medPanel && !medPanel.hidden) renderMedicationTab();
+  }
+
   // Refresh AI summary dynamically from live scale readings
   if (typeof generateDynamicAISummary === 'function') {
     generateDynamicAISummary(false);

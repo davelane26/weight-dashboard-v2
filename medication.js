@@ -91,6 +91,9 @@
       window.renderPlateauRadar();
     }
   }
+  function loadShots() {
+    try { return JSON.parse(localStorage.getItem(GLP1_KEY)) || []; } catch(e) { return []; }
+  }
   function saveShots(s) {
     localStorage.setItem(GLP1_KEY, JSON.stringify(s));
     notifyShotsChanged();
@@ -480,6 +483,8 @@
         }
       }
     });
+    window.g1PkChart = g1PkChart;
+    window.medChartInst = g1PkChart;
   }
 
   // ── Shot reminder banner ──────────────────────────────────────────────────
@@ -596,6 +601,7 @@
           }
         }
       });
+      window.g1WeightTrendChart = g1WeightTrendChart;
     }
 
     // ── Weekly change bar chart ───────────────────────────────────────────
@@ -636,6 +642,7 @@
           }
         }
       });
+      window.g1WeightChangeChart = g1WeightChangeChart;
     }
   }
 
@@ -1114,12 +1121,25 @@
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  let _glp1Initialized = false;
+
+  function renderMedicationTab() {
+    if (!_glp1Initialized) {
+      initGlp1();
+    } else {
+      switchMedTab(activeMedTab || 'dashboard');
+    }
+  }
+
   function initGlp1() {
+    _glp1Initialized = true;
     seed();
-    switchMedTab('dashboard');
+    switchMedTab(activeMedTab || 'dashboard');
     syncShotsWithCloud();
     if (!window._glp1Interval) {
       window._glp1Interval = setInterval(() => {
+        const panel = document.getElementById('tab-medication');
+        if (panel && panel.hidden) return;
         if (activeMedTab === 'dashboard') renderGlp1Dashboard();
         if (activeMedTab === 'phases')    renderGlp1Dial();
       }, 60000);
@@ -1132,8 +1152,31 @@
     }
   }
 
-  // Preserved name for app-tabs.js compatibility
-  function initMedication() { initGlp1(); }
-  window.initMedication = initMedication;
-  window.initGlp1       = initGlp1;
+  function bootMedication() {
+    seed();
+    if (!window._glp1AuthListener) {
+      window._glp1AuthListener = true;
+      document.addEventListener('firebase-auth-changed', () => syncShotsWithCloud());
+    }
+    syncShotsWithCloud();
+
+    // If medication tab is already active on boot, initialize and render it
+    const activeTab = localStorage.getItem('wt_v2_tab');
+    const panel = document.getElementById('tab-medication');
+    if (activeTab === 'medication' || (panel && !panel.hidden)) {
+      renderMedicationTab();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootMedication);
+  } else {
+    bootMedication();
+  }
+
+  // Preserved names for app-tabs.js and legacy compatibility
+  window.renderMedicationTab = renderMedicationTab;
+  window.renderMedication    = renderMedicationTab;
+  window.initMedication      = renderMedicationTab;
+  window.initGlp1            = renderMedicationTab;
 })();
