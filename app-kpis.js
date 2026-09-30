@@ -53,8 +53,8 @@ function renderKPIs(latest, prev) {
   const latestFat = dynCompLatest != null ? dynCompLatest.bodyFatPct : (ratioFatLatest != null ? ratioFatLatest : offsetFatLatest);
   const prevFat   = dynCompPrev   != null ? dynCompPrev.bodyFatPct   : (ratioFatPrev   != null ? ratioFatPrev   : offsetFatPrev);
 
-  const latestMuscle = latest.muscle  != null ? latest.muscle + muscleOffset : null;
-  const prevMuscle   = prev?.muscle   != null ? prev.muscle   + muscleOffset : null;
+  const latestMuscle = (latest.muscle != null && latest.muscle > 5) ? latest.muscle + muscleOffset : null;
+  const prevMuscle   = (prev?.muscle   != null && prev.muscle   > 5) ? prev.muscle   + muscleOffset : null;
 
   latestFat != null ? countUp('kpi-fat', latestFat, 1, '%') : setText('kpi-fat', '—');
   const fd = prevFat != null && latestFat != null ? latestFat - prevFat : null;

@@ -173,12 +173,19 @@
     // it stays a chart reference marker only, never a calibration input.
     const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
     const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
-    const latest = filtered[filtered.length - 1];
-    const first  = filtered[0];
-    const latestFat    = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
-    const firstFat     = first.bodyFat  != null ? first.bodyFat  + fatOffset : null;
-    const latestMuscle = latest.muscle  != null ? latest.muscle  + muscleOffset : null;
-    const firstMuscle  = first.muscle   != null ? first.muscle   + muscleOffset : null;
+    const isValidPct   = v => typeof v === 'number' && !isNaN(v) && v > 5 && v < 80;
+
+    const validFat        = filtered.filter(r => isValidPct(r.bodyFat));
+    const validMuscle     = filtered.filter(r => isValidPct(r.muscle));
+    const latestFatRow    = validFat.length ? validFat[validFat.length - 1] : null;
+    const firstFatRow     = validFat.length ? validFat[0] : null;
+    const latestMuscleRow = validMuscle.length ? validMuscle[validMuscle.length - 1] : null;
+    const firstMuscleRow  = validMuscle.length ? validMuscle[0] : null;
+
+    const latestFat    = latestFatRow ? latestFatRow.bodyFat + fatOffset : null;
+    const firstFat     = firstFatRow  ? firstFatRow.bodyFat  + fatOffset : null;
+    const latestMuscle = latestMuscleRow ? latestMuscleRow.muscle + muscleOffset : null;
+    const firstMuscle  = firstMuscleRow  ? firstMuscleRow.muscle  + muscleOffset : null;
     const fmt = v => (v == null || isNaN(v)) ? '—' : v.toFixed(1) + '%';
     const sgn = (d) => (d == null || isNaN(d)) ? ''
       : (d > 0 ? '+' : '') + d.toFixed(1) + ' pp';
@@ -217,9 +224,10 @@
 
     const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
     const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
+    const isValidPct   = v => typeof v === 'number' && !isNaN(v) && v > 5 && v < 80;
     const labels = filtered.map(r => fmtDateShort(r.date));
-    const fat    = filtered.map(r => r.bodyFat != null ? r.bodyFat + fatOffset    : null);
-    const muscle = filtered.map(r => r.muscle  != null ? r.muscle  + muscleOffset : null);
+    const fat    = filtered.map(r => isValidPct(r.bodyFat) ? r.bodyFat + fatOffset    : null);
+    const muscle = filtered.map(r => isValidPct(r.muscle)  ? r.muscle  + muscleOffset : null);
 
     // DEXA reference point(s): plotted at the nearest matching date in
     // `filtered` since the chart's x-axis is a category axis of that

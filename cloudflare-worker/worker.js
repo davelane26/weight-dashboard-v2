@@ -856,13 +856,13 @@ function convertOpenScaleMeasurement(m) {
   if (typeof byKey.tdee === 'number') entry.tdee = round2(byKey.tdee);
   if (typeof byKey.bone === 'number') entry.bone = round2(byKey.bone * KG_TO_LBS);
   const bodyFat = typeof m.body_fat === 'number' ? m.body_fat : byKey.body_fat;
-  if (typeof bodyFat === 'number') entry.bodyFat = bodyFat;
+  if (typeof bodyFat === 'number' && bodyFat > 5 && bodyFat < 80) entry.bodyFat = bodyFat;
   const muscle = typeof m.muscle === 'number' ? m.muscle : byKey.muscle;
-  if (typeof muscle === 'number') entry.muscle = muscle;
+  if (typeof muscle === 'number' && muscle > 5 && muscle < 80) entry.muscle = muscle;
   const water = typeof m.water === 'number' ? m.water : byKey.water;
-  if (typeof water === 'number') entry.water = water;
+  if (typeof water === 'number' && water > 5 && water < 90) entry.water = water;
   const impedance = typeof m.impedance === 'number' ? m.impedance : byKey.impedance;
-  if (typeof impedance === 'number') entry.impedance = impedance;
+  if (typeof impedance === 'number' && impedance > 100) entry.impedance = impedance;
 
   return entry;
 }
