@@ -182,10 +182,44 @@
     const latestMuscleRow = validMuscle.length ? validMuscle[validMuscle.length - 1] : null;
     const firstMuscleRow  = validMuscle.length ? validMuscle[0] : null;
 
-    const latestFat    = latestFatRow ? latestFatRow.bodyFat + fatOffset : null;
-    const firstFat     = firstFatRow  ? firstFatRow.bodyFat  + fatOffset : null;
+    const latestRow   = filtered[filtered.length - 1];
+    const firstRow    = filtered[0];
+    const allDataList = (typeof allData !== 'undefined' && Array.isArray(allData)) ? allData : [];
+
+    const dexaScan = (typeof DexaCal !== 'undefined' && DexaCal.getScan) ? DexaCal.getScan() : null;
+    const dexaTime = dexaScan ? new Date(dexaScan.date + 'T00:00:00').getTime() : 0;
+
+    // Dynamic composition for latest reading (matches main dashboard Body Fat & Lean Mass KPIs)
+    const dynCompLatest = (typeof DexaCal !== 'undefined' && DexaCal.calculateDynamicComposition && latestRow)
+      ? DexaCal.calculateDynamicComposition(latestRow, allDataList)
+      : null;
+
+    // Dynamic composition for first reading in active filter
+    const historyUpToFirst = firstRow?.date
+      ? allDataList.filter(d => d.date && d.date.getTime() <= firstRow.date.getTime())
+      : [];
+    const dynCompFirst = (typeof DexaCal !== 'undefined' && DexaCal.calculateDynamicComposition && firstRow)
+      ? DexaCal.calculateDynamicComposition(firstRow, historyUpToFirst)
+      : null;
+
+    const isPostDexaLatest = dexaTime && latestRow?.date && latestRow.date.getTime() >= dexaTime;
+    const isPostDexaFirst  = dexaTime && firstRow?.date  && firstRow.date.getTime()  >= dexaTime;
+
+    const latestFat = (isPostDexaLatest && dynCompLatest?.bodyFatPct != null)
+      ? dynCompLatest.bodyFatPct
+      : (latestFatRow ? latestFatRow.bodyFat + fatOffset : (dynCompLatest?.bodyFatPct ?? null));
+
+    const firstFat = (isPostDexaFirst && dynCompFirst?.bodyFatPct != null)
+      ? dynCompFirst.bodyFatPct
+      : (firstFatRow ? firstFatRow.bodyFat + fatOffset : (dynCompFirst?.bodyFatPct ?? null));
+
     const latestMuscle = latestMuscleRow ? latestMuscleRow.muscle + muscleOffset : null;
     const firstMuscle  = firstMuscleRow  ? firstMuscleRow.muscle  + muscleOffset : null;
+
+    const latestLean = dynCompLatest?.leanMass ?? null;
+    const firstLean  = dynCompFirst?.leanMass  ?? null;
+    const leanDelta  = (latestLean != null && firstLean != null) ? +(latestLean - firstLean).toFixed(1) : null;
+
     const fmt = v => (v == null || isNaN(v)) ? '—' : v.toFixed(1) + '%';
     const sgn = (d) => (d == null || isNaN(d)) ? ''
       : (d > 0 ? '+' : '') + d.toFixed(1) + ' pp';
@@ -208,12 +242,30 @@
     setColored('ra-bc-fat-delta',    sgn(fatDelta),    /*goodIfNeg*/ true);
     setColored('ra-bc-muscle-delta', sgn(muscleDelta), /*goodIfNeg*/ false);
 
+    // Lean Body Mass (DEXA Dynamic Anchor)
+    const leanEl = $('ra-bc-lean');
+    if (leanEl) leanEl.textContent = latestLean != null ? latestLean.toFixed(1) + ' lbs' : '—';
+    const leanDeltaEl = $('ra-bc-lean-delta');
+    if (leanDeltaEl) {
+      if (dynCompLatest?.hasMuscleLossAlert) {
+        leanDeltaEl.innerHTML = '<span style="color:#ef4444">⚠️ Alert</span>';
+      } else {
+        const dText = leanDelta != null && Math.abs(leanDelta) >= 0.1 ? ` (${(leanDelta > 0 ? '+' : '') + leanDelta.toFixed(1)} lb)` : '';
+        leanDeltaEl.innerHTML = `<span style="color:#34d399">🛡️ Protected</span>${dText}`;
+      }
+    }
+    const leanRollingEl = $('ra-bc-lean-rolling');
+    if (leanRollingEl && dynCompLatest?.avgScaleLBM != null) {
+      leanRollingEl.textContent = `7d roll: ${dynCompLatest.avgScaleLBM} lbs`;
+    }
+
     const summary = $('ra-bc-summary');
     if (summary) {
       const days = rangeDays();
+      const statusIcon = dynCompLatest?.hasMuscleLossAlert ? '⚠️' : '🛡️';
       summary.textContent = days
-        ? `Last ${days} days · ${filtered.length} readings`
-        : `All-time · ${filtered.length} readings`;
+        ? `Last ${days} days · ${filtered.length} readings · ${statusIcon} Dynamic DEXA`
+        : `All-time · ${filtered.length} readings · ${statusIcon} Dynamic DEXA`;
     }
   }
 
@@ -226,24 +278,47 @@
     const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
     const isValidPct   = v => typeof v === 'number' && !isNaN(v) && v > 5 && v < 80;
     const labels = filtered.map(r => fmtDateShort(r.date));
-    const fat    = filtered.map(r => isValidPct(r.bodyFat) ? r.bodyFat + fatOffset    : null);
-    const muscle = filtered.map(r => isValidPct(r.muscle)  ? r.muscle  + muscleOffset : null);
 
-    // DEXA reference point(s): plotted at the nearest matching date in
-    // `filtered` since the chart's x-axis is a category axis of that
-    // array's dates, not a continuous time scale. Lean % (whole-body) and
-    // Muscle-comparable % (appendicular) are two different DEXA numbers —
-    // plotted as separate markers, never blended together.
+    const allDataList = (typeof allData !== 'undefined' && Array.isArray(allData)) ? allData : [];
     const dexaScan = (typeof DexaCal !== 'undefined' && DexaCal.getScan) ? DexaCal.getScan() : null;
+    const dexaTime = dexaScan ? new Date(dexaScan.date + 'T00:00:00').getTime() : 0;
+
+    // Compute dynamic composition for each point in filtered
+    const dynCompArr = filtered.map(r => {
+      if (typeof DexaCal !== 'undefined' && DexaCal.calculateDynamicComposition && r.weight) {
+        const historySlice = allDataList.filter(d => d.date && d.date.getTime() <= r.date.getTime());
+        return DexaCal.calculateDynamicComposition(r, historySlice);
+      }
+      return null;
+    });
+
+    // Primary Body Fat line: uses Dynamic DEXA engine from scan date onward
+    const fat = filtered.map((r, i) => {
+      const dyn = dynCompArr[i];
+      const isPostDexa = dexaTime && r.date && r.date.getTime() >= dexaTime;
+      if (isPostDexa && dyn && dyn.bodyFatPct != null) {
+        return dyn.bodyFatPct;
+      }
+      return isValidPct(r.bodyFat) ? +(r.bodyFat + fatOffset).toFixed(1) : (dyn ? dyn.bodyFatPct : null);
+    });
+
+    // Scale Fat % (calibrated with offset) — hidden by default, click legend to overlay
+    const scaleFat = filtered.map(r => isValidPct(r.bodyFat) ? +(r.bodyFat + fatOffset).toFixed(1) : null);
+
+    // Muscle % (skeletal)
+    const muscle = filtered.map(r => isValidPct(r.muscle) ? +(r.muscle + muscleOffset).toFixed(1) : null);
+
+    // DEXA reference point(s)
     let dexaFatArr = null, dexaLeanArr = null, dexaMuscleArr = null;
     if (dexaScan) {
-      const dexaTime = new Date(dexaScan.date + 'T12:00:00').getTime();
+      const dexaScanTime = new Date(dexaScan.date + 'T12:00:00').getTime();
       let bestIdx = -1, bestDiff = Infinity;
       filtered.forEach((r, i) => {
-        const diff = Math.abs(r.date.getTime() - dexaTime);
+        const diff = Math.abs(r.date.getTime() - dexaScanTime);
         if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
       });
-      if (bestIdx >= 0) {
+      // Only plot DEXA reference markers if the closest reading is within 7 days of scan date
+      if (bestIdx >= 0 && bestDiff <= 7 * 86_400_000) {
         dexaFatArr    = filtered.map((_, i) => i === bestIdx ? dexaScan.fatPct     : null);
         dexaLeanArr   = filtered.map((_, i) => i === bestIdx ? dexaScan.leanPct    : null);
         dexaMuscleArr = (dexaScan.musclePct != null)
@@ -269,16 +344,30 @@
         labels,
         datasets: [
           {
-            label: 'Body Fat %',
+            label: 'Body Fat % (Dynamic DEXA)',
             data: fat,
             borderColor: FAT_COLOR,
             backgroundColor: FAT_COLOR,
             fill: false,
             tension: 0.25,
-            borderWidth: 2,
+            borderWidth: 2.2,
             pointRadius: filtered.length < 40 ? 2.5 : 0,
             pointHoverRadius: 5,
             spanGaps: true,
+          },
+          {
+            label: 'Scale Fat % (calibrated)',
+            data: scaleFat,
+            borderColor: 'rgba(248, 113, 113, 0.40)',
+            backgroundColor: 'rgba(248, 113, 113, 0.40)',
+            borderDash: [3, 3],
+            fill: false,
+            tension: 0.2,
+            borderWidth: 1.5,
+            pointRadius: filtered.length < 40 ? 2 : 0,
+            pointHoverRadius: 4,
+            spanGaps: true,
+            hidden: true, // Click legend to compare raw scale vs dynamic
           },
           {
             label: 'Skeletal Muscle %',
@@ -352,6 +441,16 @@
               label: c => c.parsed.y != null
                 ? ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`
                 : null,
+              afterBody: items => {
+                if (!items || !items.length) return '';
+                const idx = items[0].dataIndex;
+                const dyn = dynCompArr[idx];
+                if (dyn && dyn.leanMass != null) {
+                  const status = dyn.hasMuscleLossAlert ? '⚠️ Catabolism Alert' : '🛡️ Lean Protected';
+                  return `\n Lean Mass: ${dyn.leanMass.toFixed(1)} lbs (${status})`;
+                }
+                return '';
+              },
             },
           },
         },

@@ -52,7 +52,7 @@
   <!-- Modular app split -->
   <script src="app-config.js?v=1"   defer></script>
   <script src="app-utils.js?v=6"    defer></script>
-  <script src="app-tabs.js?v=4"     defer></script>
+  <script src="app-tabs.js?v=5"     defer></script>
   <script src="app-kpis.js?v=2"     defer></script>
   <script src="app-charts.js?v=1"   defer></script>
   <script src="multi-window-trends.js?v=6" defer></script>
@@ -72,7 +72,7 @@
   <script src="photo-picker.js?v=1" defer></script>
   <script src="charts-tab.js?v=2" defer></script>
   <script src="dexa.js?v=1" defer></script>
-  <script src="rate-analysis.js?v=5" defer></script>
+  <script src="rate-analysis.js?v=6" defer></script>
   <script src="medication.js?v=208" defer></script>
   <script src="titration-utils.js?v=4" defer></script>
   <script src="events.js?v=2" defer></script>
@@ -731,11 +731,17 @@
         <h2 style="color:#f1f5f9;font-size:1.1rem;font-weight:800;margin:0">💪 Body Composition</h2>
         <span id="ra-bc-summary" style="font-size:0.7rem;color:#64748b;font-weight:600">—</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.55rem;margin-bottom:1rem">
         <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
           <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Body Fat</p>
           <p id="ra-bc-fat" style="font-size:1.25rem;font-weight:900;color:#f1f5f9;line-height:1">—</p>
           <p id="ra-bc-fat-delta" style="font-size:0.65rem;font-weight:700;margin-top:0.2rem"></p>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
+          <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Lean Mass</p>
+          <p id="ra-bc-lean" style="font-size:1.25rem;font-weight:900;color:#38bdf8;line-height:1">—</p>
+          <p id="ra-bc-lean-delta" style="font-size:0.65rem;font-weight:700;margin-top:0.2rem;color:#34d399">Protected</p>
+          <p id="ra-bc-lean-rolling" style="font-size:0.55rem;color:#64748b;margin-top:0.25rem"></p>
         </div>
         <div style="background:#1e293b;border-radius:12px;padding:0.8rem 0.7rem">
           <p style="font-size:0.58rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Muscle</p>
@@ -746,7 +752,7 @@
       <div style="position:relative;height:340px;margin:0 -0.25rem">
         <canvas id="ra-bodycomp-chart" aria-label="Body fat percent and skeletal muscle percent over time"></canvas>
       </div>
-      <p style="font-size:0.65rem;color:#334155;margin-top:0.75rem;text-align:center">Body fat ↓ + muscle ↑ = losing fat, not muscle. 🎯</p>
+      <p style="font-size:0.65rem;color:#64748b;margin-top:0.75rem;text-align:center">Body fat ↓ + muscle ↑ = losing fat, not muscle · Clinically anchored to July 27 DEXA (5% cushion) 🎯</p>
 
       <!-- DEXA Scan Calibration -->
       <div style="margin-top:1.5rem;background:#1e293b;border-radius:12px;padding:1rem 1.1rem;border:1px solid #334155">

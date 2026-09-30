@@ -137,6 +137,7 @@ function switchTab(name) {
   if (name === 'charts') {
     setTimeout(() => {
       if (allData.length && typeof renderChartsTab === 'function') renderChartsTab(allData);
+      if (typeof window.renderRateAnalysis === 'function') window.renderRateAnalysis();
     }, 0);
   }
   if (name === 'workout') {

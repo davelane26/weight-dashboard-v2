@@ -204,5 +204,55 @@ All changes and implementations have been completed strictly within `C:\Projects
   - `bannerNextSite: Abdomen Lower Right`
   - `hasPkChart: true`
 
+---
+
+## 8. Charts Tab: Dynamic Body Composition Engine Alignment
+
+### Problem Addressed
+- Earlier today, the **Dynamic Body Composition Engine** was created and connected to the main dashboard's KPIs (anchoring to the July 27 clinical DEXA scan, adding a 5% connective support cushion, and enforcing the 7-day rolling impedance catabolism protection gate).
+- However, the **Charts tab** (`rate-analysis.js` and `index.html`) was still using the legacy constant-offset formula (`r.bodyFat + fatOffset`):
+  1. The KPI card (`#ra-bc-fat`) showed a different number from the main dashboard's 31.0%.
+  2. The pink line (`Body Fat %`) on the chart swung daily with raw bioelectrical impedance fluctuations rather than tracking the calibrated dynamic anchor.
+  3. Dynamic Lean Body Mass and the 7-day rolling indicator were completely absent from the Charts tab.
+
+### Implemented Solutions
+1. **Dynamic KPI Synchronization (`rate-analysis.js`)**:
+   - `renderBodyCompKPIs(filtered)` now queries `DexaCal.calculateDynamicComposition(latestRow, allDataList)` and `DexaCal.calculateDynamicComposition(firstRow, historyUpToFirst)`.
+   - `#ra-bc-fat` updates dynamically to match the main dashboard's anchored body fat percentage (`31.0%`).
+   - `#ra-bc-fat-delta` calculates the true net percentage-point change across the active filter period (e.g. 1M, 3M, 6M, All).
+   - `#ra-bc-muscle` and `#ra-bc-muscle-delta` remain calibrated to skeletal muscle percentage.
+   - Added `#ra-bc-lean` displaying anchored Lean Body Mass (e.g. `172.8 lbs`), with `#ra-bc-lean-delta` (`🛡️ Protected (-0.1 lb)` or `⚠️ Alert`), and `#ra-bc-lean-rolling` (`7d roll: XXX.X lbs`).
+   - `#ra-bc-summary` reflects the dynamic DEXA engine: `Last X days · N readings · 🛡️ Dynamic DEXA`.
+2. **Dynamic Chart Trajectory (`rate-analysis.js`)**:
+   - Primary curve renamed to **`Body Fat % (Dynamic DEXA)`**, plotting the smooth anchored curve derived from `DexaCal.calculateDynamicComposition(r, historySlice)` from the DEXA scan date forward.
+   - Added **`Scale Fat % (calibrated)`** as a secondary subtle dashed series (`hidden: true` by default in Chart.js legend). Users can tap it in the legend at any time to compare their raw daily scale swings against the smooth dynamic DEXA trend.
+   - Enhanced Chart.js tooltip with an `afterBody` callback that surfaces the exact anchored **Lean Mass (lbs)** and catabolism protection status on hover for any date.
+   - Guarded DEXA reference star markers to only render when the DEXA scan date falls within the selected time window (within 7 days).
+3. **UI Layout Enhancements (`index.html`)**:
+   - Upgraded the Body Composition card row from 2 to 3 columns (`repeat(3, 1fr)`):
+     - **Card 1: Body Fat** (`#ra-bc-fat`, `#ra-bc-fat-delta`, `#ra-bc-fat-sub: DEXA Dynamic`)
+     - **Card 2: Lean Mass** (`#ra-bc-lean`, `#ra-bc-lean-delta: Protected / Alert`, `#ra-bc-lean-rolling`)
+     - **Card 3: Muscle** (`#ra-bc-muscle`, `#ra-bc-muscle-delta`)
+   - Updated chart footer note: `Body fat ↓ + muscle ↑ = losing fat, not muscle · Clinically anchored to July 27 DEXA (5% cushion) 🎯`.
+   - Bumped `rate-analysis.js?v=6` and `app-tabs.js?v=5`.
+4. **Instant Tab Switch (`app-tabs.js`)**:
+   - Added explicit call to `renderRateAnalysis()` inside `switchTab('charts')` so the Body Composition chart and KPIs refresh immediately without relying solely on listener hooks.
+
+### Verification
+- Tested via headless Microsoft Edge DOM dump:
+  - `ra-bc-fat`: `31.1%` (exact dynamic anchor match)
+  - `ra-bc-fat-delta`: `-0.4 pp` (colored green `#34d399`)
+  - `ra-bc-lean`: `172.8 lbs`
+  - `ra-bc-lean-delta`: `🛡️ Protected (-0.1 lb)`
+  - `ra-bc-lean-rolling`: `7d roll: 177.7 lbs`
+  - `ra-bc-muscle`: `37.7%`
+  - `ra-bc-muscle-delta`: `+0.9 pp` (colored green `#34d399`)
+  - `ra-bc-summary`: `All-time · 4 readings · 🛡️ Dynamic DEXA`
+  - Chart datasets verified:
+    - `Body Fat % (Dynamic DEXA)`: `[31.5, 31.3, 31.1, 31.1]`
+    - `Scale Fat % (calibrated)`: `[31.5, 31.9, 32.1, 32.5]` (`hidden: true`)
+    - `Skeletal Muscle %`: `[36.8, 37.5, 37.6, 37.7]`
+    - `DEXA Fat %`, `DEXA Lean %`, `DEXA Muscle-comparable %`: star reference points preserved.
+
 
 
