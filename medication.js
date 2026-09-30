@@ -82,8 +82,19 @@
   ];
 
   // ── Storage ───────────────────────────────────────────────────────────────
-  function loadShots()     { try { return JSON.parse(localStorage.getItem(GLP1_KEY)) || []; } catch(e) { return []; } }
-  function saveShots(s)    { localStorage.setItem(GLP1_KEY, JSON.stringify(s)); }
+  function notifyShotsChanged() {
+    window.dispatchEvent(new CustomEvent('shotsUpdated'));
+    if (window.TitrationUtils && typeof window.TitrationUtils.runProjectorRenderers === 'function') {
+      window.TitrationUtils.runProjectorRenderers();
+    }
+    if (typeof window.renderPlateauRadar === 'function') {
+      window.renderPlateauRadar();
+    }
+  }
+  function saveShots(s) {
+    localStorage.setItem(GLP1_KEY, JSON.stringify(s));
+    notifyShotsChanged();
+  }
   function loadSymptoms()  { try { return JSON.parse(localStorage.getItem(SYM_KEY))  || []; } catch(e) { return []; } }
   function saveSymptoms(s) { localStorage.setItem(SYM_KEY, JSON.stringify(s)); }
   function loadSupply()    { try { return JSON.parse(localStorage.getItem(SUP_KEY))  || {}; } catch(e) { return {}; } }

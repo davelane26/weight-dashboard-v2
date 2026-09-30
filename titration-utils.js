@@ -192,6 +192,7 @@
     slopePerWeek,
     slopePerWeekClean,
     registerProjectorRenderer,
+    runProjectorRenderers,
   };
 
   // ── Projector-card render orchestration ────────────────────

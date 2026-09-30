@@ -167,5 +167,7 @@ All changes and implementations have been completed strictly within `C:\Projects
    - `STALL IMMINENT` is now strictly reserved for situations where pace is actually near or below the trigger floor ($< 1.3\text{ lb/wk}$ and runway $\le 3\text{ weeks}$, or pace $\le 1.0\text{ lb/wk}$).
 4. **Current Dose Badge & Context**:
    - Added dose context (`on 10mg`) and clear gathering messaging for newly titrated dose phases.
+5. **Real-time Shot Sync Bridge**:
+   - Connected `medication.js` and `titration-utils.js` so that when shots are pulled from Firebase or logged, `plateau-radar.js` and other projector cards refresh in real time with the active dose.
 
 

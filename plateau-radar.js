@@ -357,5 +357,10 @@
       const t = setInterval(() => { if (installHook() || ++tries > 40) clearInterval(t); }, 100);
     }
     if (TU.registerProjectorRenderer) TU.registerProjectorRenderer(render);
+    window.addEventListener('shotsUpdated', () => {
+      requestAnimationFrame(() => {
+        try { render(); } catch (e) { console.warn('[plateau-radar]', e); }
+      });
+    });
   });
 })();
