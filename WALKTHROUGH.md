@@ -170,4 +170,39 @@ All changes and implementations have been completed strictly within `C:\Projects
 5. **Real-time Shot Sync Bridge**:
    - Connected `medication.js` and `titration-utils.js` so that when shots are pulled from Firebase or logged, `plateau-radar.js` and other projector cards refresh in real time with the active dose.
 
+---
+
+## 7. Medication Tab Instant Population Fix
+
+### Problem Addressed
+- Selecting the Medication tab (`#tab-btn-medication`) did not populate cards, PK concentration curves, or KPIs until the user hard-refreshed the page.
+- **Root Causes**:
+  1. **Missing `loadShots()` in `medication.js`**: In a previous commit, the `function loadShots()` definition was accidentally deleted when hooking `saveShots()` to `notifyShotsChanged()`, causing calls in `renderGlp1Dashboard()` to throw an uncaught `ReferenceError: loadShots is not defined`.
+  2. **Asynchronous Lazy Load Race Condition**: `medication.js` was isolated in `enhancements.js` as the sole lazy-loaded script via `LAZY_TAB_SCRIPTS`. When `switchTab('medication')` was invoked synchronously, a 50ms `setTimeout` ran before the script finished downloading over the network, finding `window.initMedication` undefined and abandoning rendering.
+  3. **Obsolete Chart Resizers in `app-tabs.js`**: `switchTab` checked legacy v1 identifiers (`window.medChartInst`, `window.medEffChart`) with an `else if` guard that bypassed `initMedication()` if either evaluated truthy.
+
+### Implemented Solutions
+1. **Restored `loadShots()` in [`medication.js`](file:///c:/Projects/weight-dashboard-v2/medication.js)**:
+   - Restored `function loadShots() { try { return JSON.parse(localStorage.getItem(GLP1_KEY)) || []; } catch(e) { return []; } }`.
+2. **Eager-Loaded `medication.js` in [`index.html`](file:///c:/Projects/weight-dashboard-v2/index.html)**:
+   - Added `<script src="medication.js?v=208" defer></script>` alongside all other tab modules in `<head>`.
+   - Cleared `LAZY_TAB_SCRIPTS` in [`enhancements.js`](file:///c:/Projects/weight-dashboard-v2/enhancements.js) and made script loaders promise-aware.
+3. **Clean Tab Activation in [`app-tabs.js`](file:///c:/Projects/weight-dashboard-v2/app-tabs.js)**:
+   - Updated `switchTab('medication')` to cleanly call `window.renderMedicationTab() || window.initMedication() || window.initGlp1()`.
+4. **Boot Initialization & Live Refresh**:
+   - Added `bootMedication()` to initialize seeds and listen for Firebase auth events on initial page load.
+   - Added `renderMedicationTab()` hook in `renderAll()` in [`app.js`](file:///c:/Projects/weight-dashboard-v2/app.js) so live weight readings propagate immediately to medication cards.
+
+### Verification
+- Ran real headless Microsoft Edge execution with HTTP callback capturing DOM state immediately upon `switchTab('medication')`.
+- Verified all cards, PK curve chart (`g1PkChart`), next site rotation, and KPIs populate instantaneously with 0ms lag:
+  - `tabHidden: false`
+  - `totalShots: 19`
+  - `phase: Descent (34h into phase)`
+  - `nextShot: Due now`
+  - `dose: 7.5`
+  - `bannerNextSite: Abdomen Lower Right`
+  - `hasPkChart: true`
+
+
 
