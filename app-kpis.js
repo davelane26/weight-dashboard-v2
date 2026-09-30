@@ -75,20 +75,20 @@ function renderKPIs(latest, prev) {
   const unitEl = document.getElementById('kpi-fat-unit');
   if (unitEl) {
     unitEl.textContent = dynCompLatest != null
-      ? '% of total weight (DEXA dynamic method)'
+      ? '% of total weight (DEXA dynamic anchor)'
       : (ratioFatLatest != null ? '% of total weight (DEXA ratio method)' : '% of total weight (calibrated)');
   }
 
-  // Sanity-check line: flags divergence >2pp as a "schedule another DEXA" hint.
-  const sanityEl = document.getElementById('kpi-fat-sanity');
-  if (sanityEl) {
-    if (latestFat != null && offsetFatLatest != null) {
-      const gap = Math.abs(latestFat - offsetFatLatest);
-      const flag = gap > 2 ? ' - drift >2pp, recalibrate' : '';
-      sanityEl.textContent = 'sanity: ' + offsetFatLatest.toFixed(1) + '% (offset method)' + flag;
-      sanityEl.style.display = '';
+  // 7-day rolling scale Lean Body Mass indicator (dynamic catabolism watch reference)
+  const rollingEl = document.getElementById('kpi-fat-rolling-lbm') || document.getElementById('kpi-fat-sanity');
+  if (rollingEl) {
+    if (dynCompLatest?.avgScaleLBM != null) {
+      const isProtected = dynCompLatest.avgScaleLBM >= 170.0;
+      rollingEl.innerHTML = `${isProtected ? '🛡️' : '⚠️'} 7d rolling lean: <strong>${dynCompLatest.avgScaleLBM} lbs</strong>`;
+      rollingEl.title = `7-day rolling average of scale Lean Body Mass (${dynCompLatest.avgScaleLBM} lbs). Catabolism watch threshold: < 170.0 lbs + impedance > 520 Ω.`;
+      rollingEl.style.display = '';
     } else {
-      sanityEl.style.display = 'none';
+      rollingEl.style.display = 'none';
     }
   }
 

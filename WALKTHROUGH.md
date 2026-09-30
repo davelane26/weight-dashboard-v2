@@ -127,7 +127,8 @@ All changes and implementations have been completed strictly within `C:\Projects
    - Implemented `calculateDynamicComposition(todayRow, history)` and exposed via `window.DexaCal.calculateDynamicComposition`, `window.DexaCal.getDynamicComposition`, and `window.calculateDynamicComposition`.
 2. **[app-kpis.js](file:///c:/Projects/weight-dashboard-v2/app-kpis.js)**:
    - Primary Body Fat KPI (`#kpi-fat`) and Fat Mass (`#kpi-fat-lbs`) driven by dynamic composition.
-   - Dynamic unit subtext: `(DEXA dynamic method)`.
+   - Dynamic unit subtext: `(DEXA dynamic anchor)`.
+   - Replaced legacy offset sanity check with **7-day rolling scale lean mass indicator** (`#kpi-fat-rolling-lbm`): surfaces `🛡️ 7d rolling lean: XXX.X lbs` (or `⚠️` if under 170.0 lbs threshold) with tooltip explanation.
    - Dynamic Muscle Catabolism Warning Banner (`#kpi-catabolism-alert`): Surfaces immediately if `hasMuscleLossAlert` is tripped.
    - Added Lean Body Mass KPI Card (`#kpi-lean-lbs`) in the collapsible metrics drawer, showing live anchored lean mass with a "Protected" / "⚠️ Alert" status badge.
 3. **[index.html](file:///c:/Projects/weight-dashboard-v2/index.html)**:
