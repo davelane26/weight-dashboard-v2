@@ -53,7 +53,7 @@
   <script src="app-config.js?v=1"   defer></script>
   <script src="app-utils.js?v=6"    defer></script>
   <script src="app-tabs.js?v=5"     defer></script>
-  <script src="app-kpis.js?v=2"     defer></script>
+  <script src="app-kpis.js?v=3"     defer></script>
   <script src="app-charts.js?v=1"   defer></script>
   <script src="multi-window-trends.js?v=6" defer></script>
   <script src="app-goal.js?v=5"     defer></script>
@@ -71,12 +71,12 @@
   <script src="photos.js?v=3" defer></script>
   <script src="photo-picker.js?v=1" defer></script>
   <script src="charts-tab.js?v=2" defer></script>
-  <script src="dexa.js?v=1" defer></script>
+  <script src="dexa.js?v=2" defer></script>
   <script src="rate-analysis.js?v=6" defer></script>
-  <script src="medication.js?v=208" defer></script>
+  <script src="medication.js?v=209" defer></script>
   <script src="titration-utils.js?v=4" defer></script>
   <script src="events.js?v=2" defer></script>
-  <script src="titration-trajectory.js?v=7" defer></script>
+  <script src="titration-trajectory.js?v=8" defer></script>
   <script src="titration-readiness.js?v=16" defer></script>
   <script src="plateau-radar.js?v=3" defer></script>
   <script src="trend-check.js?v=1" defer></script>
@@ -582,19 +582,21 @@
       </div>
     </section>
 
-    <!-- 7.5mg Titration Trajectory Card -->
-    <section class="card fade-in" aria-label="7.5mg titration trajectory"
+    <!-- Titration Trajectory Card -->
+    <section class="card fade-in" aria-label="Titration trajectory"
       style="margin-top:1.25rem;border-top:3px solid #0053e2">
 
-      <h2 class="card-title">&#128137; 7.5mg Titration Trajectory</h2>
+      <h2 class="card-title" id="tj-card-title" style="margin-bottom:0.35rem">&#128137; Titration Trajectory</h2>
+      <div id="tj-dose-pills" style="display:flex;gap:0.45rem;margin:0.4rem 0 0.85rem;flex-wrap:wrap"></div>
+
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
-        First shot <strong>May 21, 2026</strong> &middot; Pre-shot weight <strong id="tj-preshot-weight">—</strong>
+        First shot <strong id="tj-first-shot-date">—</strong> &middot; Pre-shot weight <strong id="tj-preshot-weight">—</strong>
         &middot; Journey start <strong>315.0 lbs (Jan 29)</strong>
       </p>
 
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-bottom:1.25rem">
         <div style="background:#f0f4ff;border-radius:10px;padding:0.7rem;text-align:center">
-          <p style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Days on 7.5mg</p>
+          <p id="tj-stat-days-label" style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6d7a95;margin-bottom:0.2rem">Days on Dose</p>
           <p id="tj-stat-days" style="font-size:1.1rem;font-weight:800;color:#0053e2">—</p>
         </div>
         <div style="background:#f0fdf4;border-radius:10px;padding:0.7rem;text-align:center">
@@ -608,12 +610,26 @@
                padding:0.65rem 1rem;margin-bottom:1.25rem;min-height:2.5rem">
       </div>
 
-      <div style="position:relative;height:260px;margin-bottom:1.5rem">
+      <div style="position:relative;height:260px;margin-bottom:1.25rem">
         <canvas id="tj-chart"></canvas>
       </div>
 
+      <div style="overflow-x:auto;margin-top:0.75rem;margin-bottom:1rem">
+        <table style="width:100%;border-collapse:collapse;font-size:0.75rem;text-align:left">
+          <thead>
+            <tr style="border-bottom:2px solid #e5e9f5;color:#6d7a95;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em">
+              <th style="padding:0.4rem 0.75rem">Milestone</th>
+              <th style="padding:0.4rem 0.75rem;color:#995213">Conservative (2.0)</th>
+              <th style="padding:0.4rem 0.75rem;color:#0053e2">Base Case (2.4)</th>
+              <th style="padding:0.4rem 0.75rem;color:#2a8703">Optimistic (2.8)</th>
+            </tr>
+          </thead>
+          <tbody id="tj-milestones"></tbody>
+        </table>
+      </div>
+
       <p style="font-size:0.65rem;color:#9aa5b4;margin-top:1rem">
-        Projections use linear rates derived from your 5mg history.
+        Projections use clinical linear rates with dose-specific baseline weights.
         Actual pace updates automatically as new scale readings sync.
         Titration decisions are always your provider&rsquo;s call. &#128138;
       </p>
@@ -1056,14 +1072,21 @@
             <svg id="g1-body-map" viewBox="0 0 380 250" style="max-width:100%;height:auto;user-select:none"></svg>
           </div>
 
+          <div id="g1-site-balance-container"></div>
+
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.6rem;padding-top:0.6rem;border-top:1px dashed #e5e7eb;font-size:0.75rem;flex-wrap:wrap;gap:0.5rem">
             <div>
               <span style="color:#6d7a95">Selected Site: </span>
               <strong id="g1-selected-site-label" style="color:#534ab7">Abdomen Upper Left</strong>
             </div>
-            <button type="button" onclick="selectRecommendedSite()" style="border:none;background:#2f9e44;color:#fff;border-radius:6px;padding:0.35rem 0.8rem;font-size:0.72rem;font-weight:700;cursor:pointer">
-              ↺ Select Recommended Site
-            </button>
+            <div style="display:flex;gap:0.4rem;align-items:center">
+              <button type="button" id="g1-heatmap-toggle-btn" onclick="toggleSiteHeatmap()" style="border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:6px;padding:0.35rem 0.65rem;font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.15s ease">
+                🗺️ Heatmap: OFF
+              </button>
+              <button type="button" onclick="selectRecommendedSite()" style="border:none;background:#2f9e44;color:#fff;border-radius:6px;padding:0.35rem 0.8rem;font-size:0.72rem;font-weight:700;cursor:pointer">
+                ↺ Select Recommended Site
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1523,70 +1546,6 @@
     });
   })();
 </script>
-<script>
-    (function initLeanLossTracker() {
-      function parseNum(id) {
-        const el = document.getElementById(id);
-        if (!el) return NaN;
-        const clean = el.textContent.replace(/[^0-9.]/g, '');
-        return clean ? parseFloat(clean) : NaN;
-      }
-
-      function compute() {
-        let curWeight = parseNum('snap-weight');
-        if (isNaN(curWeight)) curWeight = parseNum('journey-current');
-        if (isNaN(curWeight)) curWeight = parseNum('ct-weight');
-
-        let curFat = parseNum('kpi-fat');
-        if (isNaN(curFat)) curFat = parseNum('ra-bc-fat');
-
-        if (isNaN(curWeight) || isNaN(curFat) || curWeight <= 0 || curFat <= 0) {
-          return false;
-        }
-
-        const startWeight = 315.0;
-        const startFatPct = 44.0;
-
-        const totalLost = startWeight - curWeight;
-        const fatLost = (startWeight * (startFatPct / 100)) - (curWeight * (curFat / 100));
-        const fatRatio = totalLost > 0 ? Math.max(0, Math.min(100, Math.round((fatLost / totalLost) * 100))) : 0;
-
-        const summary = document.getElementById('lq-summary');
-        const bar = document.getElementById('lq-bar');
-        const msg = document.getElementById('lq-msg');
-        const badge = document.getElementById('lq-badge');
-
-        if (!summary || !bar) return false;
-
-        summary.textContent = `${fatRatio}% of lost weight is pure fat`;
-        bar.style.width = `${fatRatio}%`;
-
-        if (badge) badge.textContent = `${fatRatio}% FAT`;
-
-        if (msg) {
-          if (fatRatio >= 75) {
-            bar.style.background = '#22c55e';
-            msg.textContent = '✅ Optimal: Muscle mass is protected.';
-          } else if (fatRatio >= 65) {
-            bar.style.background = '#eab308';
-            msg.textContent = '⚠️ Borderline: Watch protein intake.';
-          } else {
-            bar.style.background = '#ef4444';
-            msg.textContent = '🚨 Elevated lean loss: Prioritize protein & resistance training.';
-          }
-        }
-
-        return true;
-      }
-
-      let attempts = 0;
-      const timer = setInterval(() => {
-        attempts++;
-        if (compute() || attempts > 25) {
-          clearInterval(timer);
-        }
-      }, 400);
-    })();
-</script>  
+  
 </body>
 </html>

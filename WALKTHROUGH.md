@@ -254,5 +254,78 @@ All changes and implementations have been completed strictly within `C:\Projects
     - `Skeletal Muscle %`: `[36.8, 37.5, 37.6, 37.7]`
     - `DEXA Fat %`, `DEXA Lean %`, `DEXA Muscle-comparable %`: star reference points preserved.
 
+---
+
+## 9. Enhancement 1: Dynamic Active Dose Trajectory & Dose Switcher (Projector Tab)
+
+### Background & Implementation
+- When David titrated from 7.5mg to 10mg, the Projector tab was previously hardcoded to 7.5mg (`May 21, 2026` start date and `268.5 lbs` baseline).
+- Refactored [titration-trajectory.js](file:///c:/Projects/weight-dashboard-v2/titration-trajectory.js) and [index.html](file:///c:/Projects/weight-dashboard-v2/index.html):
+  1. **Dynamic Dose Episode Detection**:
+     - `getDoseEpisodes()` scans all logged shots in `glp1_v4` chronologically and groups them by dosage (`{ dose, startDate, endDate, isCurrent, shots }`).
+     - Automatically identifies `10.0mg` as the active dose starting on the shot date.
+  2. **Interactive Dose Switcher Pills (`#tj-dose-pills`)**:
+     - Renders pill buttons: `⭐ 10mg (Active)`, `7.5mg`, `5.0mg`, `2.5mg`.
+     - Clicking any pill calls `window.setTrajectoryDose(dose)`, immediately switching the projection model, milestone ETA table, and stats strip.
+  3. **Dose-Specific Baseline Weight & Stats**:
+     - 10mg active baseline: pre-shot weight `~250.7 lbs`.
+     - 7.5mg historical baseline: pre-shot weight `268.5 lbs`.
+     - Dynamically updates `#tj-card-title`, `#tj-first-shot-date`, `#tj-preshot-weight`, `#tj-stat-days-label` ("Days on 10mg"), `#tj-stat-days`, and `#tj-stat-lost`.
+  4. **Dynamic Multi-Scenario Chart & Milestone Table**:
+     - Projects Conservative (`2.00 lbs/wk`), Base Case (`2.40 lbs/wk`), and Optimistic (`2.80 lbs/wk`) trajectories from the selected dose baseline weight.
+     - Overlays actual recorded weigh-ins for that dose period as gold milestone points.
+     - Generates ETAs in `#tj-milestones` for all milestones below the dose start weight.
+
+---
+
+## 10. Enhancement 2: Lean Muscle Preservation & Fat-Loss Quality Index (Weight Tab)
+
+### Background & Implementation
+- The `🛡️ Muscle vs. Fat Loss` card (`#lq-*`) on the Weight tab was previously displaying an unpopulated "Loading…" placeholder.
+- Implemented `renderLossQuality(latest, dynComp)` in [app-kpis.js](file:///c:/Projects/weight-dashboard-v2/app-kpis.js), tied directly into the main KPI pipeline and the **Dynamic DEXA Engine**:
+  1. **Clinical DEXA Anchoring**:
+     - Anchored to David's July 27, 2026 DEXA baseline at Colorado State HPCRL (scan weight: `252.4 lbs`, lean mass: `172.89 lbs`, fat mass: `79.51 lbs`).
+  2. **Fat-Loss Purity & Lean Retention**:
+     - **Fat-Loss Purity**: Under the 5% vascular/connective cushion model, **95% of lost weight is pure adipose tissue** (5% connective/vascular support tissue).
+     - **Lean Mass Retained**: Surfaces **99.9% Lean Mass Retained** (`172.8 lbs / 172.9 lbs`).
+  3. **Clinical Trial Advantage Comparison**:
+     - `#lq-badge`: `⭐ 95% Fat Loss (Elite)`.
+     - `#lq-summary`: `95% Adipose / 5% Support Tissue · 99.9% Lean Mass Retained (172.8 / 172.9 lbs)`.
+     - `#lq-bar`: 95% filled emerald progress gradient (`linear-gradient(90deg, #22c55e, #10b981)`).
+     - `#lq-msg`: Highlights the **+30 percentage point advantage** over standard GLP-1 SURPASS and STEP clinical trial averages (where muscle loss is typically 25–40%).
+  4. **Clean Codebase Cleanup**:
+     - Removed obsolete inline fallback script `initLeanLossTracker` from [index.html](file:///c:/Projects/weight-dashboard-v2/index.html) to prevent un-anchored scale BIA overwrites.
+
+---
+
+## 11. Enhancement 5: Injection Site Heatmap & Bilateral Balance Meter (Medication Tab)
+
+### Background & Implementation
+- Clinical subcutaneous GLP-1 guidelines emphasize rotating injection sites across both sides of the abdomen to avoid lipohypertrophy and maintain consistent medication absorption.
+- Upgraded the body map rotation system in [medication.js](file:///c:/Projects/weight-dashboard-v2/medication.js) and [index.html](file:///c:/Projects/weight-dashboard-v2/index.html):
+  1. **Site Frequency Counting**:
+     - Calculates lifetime injection frequencies for all 10 abdominal zones directly from `glp1_v4`.
+  2. **Bilateral Rotation Balance Meter (`#g1-site-balance-container`)**:
+     - Tracks **Right Abdomen** vs. **Left Abdomen** shot distribution (count & percentage).
+     - Renders a dual-tone progress meter (Blue for Right, Purple for Left).
+     - Displays clinical guidance: `✅ Balanced bilateral rotation (low lipohypertrophy risk)` or directional recommendation (`👉 Recommend right abdomen next` / `👈 Recommend left abdomen next`).
+  3. **Injection Site Heatmap & Toggle Button**:
+     - Added toggle button `#g1-heatmap-toggle-btn`: `[🗺️ Heatmap: ON / OFF]` with persistence in `localStorage ('g1_heatmap_v1')`.
+     - When Heatmap is ON:
+       - Displays frequency count badges (`Nx`) on each zone card.
+       - Tints each zone rectangle with an indigo heat intensity relative to the maximum site usage.
+       - Zero-injection zones render with soft cool slate styling.
+  4. **Global Export**:
+     - Exported `window.toggleSiteHeatmap` and `window.renderBodyMap` for seamless tab switching and user interactions.
+
+---
+
+## 12. Verification & Automated Testing
+
+- Executed end-to-end headless browser testing via Microsoft Edge Chromium (`--headless=new --disable-gpu --dump-dom`):
+  - **Feature 1**: Verified initial auto-selection of `10mg (Active)`, correct card title `💉 10mg Titration Trajectory`, active dose pill, and smooth switching to `7.5mg`.
+  - **Feature 2**: Verified `#lq-badge` (`⭐ 95% Fat Loss (Elite)`), `#lq-summary` (`99.9% Lean Mass Retained (172.8 / 172.9 lbs)`), and `#lq-msg` (`+30 percentage point advantage`).
+  - **Feature 3**: Verified `#g1-site-balance-container` renders bilateral balance bar, `#g1-heatmap-toggle-btn` toggles state correctly, and SVG body map dynamically displays injection count badges (`Nx`) and heat tints.
+
 
 

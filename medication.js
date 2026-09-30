@@ -732,7 +732,16 @@
     }).join('');
   }
 
-  // ── Injection Site Body Map & Rotation ───────────────────────────────────
+  // ── Injection Site Body Map, Heatmap & Rotation ─────────────────────────
+  let showSiteHeatmap = localStorage.getItem('g1_heatmap_v1') === 'true';
+
+  function toggleSiteHeatmap() {
+    showSiteHeatmap = !showSiteHeatmap;
+    try { localStorage.setItem('g1_heatmap_v1', String(showSiteHeatmap)); } catch (e) {}
+    renderBodyMap();
+  }
+  window.toggleSiteHeatmap = toggleSiteHeatmap;
+
   function renderBodyMap() {
     const svgEl = document.getElementById('g1-body-map');
     if (!svgEl) return;
@@ -748,6 +757,63 @@
 
     const labelEl = document.getElementById('g1-selected-site-label');
     if (labelEl && siteEl) labelEl.textContent = siteEl.value || curSelected;
+
+    // Site counts and bilateral Left vs Right balance
+    const siteCounts = {};
+    SITES.forEach(s => { siteCounts[s] = 0; });
+    let leftCount = 0;
+    let rightCount = 0;
+
+    shots.forEach(s => {
+      if (s && s.site) {
+        const norm = normalizeSite(s.site);
+        if (siteCounts[norm] !== undefined) siteCounts[norm]++;
+        if (norm.includes('Left')) leftCount++;
+        else if (norm.includes('Right')) rightCount++;
+      }
+    });
+
+    const totalCounted = leftCount + rightCount;
+    const leftPct  = totalCounted > 0 ? Math.round((leftCount / totalCounted) * 100) : 50;
+    const rightPct = totalCounted > 0 ? (100 - leftPct) : 50;
+    const maxCount = Math.max(1, ...Object.values(siteCounts));
+
+    // Update toggle button state in UI
+    const heatmapBtn = document.getElementById('g1-heatmap-toggle-btn');
+    if (heatmapBtn) {
+      heatmapBtn.innerHTML = showSiteHeatmap ? '🗺️ Heatmap: <strong>ON</strong>' : '🗺️ Heatmap: <strong>OFF</strong>';
+      heatmapBtn.style.background = showSiteHeatmap ? '#4f46e5' : '#ffffff';
+      heatmapBtn.style.color = showSiteHeatmap ? '#ffffff' : '#374151';
+      heatmapBtn.style.borderColor = showSiteHeatmap ? '#4f46e5' : '#d1d5db';
+    }
+
+    // Render Bilateral Rotation Balance Meter
+    const balanceContainer = document.getElementById('g1-site-balance-container');
+    if (balanceContainer) {
+      const diff = Math.abs(leftPct - rightPct);
+      const isBalanced = diff <= 15;
+      const balanceMsg = isBalanced
+        ? '✅ Balanced bilateral rotation (low lipohypertrophy risk)'
+        : (leftPct > rightPct ? '👉 Recommend right abdomen next' : '👈 Recommend left abdomen next');
+      const statusColor = isBalanced ? '#15803d' : '#b45309';
+
+      balanceContainer.innerHTML = `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.85rem;margin-top:0.65rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem;font-size:0.75rem;flex-wrap:wrap;gap:0.3rem">
+            <span style="font-weight:700;color:#1e293b">⚖️ Bilateral Rotation Balance</span>
+            <span style="font-size:0.7rem;font-weight:700;color:${statusColor}">${balanceMsg}</span>
+          </div>
+          <div style="display:flex;height:8px;border-radius:99px;overflow:hidden;background:#e2e8f0;margin-bottom:0.35rem">
+            <div style="width:${rightPct}%;background:#3b82f6;transition:width 0.3s ease" title="Right Side: ${rightCount} shots (${rightPct}%)"></div>
+            <div style="width:${leftPct}%;background:#8b5cf6;transition:width 0.3s ease" title="Left Side: ${leftCount} shots (${leftPct}%)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#64748b;font-weight:600">
+            <span>👉 Right: <strong style="color:#1d4ed8">${rightCount} shots</strong> (${rightPct}%)</span>
+            <span>👈 Left: <strong style="color:#6d28d9">${leftCount} shots</strong> (${leftPct}%)</span>
+          </div>
+        </div>
+      `;
+    }
 
     const siteLayout = {
       'Abdomen Upper Right':        { x: 30,  y: 44, w: 72, h: 32, label: 'Upper R', sub: 'Outer' },
@@ -795,6 +861,7 @@
       const isLast = siteName === lastSite;
       const isNext = siteName === nextRecommended;
       const isSelected = siteName === curSelected;
+      const count = siteCounts[siteName] || 0;
 
       let fill = '#ffffff';
       let stroke = '#cbd5e1';
@@ -802,6 +869,19 @@
       let filter = 'url(#shadow-card)';
       let textColor = '#334155';
       let badge = '';
+
+      // Heatmap tinting
+      if (showSiteHeatmap && !isNext && !isLast && !isSelected) {
+        if (count === 0) {
+          fill = '#f8fafc';
+          stroke = '#e2e8f0';
+        } else {
+          const intensity = Math.min(1, 0.12 + 0.42 * (count / maxCount));
+          fill = `rgba(99, 102, 241, ${intensity.toFixed(2)})`;
+          stroke = '#6366f1';
+          textColor = '#1e1b4b';
+        }
+      }
 
       if (isNext) {
         fill = '#f0fdf4';
@@ -831,12 +911,17 @@
         }
       }
 
+      const countBadge = showSiteHeatmap
+        ? `<text x="${pos.x + pos.w - 4}" y="${pos.y + pos.h - 4}" text-anchor="end" font-size="6.5" font-family="system-ui,sans-serif" font-weight="800" fill="${count > 0 ? (isNext ? '#166534' : isLast ? '#4338ca' : '#4f46e5') : '#94a3b8'}">${count}x</text>`
+        : '';
+
       svg += `
-        <g style="cursor:pointer" onclick="selectInjectionSite('${siteName}')" role="button" aria-label="${siteName}">
+        <g style="cursor:pointer" onclick="selectInjectionSite('${siteName}')" role="button" aria-label="${siteName} (${count} injections)">
           <rect x="${pos.x}" y="${pos.y}" width="${pos.w}" height="${pos.h}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" filter="${filter}" />
           ${badge}
           <text x="${pos.x + pos.w / 2}" y="${pos.y + 15}" text-anchor="middle" font-size="7.5" font-family="system-ui,sans-serif" font-weight="700" fill="${textColor}">${pos.label}</text>
           <text x="${pos.x + pos.w / 2}" y="${pos.y + 25}" text-anchor="middle" font-size="6" font-family="system-ui,sans-serif" font-weight="500" fill="#94a3b8">${pos.sub}</text>
+          ${countBadge}
         </g>
       `;
     });
@@ -856,6 +941,7 @@
     renderBodyMap();
   }
   window.selectInjectionSite = selectInjectionSite;
+  window.renderBodyMap = renderBodyMap;
 
   function selectRecommendedSite() {
     const shots = loadShots();

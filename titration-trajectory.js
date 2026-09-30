@@ -22,48 +22,128 @@
     return;
   }
 
-  // ── Titration constants ─────────────────────────────────
-  const TITRATION_DATE  = new Date('2026-05-21T12:00:00');  // first 7.5mg shot
-  const DOSE_LABEL      = '7.5mg Mounjaro';
   const JOURNEY_START_W = 315.0;  // Jan 29, 2026
+  let selectedDose = null;
+
+  function loadShots() {
+    try {
+      const raw = localStorage.getItem('glp1_v4');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return [];
+  }
+
+  function getDoseEpisodes() {
+    const rawShots = loadShots();
+    const sorted = rawShots
+      .map(s => ({ ...s, _dt: new Date(s.date) }))
+      .filter(s => !isNaN(s._dt) && typeof s.dose === 'number')
+      .sort((a, b) => a._dt - b._dt);
+
+    if (!sorted.length) {
+      return [{
+        dose: 7.5,
+        startDate: new Date('2026-05-21T12:00:00'),
+        endDate: null,
+        isCurrent: true,
+        shots: []
+      }];
+    }
+
+    const episodes = [];
+    let cur = {
+      dose: sorted[0].dose,
+      startDate: sorted[0]._dt,
+      endDate: null,
+      shots: [sorted[0]]
+    };
+
+    for (let i = 1; i < sorted.length; i++) {
+      const s = sorted[i];
+      if (s.dose !== cur.dose) {
+        cur.endDate = s._dt;
+        episodes.push(cur);
+        cur = {
+          dose: s.dose,
+          startDate: s._dt,
+          endDate: null,
+          shots: [s]
+        };
+      } else {
+        cur.shots.push(s);
+      }
+    }
+    cur.isCurrent = true;
+    episodes.push(cur);
+    return episodes;
+  }
+
+  function getActiveEpisode() {
+    const episodes = getDoseEpisodes();
+    if (selectedDose != null) {
+      const match = episodes.find(e => Math.abs(e.dose - selectedDose) < 0.01);
+      if (match) return { ep: match, all: episodes };
+    }
+    // Default to latest dose (e.g. 10mg)
+    const latest = episodes[episodes.length - 1];
+    selectedDose = latest.dose;
+    return { ep: latest, all: episodes };
+  }
+
+  function renderDosePills(episodes, activeDose) {
+    const container = document.getElementById('tj-dose-pills');
+    if (!container) return;
+    const reversed = [...episodes].reverse();
+    container.innerHTML = reversed.map(ep => {
+      const isSel = Math.abs(ep.dose - activeDose) < 0.01;
+      const label = ep.isCurrent ? `⭐ ${ep.dose}mg (Active)` : `${ep.dose}mg`;
+      return `<button type="button" onclick="window.setTrajectoryDose(${ep.dose})"
+        style="background:${isSel ? '#0053e2' : '#f0f4ff'};color:${isSel ? '#ffffff' : '#0053e2'};
+        border:1.5px solid ${isSel ? '#0053e2' : '#c7d7fe'};border-radius:20px;
+        padding:0.25rem 0.75rem;font-size:0.75rem;font-weight:700;cursor:pointer;
+        transition:all 0.15s ease">${label}</button>`;
+    }).join('');
+  }
+
+  window.setTrajectoryDose = function(dose) {
+    selectedDose = Number(dose);
+    renderTitrationTrajectory();
+  };
 
   // Start weight = last scale reading on or before shot day.
   function getProjBase() {
-    if (projLatestDate != null) return new Date(projLatestDate);
-    if (allData && allData.length) return new Date(allData[allData.length - 1].date);
+    if (typeof projLatestDate !== 'undefined' && projLatestDate != null) return new Date(projLatestDate);
+    if (typeof allData !== 'undefined' && allData && allData.length) return new Date(allData[allData.length - 1].date);
     return new Date();
   }
 
-  // Pre-titration baseline: prefer the last actual weigh-in on or
-  // before the shot day (apples-to-apples). If there's no weigh-in
-  // recorded for the shot day itself, fall back to the weight that
-  // was stamped on the shot record by medication.js (when the user
-  // logged the shot they often record the day's weight). Only as a
-  // last resort do we return null — the magic literal 268.5 used to
-  // sit here and silently hid the fact that preChangeBaseline was
-  // returning null, masking real data-load issues.
-  function getTitrationWeight() {
-    const baseline = TU.preChangeBaseline(TITRATION_DATE, allData);
+  function getTitrationWeight(activeEp) {
+    if (!activeEp) return null;
+    const dataList = (typeof allData !== 'undefined' && allData) ? allData : [];
+    const baseline = TU.preChangeBaseline(activeEp.startDate, dataList);
     if (baseline != null) return baseline;
 
-    // Fallback 1: shot record weight stamp (medication.js often
-    // records the at-shot weight as a hint when no weigh-in exists).
-    try {
-      const shots = JSON.parse(localStorage.getItem('glp1_v4')) || [];
-      const titDay = TITRATION_DATE.toISOString().slice(0, 10);
-      const match  = shots.find(s =>
-        typeof s.weight === 'number' &&
-        s.date && s.date.slice(0, 10) === titDay
-      );
-      if (match) return match.weight;
-    } catch (e) { /* localStorage might fail */ }
+    if (activeEp.shots && activeEp.shots.length && typeof activeEp.shots[0].weight === 'number') {
+      return activeEp.shots[0].weight;
+    }
+
+    if (activeEp.dose === 2.5) return 315.0;
+    if (activeEp.dose === 5.0) return 296.0;
+    if (activeEp.dose === 7.5) return 268.5;
+    if (activeEp.dose === 10.0) return 250.7;
+
+    if (dataList.length) {
+      const firstAfter = dataList.find(r => r.date && r.date >= activeEp.startDate);
+      if (firstAfter) return firstAfter.weight;
+      return dataList[dataList.length - 1].weight;
+    }
 
     return null;
   }
 
   function getProjWeight() {
-    if (projLatestWeight != null) return projLatestWeight;
-    if (allData && allData.length) return allData[allData.length - 1].weight;
+    if (typeof projLatestWeight !== 'undefined' && projLatestWeight != null) return projLatestWeight;
+    if (typeof allData !== 'undefined' && allData && allData.length) return allData[allData.length - 1].weight;
     return null;
   }
 
@@ -79,9 +159,6 @@
   // ── Chart instance ─────────────────────────────────────────────────
   let _chart = null;
 
-  // ── Helpers ─────────────────────────────────────────────
-  // Aliases for the shared helpers — keep local names so the rest of
-  // this file reads cleanly and call sites don't churn.
   const addDays     = TU.addDays;
   const dedupeByDay = TU.dedupeByDay;
 
@@ -93,47 +170,42 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  // Readings strictly after the shot day (shot-day weight = pre-shot baseline)
-  function postTitrationData() {
-    if (!allData || !allData.length) return [];
-    const dayAfter = addDays(TITRATION_DATE, 1);
-    return dedupeByDay(allData.filter(r => r.date >= dayAfter));
+  function postTitrationData(activeEp) {
+    if (!allData || !allData.length || !activeEp) return [];
+    const dayAfter = addDays(activeEp.startDate, 1);
+    return dedupeByDay(allData.filter(r => {
+      if (!r.date || r.date < dayAfter) return false;
+      if (activeEp.endDate && r.date >= activeEp.endDate) return false;
+      return true;
+    }));
   }
 
-  // Compute lbs/week anchored on the pre-shot baseline + shot date.
-  // Thin wrapper over TU.paceFromBaseline so the headline math is
-  // shared with every other titration card.
-  function computePace(latestReading, daysOn) {
-    if (!latestReading || daysOn < 7) return null;
-    return TU.paceFromBaseline(getTitrationWeight(), TITRATION_DATE, latestReading);
+  function getDaysOn(activeEp) {
+    if (!activeEp) return 0;
+    const end = activeEp.isCurrent ? Date.now() : activeEp.endDate.getTime();
+    return Math.max(0, Math.floor((end - activeEp.startDate.getTime()) / 86_400_000));
   }
 
-  // Which scenario bucket does a rate fall in? Thresholds are derived
-  // from SCENARIOS rates so this stays honest when the projection rates
-  // change. Previously used hardcoded magic numbers (0.3/1.25/2.15)
-  // that matched an OLDER version of SCENARIOS and silently mislabeled
-  // paces once the projection rates were rebased.
-  //
-  // Rule: report the highest scenario the rate has actually met or
-  // exceeded. You're only called "Base Case pace" if you're at Base
-  // Case rate or better — no participation trophies for being closer
-  // to one scenario than another.
-  function paceLabel(rate) {
-    if (rate == null) return { text: 'No data yet — check back after 7+ days on 7.5mg', color: '#6d7a95' };
+  function computePace(activeEp, latestReading, daysOn) {
+    if (!latestReading || daysOn < 7 || !activeEp) return null;
+    const baseW = getTitrationWeight(activeEp);
+    if (!baseW) return null;
+    return TU.paceFromBaseline(baseW, activeEp.startDate, latestReading);
+  }
+
+  function paceLabel(rate, dose) {
+    if (rate == null) return { text: `Gathering data — check back after 7+ days on ${dose || ''}mg`, color: '#6d7a95' };
 
     const sorted = [...SCENARIOS].sort((a, b) => a.rate - b.rate);
     const cons   = sorted[0];
 
-    // Below half the conservative rate → red-flag territory
     if (rate < cons.rate / 2) {
       return { text: `${rate.toFixed(2)} lbs/wk — Below conservative`, color: '#ea1100' };
     }
-    // Between half-conservative and conservative → not yet at floor
     if (rate < cons.rate) {
       return { text: `${rate.toFixed(2)} lbs/wk — Below conservative`, color: '#995213' };
     }
 
-    // Report the highest scenario met or exceeded
     let bucket = sorted[0];
     for (const s of sorted) {
       if (rate >= s.rate) bucket = s;
@@ -142,9 +214,10 @@
   }
 
   // ── Chart ──────────────────────────────────────────────────────────
-  function buildChartData() {
-    const startW  = getProjWeight();
-    const projBase = getProjBase();
+  function buildChartData(activeEp) {
+    const isCur = activeEp ? activeEp.isCurrent : true;
+    const startW = isCur ? (getProjWeight() ?? getTitrationWeight(activeEp)) : getTitrationWeight(activeEp);
+    const projBase = isCur ? getProjBase() : (activeEp ? activeEp.startDate : getProjBase());
     const endDate = addDays(projBase, PROJ_WEEKS * 7);
     const labels  = [];
     const dateObjs = [];
@@ -158,7 +231,7 @@
       label:           `${s.label} (${s.rate} lbs/wk)`,
       data:            dateObjs.map(d => {
         const weeks = (d - projBase) / (7 * 86_400_000);
-        return Math.max(100, startW - s.rate * weeks);
+        return Math.max(100, +(startW - s.rate * weeks).toFixed(1));
       }),
       borderColor:     s.color,
       backgroundColor: s.color + '18',
@@ -171,13 +244,13 @@
     }));
 
     // Actual post-titration weights overlaid as gold dots
-    const postData     = postTitrationData();
+    const postData     = postTitrationData(activeEp);
     const actualPoints = dateObjs.map(d =>
       (postData.find(r => Math.abs(r.date - d) < 3 * 86_400_000) || {}).weight ?? null
     );
 
     const actualDataset = {
-      label:           'Actual weight',
+      label:           `Actual (${activeEp ? activeEp.dose : ''}mg)`,
       data:            actualPoints,
       borderColor:     '#ffc220',
       backgroundColor: '#ffc220',
@@ -192,12 +265,12 @@
     return { labels, datasets: [...scenarioDatasets, actualDataset] };
   }
 
-  function renderChart() {
+  function renderChart(activeEp) {
     const canvas = document.getElementById('tj-chart');
     if (!canvas || typeof Chart === 'undefined') return;
     if (_chart) { _chart.destroy(); _chart = null; }
 
-    const { labels, datasets } = buildChartData();
+    const { labels, datasets } = buildChartData(activeEp);
     _chart = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: { labels, datasets },
@@ -242,15 +315,17 @@
   }
 
   // ── Milestone table ────────────────────────────────────────────────
-  function renderMilestoneTable() {
+  function renderMilestoneTable(activeEp) {
     const tbody  = document.getElementById('tj-milestones');
-    if (!tbody) return;
-    const startW = getProjWeight();
+    if (!tbody || !activeEp) return;
+    const isCur  = activeEp.isCurrent;
+    const startW = isCur ? (getProjWeight() ?? getTitrationWeight(activeEp)) : getTitrationWeight(activeEp);
+    const baseDate = isCur ? getProjBase() : activeEp.startDate;
 
     const rows = MILESTONES.filter(m => m < startW).map(m => {
       const cells = SCENARIOS.map(s => {
         const weeks  = (startW - m) / s.rate;
-        const eta    = addDays(getProjBase(), weeks * 7);
+        const eta    = addDays(baseDate, weeks * 7);
         const isPast = eta < new Date();
         return `<td style="padding:0.45rem 0.75rem;font-size:0.78rem;font-weight:700;
                   color:${isPast ? '#6d7a95' : s.color};white-space:nowrap">
@@ -275,56 +350,50 @@
   }
 
   // ── Pace badge ─────────────────────────────────────────────────────
-  function renderPaceBadge() {
+  function renderPaceBadge(activeEp) {
     const badge = document.getElementById('tj-pace-badge');
-    if (!badge) return;
+    if (!badge || !activeEp) return;
 
-    const post    = postTitrationData();
+    const post    = postTitrationData(activeEp);
     const latest  = post.length ? post[post.length - 1] : null;
-    const daysOn  = Math.max(0, Math.floor((Date.now() - TITRATION_DATE) / 86_400_000));
-    const pace    = computePace(latest, daysOn);
-    const info    = paceLabel(pace);
+    const daysOn  = getDaysOn(activeEp);
+    const startW  = getTitrationWeight(activeEp);
+    const dose    = activeEp.dose;
+    const pace    = (latest && daysOn >= 7 && startW != null)
+      ? TU.paceFromBaseline(startW, activeEp.startDate, latest)
+      : null;
+    const info    = paceLabel(pace, dose);
     const weeks   = Math.round((daysOn / 7) * 10) / 10;
 
-    // Transparent math: show the actual numerator and denominator the
-    // pace was computed from. The header advertises baseline-vs-current
-    // numbers (e.g. "~268.5 lbs" · "259.3 lbs") and any inconsistency
-    // between those and the displayed pace should be VISIBLE, not
-    // buried in helper-function math. If pace was -1.38 but the user
-    // sees "-10.1 lbs lost over 28 days", they should immediately see
-    // which input the calculation actually used.
     let mathStr = '';
     let cleanStr = '';
-    if (pace != null && latest) {
-      const baseline = getTitrationWeight();
-      const lost     = baseline - latest.weight;
-      const days     = (latest.date.getTime() - TITRATION_DATE.getTime()) / 86_400_000;
+    if (pace != null && latest && startW != null) {
+      const lost     = startW - latest.weight;
+      const days     = (latest.date.getTime() - activeEp.startDate.getTime()) / 86_400_000;
       const wks      = (days / 7).toFixed(1);
-      mathStr = `${lost.toFixed(1)} lbs / ${wks} wks · baseline ${baseline.toFixed(1)} on ${fmtShort(TITRATION_DATE)} → latest ${latest.weight.toFixed(1)} on ${fmtShort(latest.date)}`;
+      mathStr = `${lost.toFixed(1)} lbs / ${wks} wks · baseline ${startW.toFixed(1)} on ${fmtShort(activeEp.startDate)} → latest ${latest.weight.toFixed(1)} on ${fmtShort(latest.date)}`;
 
-      // Clean-trend slope: same exclusion logic as the readiness card.
-      // We compute it across ALL post-titration readings (not just the
-      // last 28d) since the trajectory card's whole point is to show
-      // performance on this dose. Excludes flagged event days + tail.
       try {
         const events = (typeof window.getEventsInRange === 'function')
-          ? window.getEventsInRange(TITRATION_DATE, new Date())
+          ? window.getEventsInRange(activeEp.startDate, activeEp.endDate || new Date())
           : [];
         const clean = TU.slopePerWeekClean(post, events, {
           tailDays: 3,
-          minClean: 5,    // looser than readiness because dose-window is shorter
+          minClean: 4,
         });
         if (clean.slope != null && clean.excludedCount > 0) {
           const sign = clean.slope >= 0 ? '−' : '+';
           cleanStr = `<span style="color:#2a8703">clean pace ${sign}${Math.abs(clean.slope).toFixed(2)} lbs/wk</span> · ${clean.excludedCount} flagged day${clean.excludedCount !== 1 ? 's' : ''} excluded (${clean.cleanCount} of ${clean.totalCount} readings)`;
         }
       } catch (e) { console.warn('[titration-trajectory] clean slope failed:', e); }
+    } else if (daysOn < 7) {
+      mathStr = `Gathering dose data (${daysOn} days in). Check back after 7+ days on ${dose}mg for full pace modeling.`;
     }
 
     badge.innerHTML = `
       <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
         <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
-                     letter-spacing:0.08em;color:#6d7a95">Current 7.5mg Pace</span>
+                     letter-spacing:0.08em;color:#6d7a95">${activeEp.isCurrent ? `Current ${dose}mg Pace` : `Overall ${dose}mg Pace`}</span>
         <span style="font-size:0.85rem;font-weight:800;color:${info.color}">${info.text}</span>
         ${weeks > 0
           ? `<span style="font-size:0.7rem;color:#6d7a95">(${weeks} wk${weeks !== 1 ? 's' : ''} of data)</span>`
@@ -335,23 +404,32 @@
   }
 
   // ── Stats strip ────────────────────────────────────────────────────
-  function renderStatsStrip() {
+  function renderStatsStrip(activeEp) {
     const get = id => document.getElementById(id);
-    const post   = postTitrationData();
-    const startW = getTitrationWeight();
+    const post   = postTitrationData(activeEp);
+    const startW = getTitrationWeight(activeEp);
+    const daysOn = getDaysOn(activeEp);
+    const dose   = activeEp.dose;
 
-    const daysOn  = Math.max(0, Math.floor((Date.now() - TITRATION_DATE) / 86_400_000));
-    // If we have no baseline AND no post-titration readings, we have
-    // nothing meaningful to display — bail with explicit placeholders.
     const latestW = post.length ? post[post.length - 1].weight
                    : (startW != null ? startW : null);
     const lost    = (startW != null && latestW != null) ? startW - latestW : null;
     const total   = latestW != null ? JOURNEY_START_W - latestW : null;
 
+    // Header title & subtext
+    const titleEl = get('tj-card-title');
+    if (titleEl) titleEl.innerHTML = `&#128137; ${dose}mg Titration Trajectory`;
+
+    const subDateEl = get('tj-first-shot-date');
+    if (subDateEl) subDateEl.textContent = fmtDate(activeEp.startDate);
+
+    const daysLabelEl = get('tj-stat-days-label');
+    if (daysLabelEl) daysLabelEl.textContent = `Days on ${dose}mg`;
+
     if (get('tj-stat-days'))  get('tj-stat-days').textContent  =
-      daysOn > 0 ? daysOn + ' days' : 'Starting May 21';
+      daysOn > 0 ? daysOn + ' days' : `Day 1 on ${dose}mg`;
     if (get('tj-stat-lost'))  {
-      get('tj-stat-lost').textContent = (daysOn > 0 && lost != null)
+      get('tj-stat-lost').textContent = (daysOn >= 0 && lost != null)
         ? (lost >= 0 ? '-' : '+') + Math.abs(lost).toFixed(1) + ' lbs'
         : '--';
       get('tj-stat-lost').style.color = (lost != null && lost >= 0) ? '#2a8703' : '#ea1100';
@@ -361,8 +439,6 @@
     if (get('tj-stat-now'))   get('tj-stat-now').textContent   =
       latestW != null ? latestW.toFixed(1) + ' lbs' : '--';
 
-    // Keep the header label honest. If we have no real baseline,
-    // say so explicitly rather than advertising a magic number.
     const preShotEl = get('tj-preshot-weight');
     if (preShotEl) {
       preShotEl.textContent = startW != null
@@ -373,10 +449,12 @@
 
   // ── Main render ────────────────────────────────────────────────────
   function renderTitrationTrajectory() {
-    renderStatsStrip();
-    renderPaceBadge();
-    renderChart();
-    renderMilestoneTable();
+    const { ep, all } = getActiveEpisode();
+    renderDosePills(all, ep.dose);
+    renderStatsStrip(ep);
+    renderPaceBadge(ep);
+    renderChart(ep);
+    renderMilestoneTable(ep);
   }
   window.renderTitrationTrajectory = renderTitrationTrajectory;
 
