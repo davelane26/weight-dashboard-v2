@@ -127,9 +127,9 @@
 
   // ── Analysis ──────────────────────────────────────────────────
   function analyze() {
-    const { anchors, currentDose } = buildPaceSeries();
+    const { anchors, currentDose, doseStart } = buildPaceSeries();
     if (anchors.length < MIN_ANCHORS) {
-      return { status: 'GATHERING', anchors, currentDose, need: MIN_ANCHORS - anchors.length };
+      return { status: 'GATHERING', anchors, currentDose, doseStart, need: MIN_ANCHORS - anchors.length };
     }
 
     const xs = anchors.map(a => a.weeksChrono);
@@ -138,20 +138,42 @@
     const paceNow    = anchors[anchors.length - 1].pace;
     const xNow       = xs[xs.length - 1];
 
+    // Rebound check: compare latest pace with the previous pace anchor
+    const prevPace = anchors.length >= 2 ? anchors[anchors.length - 2].pace : paceNow;
+    const isRebounding = paceNow >= prevPace;
+
     // Runway: weeks until the fitted pace line crosses the ACT trigger.
     let runwayWks = null;
-    if (decelPerWk != null && decelPerWk < -0.02 && paceNow > TRIGGER_ACT) {
+    if (decelPerWk != null && decelPerWk < -0.02 && paceNow > TRIGGER_ACT && !isRebounding) {
       runwayWks = (paceNow - TRIGGER_ACT) / (-decelPerWk);
     }
 
     let status;
-    if (paceNow <= TRIGGER_ACT)                              status = 'IMMINENT';
-    else if (decelPerWk == null || decelPerWk >= -0.05)      status = 'STEADY';
-    else if (runwayWks != null && runwayWks <= RUNWAY_SOON_WKS)  status = 'IMMINENT';
-    else if (runwayWks != null && runwayWks <= RUNWAY_WATCH_WKS) status = 'DECEL';
-    else                                                    status = 'SOFTENING';
+    // 1. True stall: current 4-week pace is actually at or below the trigger
+    if (paceNow <= TRIGGER_ACT) {
+      status = 'IMMINENT';
+    }
+    // 2. Pace is strong (>= 1.3 lb/wk) or pace is accelerating/holding:
+    // A pace of ~1.5 lb/wk is optimal loss and should never be marked as an imminent stall.
+    else if (paceNow >= 1.3 && (isRebounding || (decelPerWk != null && decelPerWk >= -0.10))) {
+      status = 'STEADY';
+    }
+    else if (decelPerWk == null || decelPerWk >= -0.05) {
+      status = 'STEADY';
+    }
+    // 3. Imminent stall only if runway is short AND pace is already low (< 1.3 lb/wk)
+    else if (runwayWks != null && runwayWks <= RUNWAY_SOON_WKS && paceNow < 1.3) {
+      status = 'IMMINENT';
+    }
+    // 4. Decelerating: pace is dropping with measurable runway
+    else if (runwayWks != null && runwayWks <= RUNWAY_WATCH_WKS) {
+      status = 'DECEL';
+    }
+    else {
+      status = 'SOFTENING';
+    }
 
-    return { status, anchors, currentDose, decelPerWk, paceNow, runwayWks, xNow };
+    return { status, anchors, currentDose, decelPerWk, paceNow, runwayWks, xNow, isRebounding };
   }
 
   // ── Render ────────────────────────────────────────────────────
@@ -168,10 +190,12 @@
           <span style="display:inline-block;padding:0.35rem 0.8rem;border-radius:999px;
             background:${s.color}18;color:${s.color};font-size:0.78rem;font-weight:800;
             letter-spacing:0.06em">${s.label}</span>
+          ${a.currentDose ? `<span style="font-size:0.78rem;color:#1a2340;font-weight:700">on ${a.currentDose}mg</span>` : ''}
         </div>
         <p style="font-size:0.82rem;color:#1a2340;line-height:1.45;margin:0">
-          ${s.blurb} Need about ${a.need} more weekly weigh-in cluster${a.need === 1 ? '' : 's'}
-          (the radar needs ${MIN_ANCHORS}+ rolling 28-day pace samples inside the current dose).
+          ${a.currentDose ? `You recently titrated to <strong>${a.currentDose}mg</strong>. ` : ''}${s.blurb}
+          Need about ${a.need} more weekly weigh-in cluster${a.need === 1 ? '' : 's'}
+          (the radar monitors rolling 28-day pace samples exclusively inside your current dose, with first reads emerging after ~6 weeks).
         </p>`;
       return;
     }
@@ -218,16 +242,20 @@
 
   function reasoning(a) {
     const decel = a.decelPerWk;
-    if (a.status === 'STEADY')
-      return `Pace is essentially flat at ${a.paceNow.toFixed(2)} lb/wk with no downward drift — the floor isn't in sight, so keep riding and burn your current supply.`;
+    if (a.status === 'STEADY') {
+      if (a.isRebounding && a.paceNow >= 1.3) {
+        return `Pace has stabilized and is holding strong at ${a.paceNow.toFixed(2)} lb/wk. No plateau forming — your rate of loss rebounded in recent weeks.`;
+      }
+      return `Pace is holding strong at ${a.paceNow.toFixed(2)} lb/wk with no downward drift — the floor isn't in sight, so keep riding your current dose.`;
+    }
     if (a.status === 'SOFTENING')
       return `Pace is easing about ${Math.abs(decel).toFixed(2)} lb/wk per week — gentle, with ~${a.runwayWks >= 26 ? '6+ months' : a.runwayWks.toFixed(0) + ' weeks'} of runway before the ${TRIGGER_ACT.toFixed(1)} trigger. No action; just watch.`;
     if (a.status === 'DECEL')
       return `Pace is dropping ~${Math.abs(decel).toFixed(2)} lb/wk each week — at this rate you'd hit the ${TRIGGER_ACT.toFixed(1)} trigger in ~${a.runwayWks.toFixed(0)} weeks. Make sure the next dose is pre-loaded so you can move the day the trigger fires.`;
     if (a.status === 'IMMINENT')
       return a.paceNow <= TRIGGER_ACT
-        ? `Pace has already fallen to ${a.paceNow.toFixed(2)} lb/wk — at/below the trigger. This is exactly the 5mg-style stall onset; if the next dose is loaded, this is the whoosh-timing moment to discuss pulling it.`
-        : `Pace is diving fast — only ~${a.runwayWks.toFixed(1)} weeks of runway to the ${TRIGGER_ACT.toFixed(1)} trigger. Confirm the pre-loaded dose and be ready to act within days.`;
+        ? `Pace has fallen to ${a.paceNow.toFixed(2)} lb/wk — at or below the trigger. This is the stall onset; if the next dose is loaded, this is the time to discuss pulling it.`
+        : `Pace has dropped to ${a.paceNow.toFixed(2)} lb/wk with ~${a.runwayWks.toFixed(1)} weeks of runway to the ${TRIGGER_ACT.toFixed(1)} trigger. Confirm the next dose is pre-loaded.`;
     return '';
   }
 

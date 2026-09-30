@@ -147,4 +147,25 @@ All changes and implementations have been completed strictly within `C:\Projects
 - **Headless Browser Execution**:
   - Executed `dexa.js` inside Microsoft Edge headless runtime, confirming DOM initialization and reporting `SUCCESS: ALL_TESTS_PASSED`.
 
+---
+
+## 6. Plateau Radar Fixes & 10mg Titration Safeguards
+
+### Problem Addressed
+- The Plateau Radar was misdiagnosing healthy loss ($1.48\text{ lbs/week}$) as `STALL IMMINENT` with an alarming `1.8 wk` runway.
+- **Root Causes**:
+  1. **Linear Extrapolation Fallacy**: Fitting a linear straight line through an early post-titration spike (~2.2 lbs/wk) projected an artificial dive into the floor, ignoring that recent pace actually accelerated from 1.2 to 1.48 lbs/wk.
+  2. **Missing Pace Floor Guard**: Any calculated runway under 3 weeks triggered `STALL IMMINENT` regardless of whether current pace was strong ($1.48\text{ lbs/wk}$).
+  3. **Titration Boundary**: David just titrated to 10mg from 7.5mg, which resets the physiological dose trajectory into a new gathering phase.
+
+### Implemented Solutions in [plateau-radar.js](file:///c:/Projects/weight-dashboard-v2/plateau-radar.js)
+1. **Pace Floor Guard**:
+   - If current pace is strong ($\ge 1.3\text{ lbs/week}$) and holding or rebounding, the status is held at **`STEADY`** (`Pace has stabilized and is holding strong at X.XX lb/wk. No plateau forming — your rate of loss rebounded in recent weeks.`).
+2. **Rebound Detection**:
+   - Compares latest pace with the preceding anchor. If pace rebounded or stabilized, it disables false straight-line crash projections.
+3. **Imminent Stall Gating**:
+   - `STALL IMMINENT` is now strictly reserved for situations where pace is actually near or below the trigger floor ($< 1.3\text{ lb/wk}$ and runway $\le 3\text{ weeks}$, or pace $\le 1.0\text{ lb/wk}$).
+4. **Current Dose Badge & Context**:
+   - Added dose context (`on 10mg`) and clear gathering messaging for newly titrated dose phases.
+
 
