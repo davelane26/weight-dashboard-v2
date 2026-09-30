@@ -89,14 +89,16 @@ function renderBodyFatTargets(latest) {
     return;
   }
 
+  const dynComp    = (typeof DexaCal !== 'undefined' && DexaCal.calculateDynamicComposition)
+    ? DexaCal.calculateDynamicComposition(latest, typeof allData !== 'undefined' ? allData : []) : null;
   const fatOffset  = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset) ? DexaCal.getFatOffset() : 0;
   const ratioFat   = (typeof DexaCal !== 'undefined' && DexaCal.getRatioMethodFat)
     ? DexaCal.getRatioMethodFat(latest.weight) : null;
   const offsetFat  = latest.bodyFat + fatOffset;
-  const calFat     = ratioFat != null ? ratioFat : offsetFat;  // primary: ratio method
-  const lean       = latest.weight * (1 - calFat / 100);       // lbs of lean, held constant
+  const calFat     = dynComp != null ? dynComp.bodyFatPct : (ratioFat != null ? ratioFat : offsetFat);
+  const lean       = dynComp != null ? dynComp.leanMass : latest.weight * (1 - calFat / 100);
   const curW       = latest.weight;
-  const methodTag  = ratioFat != null ? 'DEXA ratio method' : 'DEXA offset method';
+  const methodTag  = dynComp != null ? 'DEXA dynamic method' : (ratioFat != null ? 'DEXA ratio method' : 'DEXA offset method');
 
   const TARGETS = [25, 20, 15];
   const rows = TARGETS.map(t => {

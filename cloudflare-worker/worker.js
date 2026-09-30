@@ -861,6 +861,8 @@ function convertOpenScaleMeasurement(m) {
   if (typeof muscle === 'number') entry.muscle = muscle;
   const water = typeof m.water === 'number' ? m.water : byKey.water;
   if (typeof water === 'number') entry.water = water;
+  const impedance = typeof m.impedance === 'number' ? m.impedance : byKey.impedance;
+  if (typeof impedance === 'number') entry.impedance = impedance;
 
   return entry;
 }

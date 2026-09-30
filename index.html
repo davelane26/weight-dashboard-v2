@@ -205,6 +205,7 @@
 
     <section class="fade-in" aria-label="Body composition">
       <h2 class="card-title" style="margin-bottom:0.75rem">Body Composition</h2>
+      <div id="kpi-catabolism-alert" style="display:none;margin-bottom:0.75rem;padding:0.6rem 0.85rem;border-radius:10px;font-size:0.82rem;line-height:1.4;border:1px solid #ef4444;background:rgba(239,68,68,0.12);color:#ef4444;"></div>
       <div class="kpi-grid">
         <div class="kpi kpi--gold" id="kpi-bmi-card">
           <p class="kpi-label">&#128203; BMI</p>
@@ -215,7 +216,7 @@
         <div class="kpi kpi--gold">
           <p class="kpi-label">&#128293; Body Fat</p>
           <p class="kpi-value skel" id="kpi-fat">&mdash;</p>
-          <p class="kpi-unit">% of total weight (DEXA ratio method)</p>
+          <p class="kpi-unit" id="kpi-fat-unit">% of total weight (DEXA dynamic method)</p>
           <p class="kpi-sub" id="kpi-fat-sub"></p>
           <p class="kpi-sub" id="kpi-fat-sanity" style="opacity:0.55;font-size:0.72rem;margin-top:0.15rem"></p>
         </div>
@@ -249,6 +250,12 @@
           <p class="kpi-value skel" id="kpi-muscle-lbs">—</p>
           <p class="kpi-unit">lbs of muscle</p>
           <p class="kpi-sub" id="kpi-muscle-lbs-sub"></p>
+        </div>
+        <div class="kpi kpi--cyan">
+          <p class="kpi-label">&#9878; Lean Body Mass</p>
+          <p class="kpi-value skel" id="kpi-lean-lbs">—</p>
+          <p class="kpi-unit">lbs (DEXA dynamic anchor)</p>
+          <p class="kpi-sub" id="kpi-lean-lbs-sub"></p>
         </div>
         <div class="kpi kpi--gray">
           <p class="kpi-label">&#129460; Bone Mass</p>

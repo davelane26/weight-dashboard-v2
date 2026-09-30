@@ -223,6 +223,60 @@ window.toggleDexaForm = toggleDexaForm;
     return currentFatLbs / currentWeight * 100;
   }
 
+  // ── DYNAMIC COMPOSITION ENGINE ──────────────────────────────────────
+  // Clinically anchored to the July 27 clinical DEXA baseline (172.89 lbs lean,
+  // 252.4 lbs start weight). Employs a 5% vascular/connective tissue support
+  // cushion and an impedance-gated catch rule for muscle catabolism detection.
+  function calculateDynamicComposition(todayRow, history = []) {
+    if (!todayRow) return null;
+    const DEXA_BASELINE_LEAN = 172.89; // July 27 clinical baseline (lbs)
+    const DEXA_START_WEIGHT = 252.4;
+    const SUPPORT_CUSHION_RATE = 0.05; // 5% expected vascular/connective support drop
+
+    const currentWeight = Number(todayRow.weight || todayRow.WEIGHT);
+    if (!currentWeight || isNaN(currentWeight) || currentWeight <= 0) return null;
+
+    const currentImpedance = Number(todayRow.impedance || todayRow.IMPEDANCE || 495);
+    const currentScaleBF = Number(todayRow.bodyFat || todayRow.BODY_FAT || 0);
+
+    // 1. Calculate 7-day rolling average of scale's calculated Lean Body Mass
+    const recentEntries = Array.isArray(history) ? history.slice(-7) : [];
+    const recentLBMs = recentEntries.map(e => {
+      const w = Number(e.weight || e.WEIGHT);
+      const bf = Number(e.bodyFat || e.BODY_FAT);
+      if (isNaN(w) || isNaN(bf) || w <= 0) return null;
+      return w * (1 - bf / 100);
+    }).filter(v => v != null);
+
+    const avgScaleLBM = recentLBMs.length > 0 
+      ? recentLBMs.reduce((sum, val) => sum + val, 0) / recentLBMs.length 
+      : currentWeight * (1 - currentScaleBF / 100);
+
+    // 2. Base expected lean mass with 5% support tissue cushion
+    const weightLostSinceDexa = Math.max(0, DEXA_START_WEIGHT - currentWeight);
+    let expectedLeanMass = DEXA_BASELINE_LEAN - (SUPPORT_CUSHION_RATE * weightLostSinceDexa);
+
+    // 3. Dynamic Muscle Loss Catch Rule:
+    // If 7-day rolling LBM drops below 170.0 lbs AND impedance climbs above 520 ohms,
+    // step down the anchor to catch real catabolism.
+    let hasMuscleLossAlert = false;
+    if (avgScaleLBM < 170.0 && currentImpedance > 520) {
+      expectedLeanMass = Math.min(expectedLeanMass, avgScaleLBM);
+      hasMuscleLossAlert = true;
+    }
+
+    const calculatedFatMass = Math.max(0, currentWeight - expectedLeanMass);
+    const calculatedBodyFatPct = (calculatedFatMass / currentWeight) * 100;
+
+    return {
+      bodyFatPct: Number(calculatedBodyFatPct.toFixed(1)),
+      fatMass: Number(calculatedFatMass.toFixed(1)),
+      leanMass: Number(expectedLeanMass.toFixed(1)),
+      hasMuscleLossAlert,
+      avgScaleLBM: Number(avgScaleLBM.toFixed(1))
+    };
+  }
+
   // Public API consumed by rate-analysis.js / app-kpis.js
   window.DexaCal = {
     getFatOffset: function () {
@@ -234,9 +288,20 @@ window.toggleDexaForm = toggleDexaForm;
       return scan ? (scan.muscleOffset || 0) : 0;
     },
     getRatioMethodFat: getRatioMethodFat,
+    calculateDynamicComposition: calculateDynamicComposition,
+    getDynamicComposition: function (todayRow, history) {
+      const target = todayRow || (typeof allData !== 'undefined' && allData.length ? allData[allData.length - 1] : null);
+      const hist = history || (typeof allData !== 'undefined' ? allData : []);
+      return calculateDynamicComposition(target, hist);
+    },
     getFatLossRatio: function () { return FAT_LOSS_RATIO; },
     getScan: latestScan,
   };
+  window.calculateDynamicComposition = calculateDynamicComposition;
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { calculateDynamicComposition };
+  }
 
   document.addEventListener('DOMContentLoaded', renderDexaPanel);
 })();

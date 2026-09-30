@@ -26,15 +26,16 @@ function renderKPIs(latest, prev) {
     }
   }
 
-  // Body-fat display: prefer the RATIO METHOD (propagate from DEXA anchor
-  // via the tracked fat-loss ratio) when we have a DEXA scan with a
-  // recorded scan weight. It's more stable day-to-day (no BIA hydration
-  // noise) and anchors to the DEXA's absolute fat mass. Falls back to
-  // the constant-offset method (raw scale + fatOffset) when the ratio
-  // method can't run — e.g. no scan logged, or the stored scan lacks a
-  // weight anchor. The constant-offset value is ALSO surfaced in a small
-  // "sanity check" line below so we can spot method drift (a >2pp gap
-  // between the two is the "time for another DEXA" signal).
+  // Body-fat & composition display: prefer calculateDynamicComposition
+  // (clinical DEXA anchor, 5% connective tissue cushion, and 7-day impedance
+  // catabolism catch rule). Falls back to the ratio method or constant-offset
+  // method if unavailable.
+  const historyList = (typeof allData !== 'undefined' && Array.isArray(allData)) ? allData : [];
+  const dynCompLatest = (typeof DexaCal !== 'undefined' && DexaCal.calculateDynamicComposition)
+    ? DexaCal.calculateDynamicComposition(latest, historyList) : null;
+  const dynCompPrev = (typeof DexaCal !== 'undefined' && DexaCal.calculateDynamicComposition && prev)
+    ? DexaCal.calculateDynamicComposition(prev, historyList.length > 1 ? historyList.slice(0, -1) : []) : null;
+
   const fatOffset    = (typeof DexaCal !== 'undefined' && DexaCal.getFatOffset)    ? DexaCal.getFatOffset()    : 0;
   const muscleOffset = (typeof DexaCal !== 'undefined' && DexaCal.getMuscleOffset) ? DexaCal.getMuscleOffset() : 0;
 
@@ -48,9 +49,9 @@ function renderKPIs(latest, prev) {
   const offsetFatLatest = latest.bodyFat != null ? latest.bodyFat + fatOffset : null;
   const offsetFatPrev   = prev?.bodyFat  != null ? prev.bodyFat  + fatOffset : null;
 
-  // Primary = ratio when available, else fall back to constant-offset.
-  const latestFat = ratioFatLatest != null ? ratioFatLatest : offsetFatLatest;
-  const prevFat   = ratioFatPrev   != null ? ratioFatPrev   : offsetFatPrev;
+  // Primary: Dynamic DEXA method (cushioned + catabolism protected) -> ratio method -> offset method
+  const latestFat = dynCompLatest != null ? dynCompLatest.bodyFatPct : (ratioFatLatest != null ? ratioFatLatest : offsetFatLatest);
+  const prevFat   = dynCompPrev   != null ? dynCompPrev.bodyFatPct   : (ratioFatPrev   != null ? ratioFatPrev   : offsetFatPrev);
 
   const latestMuscle = latest.muscle  != null ? latest.muscle + muscleOffset : null;
   const prevMuscle   = prev?.muscle   != null ? prev.muscle   + muscleOffset : null;
@@ -59,13 +60,30 @@ function renderKPIs(latest, prev) {
   const fd = prevFat != null && latestFat != null ? latestFat - prevFat : null;
   setHTML('kpi-fat-sub', fd != null ? delta(fd) + '% from last' : '');
 
-  // Sanity-check line: only show it when the ratio method is the primary
-  // (otherwise the sanity number IS the primary and there's nothing to
-  // compare). Flags divergence >2pp as a "schedule another DEXA" hint.
+  // Catabolism Alert Banner
+  const alertEl = document.getElementById('kpi-catabolism-alert');
+  if (alertEl) {
+    if (dynCompLatest?.hasMuscleLossAlert) {
+      alertEl.style.display = 'block';
+      alertEl.innerHTML = `⚠️ <strong>Dynamic Muscle Loss Alert:</strong> 7-day rolling lean mass (${dynCompLatest.avgScaleLBM} lbs &lt; 170.0 lbs) with elevated impedance (&gt;520 &Omega;). Anchor adjusted to ${dynCompLatest.leanMass} lbs lean mass to protect tracking fidelity. Prioritize dietary protein &amp; resistance training.`;
+    } else {
+      alertEl.style.display = 'none';
+    }
+  }
+
+  // Update fat unit text depending on method
+  const unitEl = document.getElementById('kpi-fat-unit');
+  if (unitEl) {
+    unitEl.textContent = dynCompLatest != null
+      ? '% of total weight (DEXA dynamic method)'
+      : (ratioFatLatest != null ? '% of total weight (DEXA ratio method)' : '% of total weight (calibrated)');
+  }
+
+  // Sanity-check line: flags divergence >2pp as a "schedule another DEXA" hint.
   const sanityEl = document.getElementById('kpi-fat-sanity');
   if (sanityEl) {
-    if (ratioFatLatest != null && offsetFatLatest != null) {
-      const gap = Math.abs(ratioFatLatest - offsetFatLatest);
+    if (latestFat != null && offsetFatLatest != null) {
+      const gap = Math.abs(latestFat - offsetFatLatest);
       const flag = gap > 2 ? ' - drift >2pp, recalibrate' : '';
       sanityEl.textContent = 'sanity: ' + offsetFatLatest.toFixed(1) + '% (offset method)' + flag;
       sanityEl.style.display = '';
@@ -74,8 +92,8 @@ function renderKPIs(latest, prev) {
     }
   }
 
-  const fatLbs  = latestFat != null && latest.weight ? +(latest.weight * latestFat / 100).toFixed(1) : null;
-  const pFatLbs = prevFat   != null && prev?.weight  ? +(prev.weight  * prevFat   / 100).toFixed(1) : null;
+  const fatLbs  = dynCompLatest != null ? dynCompLatest.fatMass : (latestFat != null && latest.weight ? +(latest.weight * latestFat / 100).toFixed(1) : null);
+  const pFatLbs = dynCompPrev   != null ? dynCompPrev.fatMass   : (prevFat   != null && prev?.weight  ? +(prev.weight  * prevFat   / 100).toFixed(1) : null);
   fatLbs != null ? countUp('kpi-fat-lbs', fatLbs, 1) : setText('kpi-fat-lbs', '—');
   const fld = fatLbs != null && pFatLbs != null ? +(fatLbs - pFatLbs).toFixed(1) : null;
   setHTML('kpi-fat-lbs-sub', fld != null ? delta(fld) + ' lbs from last' : '');
@@ -89,6 +107,16 @@ function renderKPIs(latest, prev) {
   muscleLbs != null ? countUp('kpi-muscle-lbs', muscleLbs, 1) : setText('kpi-muscle-lbs', '—');
   const mld = muscleLbs != null && pMuscleLbs != null ? +(muscleLbs - pMuscleLbs).toFixed(1) : null;
   setHTML('kpi-muscle-lbs-sub', mld != null ? delta(mld, false) + ' lbs from last' : '');
+
+  // Lean Body Mass (LBM) Card (DEXA Dynamic Anchor)
+  const leanLbs  = dynCompLatest != null ? dynCompLatest.leanMass : (latest.weight && latestFat != null ? +(latest.weight * (1 - latestFat / 100)).toFixed(1) : null);
+  const pLeanLbs = dynCompPrev   != null ? dynCompPrev.leanMass   : (prev?.weight  && prevFat   != null ? +(prev.weight  * (1 - prevFat   / 100)).toFixed(1) : null);
+  leanLbs != null ? countUp('kpi-lean-lbs', leanLbs, 1) : setText('kpi-lean-lbs', '—');
+  const lld = leanLbs != null && pLeanLbs != null ? +(leanLbs - pLeanLbs).toFixed(1) : null;
+  const leanStatusText = dynCompLatest?.hasMuscleLossAlert
+    ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠️ Alert</span>'
+    : '<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e">Protected</span>';
+  setHTML('kpi-lean-lbs-sub', `${leanStatusText}${lld != null && lld !== 0 ? ' ' + delta(lld, false) + ' lbs' : ''}`);
 
   latest.water ? countUp('kpi-water', latest.water, 0, '%') : setText('kpi-water', '—');
   const wad = prev?.water ? latest.water - prev.water : null;
