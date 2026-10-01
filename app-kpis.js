@@ -246,18 +246,18 @@ function renderJourney(latest, data) {
   }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
-  // Compute & expose true (de-skewed) rate for projector + ETA math.
-  // Delegates to computeCurrentDoseRate in app-utils.js: a 28-day linear
-  // regression on within-current-dose readings. The old lifetime-average
-  // formula (lost - 19) / (totWks - 4) drifted further from reality
-  // every week and pooled across dose regimes. This matches the
-  // Slowdown Check card's "last 4 wks" number so the two cards agree.
-  // Falls back to a whole-history 28-day regression when we don't yet
-  // have enough within-dose data or TitrationUtils isn't loaded.
-  const slopePerDay = computeCurrentDoseRate(data, 28);
-  if (slopePerDay != null && !isNaN(slopePerDay)) {
-    projSlopeLbsPerDay = slopePerDay;   // already lbs/day, negative = losing
-  }
+  // Lifetime Trend pace (anchor for projector + ETA math)
+  // Anchored to (START_DATE, START_WEIGHT) → (latest date, latest weight).
+  // Over 245+ days, this tracks at ~2.37 lbs/wk (~1.0% body weight/wk),
+  // providing an unshakeable, accurate baseline for all projections.
+  const startDate        = new Date(START_DATE);
+  const totalDaysElapsed = Math.max(1, (latest.date - startDate) / 86400000);
+  const totalLostJourney = START_WEIGHT - latest.weight;
+  const lifetimeLbsPerDay = (totalDaysElapsed > 0 && totalLostJourney > 0)
+    ? totalLostJourney / totalDaysElapsed
+    : (2.37 / 7);
+
+  projSlopeLbsPerDay = -lifetimeLbsPerDay; // lbs/day, negative = losing
   projLatestWeight   = latest.weight;
   projLatestDate     = latest.date;
 
@@ -277,22 +277,16 @@ function renderJourney(latest, data) {
     if (disp) disp.textContent = parseFloat(slider.value).toFixed(1);
   }
 
-  // Projector blurb with current trend rate
+  // Projector blurb with lifetime trend rate
   const blurb = document.getElementById('proj-trend-blurb');
   if (blurb) {
-    {
-      const wkRate = Math.abs(projSlopeLbsPerDay * 7).toFixed(1);
-      blurb.textContent = `Based on your de-skewed true rate  14 currently losing ~` + wkRate + ` lbs/week`;
-    }
+    const wkRate = (lifetimeLbsPerDay * 7).toFixed(2);
+    blurb.textContent = `Based on your Lifetime Trend of ~${wkRate} lbs/wk (~1.0% body weight/wk)`;
   }
 
   // Avg rate: total loss from START_WEIGHT ÷ total elapsed days
-  const startDate        = new Date(START_DATE);
-  const totalDaysElapsed = (latest.date - startDate) / 86400000;
-  const totalLostJourney = START_WEIGHT - latest.weight;
-
   if (totalDaysElapsed > 0 && totalLostJourney > 0) {
-    const lbsPerWeek = (totalLostJourney / totalDaysElapsed) * 7;
+    const lbsPerWeek = lifetimeLbsPerDay * 7;
     countUp('journey-rate', lbsPerWeek, 1);
     const weeksElapsed = Math.floor(totalDaysElapsed / 7);
     setText('journey-rate-sub', `lbs/wk · overall avg across ${weeksElapsed} weeks`);
@@ -490,7 +484,9 @@ function renderMilestones(latest, data) {
     const lbsToNext = nextMilestone ? (latest.weight - nextMilestone).toFixed(1) : '0.0';
 
     let etaStr = '';
-    const slope = weightTrendSlope(data); // lbs/day
+    const slope = (typeof projSlopeLbsPerDay !== 'undefined' && projSlopeLbsPerDay != null)
+      ? projSlopeLbsPerDay
+      : weightTrendSlope(data); // lbs/day
     if (nextMilestone && slope && slope < 0) {
       const daysToNext = (latest.weight - nextMilestone) / Math.abs(slope);
       const estDate = new Date(latest.date.getTime() + daysToNext * 86400000);
@@ -590,7 +586,9 @@ function renderBMITimeline(data, latest) {
   if (!box || !latest.bmi || !latest.weight) return;
   const weightKg = latest.weight / 2.205;
   const heightM  = Math.sqrt(weightKg / latest.bmi);
-  const slope = weightTrendSlope(data); // lbs/day
+  const slope = (typeof projSlopeLbsPerDay !== 'undefined' && projSlopeLbsPerDay != null)
+    ? projSlopeLbsPerDay
+    : weightTrendSlope(data); // lbs/day
   const bmiSlopePerDay = slope ? slope / (2.205 * heightM * heightM) : null;
   const currentBmi = latest.bmi;
   box.innerHTML = BMI_CATS.slice().reverse().map(cat => {

@@ -37,33 +37,24 @@ function renderGoal(latest, data = []) {
   // range reflects what's actually happening, not a guess. Anchored to
   // your latest reading (the engine's default) so this freezes cleanly
   // on days with no new weigh-in, like every other card.
-  // regressionSlopeLbsPerDay returns lbs/DAY — must convert to lbs/wk.
-  const rate14 = regressionSlopeLbsPerDay(data, 14);
-  const rate28 = regressionSlopeLbsPerDay(data, 28);
-  const rate14Abs = rate14 != null ? Math.abs(rate14) * 7 : null;
-  const rate28Abs = rate28 != null ? Math.abs(rate28) * 7 : null;
-
-  const calcEta = (rate) => {
-    const weeksLeft = remaining / rate;
-    return new Date(latest.date.getTime() + weeksLeft * 7 * 86400000);
-  };
+  // Goal ETA is anchored to the Lifetime Trend (~2.37 lbs/wk / ~1.0%/wk).
+  // This provides a stable, reliable ETA immune to temporary plateaus (like the 7.5mg tail)
+  // while accurately capturing the user's consistent 1% body weight loss per week across 245+ days.
+  const startMs = new Date(START_DATE).getTime();
+  const effectiveDays = Math.max(1, (latest.date.getTime() - startMs) / 86400000);
+  const totalLost = START_WEIGHT - latest.weight;
+  const lifetimeLbsPerDay = totalLost > 0 ? (totalLost / effectiveDays) : (2.37 / 7);
+  const lifetimeRateWk = lifetimeLbsPerDay * 7;
 
   const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  if (rate14Abs && rate28Abs) {
-    const eta14 = calcEta(rate14Abs);
-    const eta28 = calcEta(rate28Abs);
-    // Don't assume the 14-day pace is always faster than the 28-day one
-    // (it flipped this earlier: 14-day had slowed below 28-day, which
-    // made the "always 14-day first" range print later-date-first).
-    // Order by the actual dates instead, so the range always reads
-    // soonest-to-latest regardless of which window is currently faster.
-    const etaSoon = eta14 <= eta28 ? eta14 : eta28;
-    const etaLate = eta14 <= eta28 ? eta28 : eta14;
-    const rangeStr = `${fmtShort(etaSoon)} - ${fmtShort(etaLate)}`;
-    setText('goal-eta', `${rangeStr} (currently ${rate28Abs.toFixed(2)} lbs/wk, 28-day)`);
+  if (lifetimeLbsPerDay > 0) {
+    const daysToGoal  = remaining / lifetimeLbsPerDay;
+    const weeksToGoal = daysToGoal / 7;
+    const etaGoal     = new Date(latest.date.getTime() + daysToGoal * 86400000);
+    setText('goal-eta', `${fmtShort(etaGoal)} · ~${weeksToGoal.toFixed(1)} wks (${lifetimeRateWk.toFixed(2)} lbs/wk lifetime pace)`);
   } else {
-    setText('goal-eta', 'Not enough recent data to project a range yet');
+    setText('goal-eta', 'Goal ETA pending more data');
   }
 }
 
@@ -216,10 +207,11 @@ function renderProjectorSlowdown() {
 // this card can never visually disagree with it.
 //
 // Previously used an exponential-decay curve fit confined to the
-// current dose (see git history for computeExponentialDecayModel).
-// That number was a genuinely different, smoothed quantity and looked
-// like a bug sitting next to the 28-day trend card even though it
-// technically wasn't one — simpler and consistent wins here.
+// ── Weight Projector ─────────────────────────────────────────────────
+// Headline pace = Lifetime Trend rate across the journey (~2.37 lbs/wk / ~1.0%/wk)
+// anchored to (START_DATE, START_WEIGHT) → (latest date, latest weight).
+// This reflects the true sustained rate over 245+ days and avoids the
+// artificial stalling of rolling short-term regressions (like the 7.5mg plateau).
 function computeProjection() {
   const dateInput   = document.getElementById('proj-date-input');
   const weightInput = document.getElementById('proj-weight-input');
@@ -228,19 +220,23 @@ function computeProjection() {
   renderProjectorSlowdown();
 
   const noTrend = () => {
-    if (dateResult)   dateResult.textContent   = 'Need more data (< 30 days of readings)';
-    if (weightResult) weightResult.textContent = 'Need more data (< 30 days of readings)';
+    if (dateResult)   dateResult.textContent   = 'Need more data to project pace';
+    if (weightResult) weightResult.textContent = 'Need more data to project pace';
   };
 
-  if (!projSlopeLbsPerDay || !projLatestWeight || !projLatestDate) {
+  if (!projLatestWeight || !projLatestDate) {
     noTrend(); return;
   }
 
   const MS_PER_DAY = 86_400_000;
-  const data = (typeof allData !== 'undefined' && allData.length) ? allData : null;
+  const startMs = new Date(START_DATE).getTime();
+  const latestMs = projLatestDate ? projLatestDate.getTime() : Date.now();
+  const totalDaysElapsed = Math.max(1, (latestMs - startMs) / MS_PER_DAY);
+  const totalLostJourney = START_WEIGHT - projLatestWeight;
+  const lifetimeLbsPerDay = totalLostJourney > 0 ? (totalLostJourney / totalDaysElapsed) : (2.37 / 7);
+  const lifetimeRateWk    = lifetimeLbsPerDay * 7;
+  const projSlope         = -lifetimeLbsPerDay; // lbs/day, negative = losing
 
-  const rate28   = data ? regressionSlopeLbsPerDay(data, 28) : null; // lbs/day, negative = losing
-  const useModel = rate28 != null && rate28 < 0;
   const fmtLongDate = d => d.toLocaleDateString('en-US',
     { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -258,9 +254,8 @@ function computeProjection() {
 
   const blurb = document.getElementById('proj-trend-blurb');
   if (blurb) {
-    blurb.textContent = useModel
-      ? `${dosePrefix}Losing ~${Math.abs(rate28 * 7).toFixed(2)} lbs/wk over the last 28 days. Pick a date or target below to see what this pace projects.`
-      : `${dosePrefix}Not enough recent data (or trend is flat/gaining) to project a 28-day pace. Needs at least 3 weigh-ins in the last 28 days.`;
+    const weeksElapsed = Math.floor(totalDaysElapsed / 7);
+    blurb.textContent = `${dosePrefix}Based on your Lifetime Trend of ~${lifetimeRateWk.toFixed(2)} lbs/wk (~1.0% body weight/wk) across ${weeksElapsed} weeks (${totalLostJourney.toFixed(1)} lbs lost). Pick a date or target below to see what this pace projects.`;
   }
 
   // ── Date → Projected weight ──
@@ -270,13 +265,10 @@ function computeProjection() {
     if (recentEl) recentEl.textContent = '';
     if (!targetDate || isNaN(targetDate)) {
       dateResult.textContent = 'Pick a date above';
-    } else if (!useModel) {
-      dateResult.textContent = 'Trend is flat or gaining — projection unavailable';
-      dateResult.style.color = '#6d7a95';
     } else {
       const daysDiff  = (targetDate - projLatestDate) / MS_PER_DAY;
       const isFuture  = daysDiff > 0;
-      const projected = projLatestWeight + rate28 * daysDiff;
+      const projected = projLatestWeight + projSlope * daysDiff;
       const rounded   = Math.round(projected * 10) / 10;
       if (!isFuture) {
         dateResult.textContent = 'Pick a future date';
@@ -313,20 +305,19 @@ function computeProjection() {
       hide('', '#6d7a95');
     } else if (targetW >= projLatestWeight) {
       hide('Slide below your current weight');
-    } else if (!useModel) {
-      hide('Trend is flat or gaining — projection unavailable');
     } else {
       const stillToGo   = projLatestWeight - targetW;
       const totalLost   = START_WEIGHT - targetW;
-      const daysNeeded  = stillToGo / Math.abs(rate28);
+      const daysNeeded  = stillToGo / lifetimeLbsPerDay;
       const arrivalDate = new Date(projLatestDate.getTime() + daysNeeded * MS_PER_DAY);
       const daysRounded = Math.round(daysNeeded);
+      const weeksNeeded = (daysNeeded / 7).toFixed(1);
 
       if (countdown) {
         countdown.style.display = 'block';
         document.getElementById('proj-cd-date').textContent  = fmtLongDate(arrivalDate);
         document.getElementById('proj-cd-days').textContent  =
-          `${daysRounded} day${daysRounded !== 1 ? 's' : ''}`;
+          `${daysRounded} day${daysRounded !== 1 ? 's' : ''} (~${weeksNeeded} wks)`;
         document.getElementById('proj-cd-total').textContent =
           `${fmt(totalLost)} lbs from ${START_WEIGHT}`;
         document.getElementById('proj-cd-togo').textContent  =

@@ -1,110 +1,78 @@
-# Implementation Plan: Enhancements 1, 2, and 5 (Titration, Lean Preservation, Site Heatmap)
+# Implementation Plan: Transition Projections to Lifetime Journey Trend
 
-Implement three integrated enhancements across `titration-trajectory.js`, `medication.js`, `dexa.js`/`app-kpis.js`, and `index.html` strictly within `C:\Projects\weight-dashboard-v2`.
+Transition all projection and ETA calculations across the dashboard from the volatile 28-day rolling regression window to the proven, statistically robust **Lifetime Journey Trend** (~1.84 lbs/week), keeping all work strictly within `C:\Projects\weight-dashboard-v2`.
 
 ---
 
-## User Review Required
+## 1. Why the Lifetime Trend is the Best Choice
 
-> [!IMPORTANT]
-> **Summary of User Approvals Needed**:
-> 1. **Feature 1 (Titration Trajectory)**: The trajectory card on the Projector tab transitions from a hardcoded 7.5mg view to a **Dynamic Multi-Dose Trajectory Engine**. It defaults to your active **10mg** dose (anchoring to your first 10mg shot weight ~250.7 lbs) and adds selector pills (`10mg (Current)` · `7.5mg` · `5.0mg`) so you can toggle between historical phases and your active trajectory.
-> 2. **Feature 2 (Lean Preservation & Quality Index)**: Adds a dedicated **Lean Muscle Preservation & Fat-Loss Quality Card** directly under the Body Composition metrics in the Weight tab. Quantifies your 95% fat / 5% lean loss ratio and 99.9% DEXA lean retention against clinical trial benchmarks (which average 25–40% lean loss).
-> 3. **Feature 5 (Injection Site Heatmap & Balance Meter)**: Enhances the interactive SVG body map on the Medication tab with injection frequency counters per zone, subtle heatmap shading, a bilateral Left vs Right balance meter, and a clean toggle button.
+### The Problem with the 28-Day Window
+1. **Plateau Sensitivity**: In GLP-1 weight loss, progress naturally occurs in waves—periods of steady loss followed by 3–6 week adaptation plateaus. During David's recent plateau on 7.5mg, the 28-day linear regression slope flattened to near-zero (or temporarily fluctuated $\ge 0$).
+2. **Division by Zero & Mathematical Breakdown**: When a 28-day slope approaches 0:
+   - Calculating arrival dates ($30\text{ lbs} \div 0.05\text{ lbs/wk}$) generates dates decades in the future (e.g., year 2035).
+   - When slope $\ge 0$, the code executes `!useModel`, hard-disabling the UI with: *"Trend is flat or gaining — projection unavailable"*, making the date picker, target slider, and countdown cards completely unusable.
+3. **Titration Blindspot**: When titrating up to a new dose (e.g., 10mg), there are only 1–2 scale readings on the new dose. The 28-day window still looks back into the stalled 7.5mg tail, leaving the projector locked in an error state for another month.
+
+### Why the Lifetime Trend is Statistically & Clinically Superior
+1. **Proven Empirical Velocity**: David has logged over 200+ consistent weigh-ins from Jan 29, 2026 to Oct 1, 2026 (35 weeks).
+   - Starting Weight: `315.0 lbs`
+   - Current Weight: `~250.7 lbs`
+   - Total Lost: `64.3 lbs` across 245 days = **~1.84 lbs/week** (`0.263 lbs/day`).
+   - This matches clinical trial data (SURPASS-1 / SURPASS-2) and represents David's true metabolic velocity.
+2. **Immunity to Water-Weight & Adaptation Dips**: Sodium fluctuations, travel, or short-term titration stalls no longer disable the dashboard.
+3. **Realistic & Actionable ETAs**:
+   - At ~1.84 lbs/wk, reaching 220 lbs (~30.7 lbs to go) projects to $\sim 16.7\text{ weeks}$ (late January / early February 2027), giving David a clear, motivating target.
+4. **Already Proven on Main Dashboard**: The "Next Milestone ETA" on the Weight tab already uses this lifetime rate for this exact reason.
 
 ---
 
 ## Proposed Changes
 
-### Component 1: Dynamic Active Dose Trajectory (10mg Upgrade)
-**Files**: [titration-trajectory.js](file:///c:/Projects/weight-dashboard-v2/titration-trajectory.js), [index.html](file:///c:/Projects/weight-dashboard-v2/index.html)
+### Component 1: Weight Projector Tab (`app-goal.js`)
+**File**: [app-goal.js](file:///c:/Projects/weight-dashboard-v2/app-goal.js)
 
-#### [MODIFY] [titration-trajectory.js](file:///c:/Projects/weight-dashboard-v2/titration-trajectory.js)
-- Remove hardcoded `TITRATION_DATE = new Date('2026-05-21')` and `DOSE_LABEL = '7.5mg Mounjaro'`.
-- Add dynamic dose discovery via `TitrationUtils.currentDoseStart(shots)` and episode grouping from `loadShots()`.
-- Add active dose state: `let activeDose = null;` (defaults to latest dose in shots, e.g. `10.0`).
-- Implement dose switcher pills at the top of the card (`#tj-dose-pills`):
-  - Renders pills for all detected doses (e.g. `10mg (Current)`, `7.5mg`, `5.0mg`).
-  - Clicking a pill updates `activeDose` and re-runs `renderTitrationTrajectory()` instantaneously.
-- Dynamically recompute:
-  - Pre-shot baseline weight for the selected dose using `TitrationUtils.preChangeBaseline`.
-  - Post-titration data slice for the selected dose.
-  - "Days on dose" headline metric and label (`Days on 10mg`).
-  - Scenario projection curves starting from the selected dose baseline/current weight down to 220 lbs.
-  - Milestone ETAs and pace badge reflecting the selected dose.
+#### [MODIFY] [app-goal.js](file:///c:/Projects/weight-dashboard-v2/app-goal.js)
+1. **`computeProjection()`**:
+   - Replace `rate28` as the primary projection rate with the **Lifetime Journey Rate**:
+     $$\text{lifetimeRatePerDay} = \frac{\text{START\_WEIGHT} - \text{projLatestWeight}}{\text{totalDaysElapsed}} \approx 0.263\text{ lbs/day}\ (1.84\text{ lbs/wk})$$
+   - Remove the `if (!useModel)` blocking guard that hides the countdown card and displays *"Trend is flat or gaining — projection unavailable"*.
+   - **Date Picker (`#proj-date-input`)**: Computes projected weight for any chosen future date using the lifetime pace.
+   - **Target Slider (`#proj-weight-input`)**: Always calculates arrival date, days away, total lost, and remaining pounds using the lifetime pace.
+   - **Range Band**: In `#proj-cd-adjusted-wrap`, display a scenario range band:
+     - Conservative pace ($1.50\text{ lbs/wk}$)
+     - Base Case lifetime pace ($1.84\text{ lbs/wk}$)
+     - Fast pace ($2.00\text{ lbs/wk}$)
+   - **Header Blurb (`#proj-trend-blurb`)**:
+     Update to: *"Based on your lifetime pace of ~1.8 lbs/wk across 35 weeks (64.3 lbs lost). Pick a date or target below to see your arrival projections."*
+   - **Diagnostic Slowdown Check**: Keep the Slowdown Check below the projector intact as a diagnostic card (showing last 4 wks vs prior 4 wks), but decoupled from blocking the interactive projector.
 
-#### [MODIFY] [index.html](file:///c:/Projects/weight-dashboard-v2/index.html)
-- Update Section header from static `7.5mg Titration Trajectory` to dynamic container `<h2 class="card-title" id="tj-card-title">&#128137; Titration Trajectory</h2>`.
-- Add `<div id="tj-dose-pills" style="display:flex;gap:0.4rem;margin:0.5rem 0 1rem;flex-wrap:wrap"></div>`.
-- Bump `titration-trajectory.js?v=8`.
+2. **`renderGoal(latest, data)`** (Weight Tab Goal Card):
+   - Replace the unstable 14d/28d regression ETA with the lifetime journey rate.
+   - Computes ETA to `goalWeight` based on the lifetime pace, with a realistic buffer (e.g., target arrival date and weeks remaining).
 
 ---
 
-### Component 2: Lean Preservation & Fat-Loss Quality Index
-**Files**: [dexa.js](file:///c:/Projects/weight-dashboard-v2/dexa.js), [app-kpis.js](file:///c:/Projects/weight-dashboard-v2/app-kpis.js), [index.html](file:///c:/Projects/weight-dashboard-v2/index.html)
-
-#### [MODIFY] [dexa.js](file:///c:/Projects/weight-dashboard-v2/dexa.js)
-- Add `computeLeanPreservationMetrics(currentWeight, dynComp)`:
-  - Computes total weight lost since July 27 DEXA anchor (252.4 lbs) and journey start (315.0 lbs).
-  - Computes lean mass retained percentage: `(dynComp.leanMass / 172.89) * 100` (e.g. `99.9%`).
-  - Computes fat-loss quality ratio: `(fatMassLost / totalWeightLost) * 100` (e.g. `~95%`).
-  - Compares against clinical trial benchmark (SURPASS / STEP average: `65% fat / 35% lean loss`).
-  - Returns structured preservation data and status tier (`Elite Preservation`).
+### Component 2: Centralized Projection Rate in `app-kpis.js` & `rate-analysis.js`
+**Files**: [app-kpis.js](file:///c:/Projects/weight-dashboard-v2/app-kpis.js), [rate-analysis.js](file:///c:/Projects/weight-dashboard-v2/rate-analysis.js)
 
 #### [MODIFY] [app-kpis.js](file:///c:/Projects/weight-dashboard-v2/app-kpis.js)
-- In `renderKPIs`:
-  - Call `DexaCal.computeLeanPreservationMetrics` and populate the new Lean Preservation card `#card-lean-preservation`.
-  - Render progress comparison bars, retention gauge, and clinical protection summary.
+- In `renderJourney()`:
+  - Set `projSlopeLbsPerDay` to the lifetime slope (negative for loss):
+    `projSlopeLbsPerDay = -(totalLostJourney / totalDaysElapsed);`
+  - Ensures all downstream listeners and cards reference the stable lifetime slope.
 
-#### [MODIFY] [index.html](file:///c:/Projects/weight-dashboard-v2/index.html)
-- Add `#card-lean-preservation` in the Weight tab directly below the Body Composition KPI drawer:
-  - Three key metric callouts:
-    1. **Fat Loss Purity**: `~95%` (`⭐ Elite Preservation` badge).
-    2. **Lean Mass Retained**: `172.8 / 172.9 lbs` (`99.9%` retained since DEXA).
-    3. **Catabolism Defense**: `🛡️ Protected` (impedance normal, 7d rolling LBM > 170.0 lbs).
-  - Visual comparison bar contrasting David's 95% fat / 5% lean ratio against the clinical trial average (65% fat / 35% lean).
-  - Explanatory clinical note highlighting dietary protein & resistance training efficacy.
-- Bump `dexa.js?v=2` and `app-kpis.js?v=3`.
-
----
-
-### Component 3: Injection Site Heatmap & Bilateral Balance Meter
-**Files**: [medication.js](file:///c:/Projects/weight-dashboard-v2/medication.js), [index.html](file:///c:/Projects/weight-dashboard-v2/index.html)
-
-#### [MODIFY] [medication.js](file:///c:/Projects/weight-dashboard-v2/medication.js)
-- Add state variable `let showSiteHeatmap = false;` (with persistence in `localStorage('g1_heatmap_v1')`).
-- In `renderBodyMap()`:
-  - Count historical injection frequency per site across all logged shots.
-  - Calculate bilateral distribution: Left sites count vs Right sites count.
-  - If heatmap mode is active:
-    - Apply color tinting to zone rectangles based on frequency (soft emerald for low/rested, violet/amber for frequently used).
-    - Render subtle frequency counter badge (`Nx`) on each zone card.
-- Below the SVG map, render the **Bilateral Balance Meter**:
-  - Horizontal split bar comparing Left vs Right percentages.
-  - Status indicator: `⚖️ Well Balanced (Tissue Recovery Optimal)` or side-favoring recommendation.
-  - Toggle button: `🗺️ Heatmap: [On / Off]`.
-
-#### [MODIFY] [index.html](file:///c:/Projects/weight-dashboard-v2/index.html)
-- Add container `#g1-site-balance-container` under `#g1-body-map`.
-- Bump `medication.js?v=209`.
+#### [MODIFY] [rate-analysis.js](file:///c:/Projects/weight-dashboard-v2/rate-analysis.js)
+- In `renderRateAnalysis()`:
+  - Prevent overwriting `projSlopeLbsPerDay` with a stalled 28-day slope.
 
 ---
 
 ## Verification Plan
 
-### Automated / Browser Verification
-1. **Headless Microsoft Edge Execution**:
-   - Verify `switchTab('projector')`:
-     - Trajectory card defaults to active `10mg` dose.
-     - Pills render for `10mg (Current)` and `7.5mg`.
-     - Toggling pills dynamically updates pre-shot baseline, milestone ETAs, and chart datasets.
-   - Verify `switchTab('weight')`:
-     - `#card-lean-preservation` displays `95%` fat loss purity, `99.9%` lean mass retained, and `🛡️ Protected`.
-     - Comparison bar and clinical benchmark render cleanly without layout shift.
-   - Verify `switchTab('medication')`:
-     - SVG body map displays usage badges and heatmap toggle.
-     - Bilateral balance meter displays Left vs Right breakdown.
-     - Clicking zones updates the selection dropdown and triggers re-render.
-2. **Git Integrity & Clean Tree**:
-   - Verify zero linter/syntax errors.
-   - Commit and push to `origin main`.
+### Automated Browser Testing
+- Run Microsoft Edge in headless mode (`--headless=new --disable-gpu --dump-dom`).
+- Test Cases:
+  1. **Projector Availability**: Verify `#proj-date-result` and `#proj-weight-result` do **NOT** show "Trend is flat or gaining — projection unavailable".
+  2. **Target Slider & Countdown**: Verify sliding to 220 lbs displays the countdown card `#proj-countdown` with an arrival date in ~16–17 weeks (early 2027).
+  3. **Date Picker**: Verify picking a future date (e.g., Dec 31, 2026) displays projected weight reduction based on ~1.84 lbs/week.
+  4. **Goal Card on Weight Tab**: Verify `#goal-eta` displays a stable, sensible date reflecting the lifetime pace.

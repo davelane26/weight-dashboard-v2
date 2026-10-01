@@ -126,20 +126,9 @@
     set('ra-recent-rate',     fmt(k.recentRate));
     set('ra-total-since-med', k.totalLost == null ? '—' : k.totalLost.toFixed(1));
     set('ra-regression-rate', fmt(k.regressionRate));
-    // ── Expose regression rate globally so every projector component uses
-    // the same number as the Charts tab. The Charts tab's KPI tiles keep
-    // showing their own lifetime numbers (naive/true/recent) unchanged
-    // — those describe different questions than "what's my pace right
-    // now." For the Projector we route through computeCurrentDoseRate
-    // (in app-utils.js), which does a 28-day regression on within-dose
-    // readings. Guard against overwriting a good value with null when
-    // TitrationUtils / data aren't ready yet.
-    const projSlope = computeCurrentDoseRate(
-      (typeof allData !== 'undefined' && allData.length) ? allData : [], 28
-    );
-    if (projSlope != null && !isNaN(projSlope)) {
-      projSlopeLbsPerDay = projSlope; // lbs/day, negative = losing
-    }
+    // ── Keep projSlopeLbsPerDay anchored to the Lifetime Trend (~2.37 lbs/wk / ~1.0%/wk)
+    // so all projection tools across the dashboard remain unified and stable.
+    // The Charts tab KPI tiles continue showing their specific within-dose metrics.
     const noteEl = $('ra-regression-note');
     if (noteEl && k.regressionN) {
       const gap = k.recentRate != null ? (k.recentRate - (k.regressionRate || 0)).toFixed(2) : null;

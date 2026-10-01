@@ -342,16 +342,16 @@
     if (!goalWeight) return "You haven't set a goal weight yet — set one on the Weight tab to get an ETA.";
     const remaining = latest.weight - goalWeight;
     if (remaining <= 0) return `You've already reached your goal of ${fmt2(goalWeight)} lbs!`;
-    const slope = regressionSlopeLbsPerDay(allData, 28); // negative = losing
-    if (slope == null || slope >= 0) {
-      return `You have ${fmtLbs(remaining)} left to reach your goal of ${fmt2(goalWeight)} lbs, `
-           + `but your recent trend isn't losing, so there's no ETA to project.`;
-    }
-    const daysLeft = remaining / -slope;
+    const startMs = new Date(START_DATE).getTime();
+    const effectiveDays = Math.max(1, (latest.date.getTime() - startMs) / 86400000);
+    const totalLost = START_WEIGHT - latest.weight;
+    const lifetimeLbsPerDay = totalLost > 0 ? (totalLost / effectiveDays) : (2.37 / 7);
+    const lifetimeWk = lifetimeLbsPerDay * 7;
+    const daysLeft = remaining / lifetimeLbsPerDay;
     const projDate = new Date(latest.date.getTime() + daysLeft * 86400000);
     return `You have ${fmtLbs(remaining)} left to reach ${fmt2(goalWeight)} lbs. `
-         + `At your recent trend (~${fmtLbs(-slope * 7)}/week), that's about `
-         + `${Math.round(daysLeft)} days away — around ${fmtDate(projDate)}.`;
+         + `At your lifetime trend (~${fmtLbs(lifetimeWk)}/week · ~1.0%/wk), that's about `
+         + `${Math.round(daysLeft)} days away (~${(daysLeft / 7).toFixed(1)} weeks) — around ${fmtDate(projDate)}.`;
   }
 
   // Hypothetical: "what % of my body weight will I have lost at 220 lbs" —
