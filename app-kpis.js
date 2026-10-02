@@ -302,7 +302,7 @@ function renderJourney(latest, data) {
 
   // Next milestone ETA (uses journey average for consistency with AVG RATE card)
   const allTimeLow = Math.min(...data.map(r => r.weight));
-  const floor  = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
+  const floor  = 210; // Road to 210
   const steps  = [];
   for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
   const nextMilestone = steps.find(w => allTimeLow > w);
@@ -397,8 +397,8 @@ function renderMilestones(latest, data) {
   if (!row && !historyContainer) return;
 
   const allTimeLow = Math.min(...data.map(d => d.weight));
-  // Build milestones every 10 lbs from START_WEIGHT down to goal or 220
-  const floor = goalWeight ? Math.floor(goalWeight / 10) * 10 : 220;
+  // Build milestones every 10 lbs from START_WEIGHT down to 210
+  const floor = 210;
   const startDecade = Math.floor(START_WEIGHT / 10) * 10;
   const steps = [];
   for (let w = startDecade; w >= floor; w -= 10) steps.push(w);
@@ -476,19 +476,22 @@ function renderMilestones(latest, data) {
 
   window._milestoneHistory = history;
 
-  // 3. Render Decade History Timeline & Active Milestone Card
+  // 3. Render Decade Velocity Tracker ("Road to 210") & Decade History Timeline
   if (historyContainer) {
     const achieved = history.filter(h => h.done);
+    const completedDecades = history.filter(h => h.done && !h.isStart);
     const nextMilestone = steps.find(w => allTimeLow > w);
     const currentDecade = Math.floor(latest.weight / 10) * 10;
     const lbsToNext = nextMilestone ? (latest.weight - nextMilestone).toFixed(1) : '0.0';
 
-    let etaStr = '';
     const slope = (typeof projSlopeLbsPerDay !== 'undefined' && projSlopeLbsPerDay != null)
       ? projSlopeLbsPerDay
       : weightTrendSlope(data); // lbs/day
-    if (nextMilestone && slope && slope < 0) {
-      const daysToNext = (latest.weight - nextMilestone) / Math.abs(slope);
+    const ratePerDay = (slope && slope < 0) ? Math.abs(slope) : (2.37 / 7);
+
+    let etaStr = '';
+    if (nextMilestone && ratePerDay > 0) {
+      const daysToNext = (latest.weight - nextMilestone) / ratePerDay;
       const estDate = new Date(latest.date.getTime() + daysToNext * 86400000);
       etaStr = ` · Est. ${estDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     }
@@ -516,6 +519,96 @@ function renderMilestones(latest, data) {
         </div>
       `;
     }
+
+    // Velocity strip calculation
+    const totalDaysAchieved = completedDecades.reduce((sum, h) => sum + h.daysTaken, 0);
+    const avgDays = completedDecades.length ? Math.round(totalDaysAchieved / completedDecades.length) : 29;
+    const avgPace = completedDecades.length
+      ? (completedDecades.reduce((sum, h) => sum + h.pace, 0) / completedDecades.length)
+      : 2.37;
+
+    const lastHitItem = completedDecades[completedDecades.length - 1];
+    const activeAnchorDate = lastHitItem ? lastHitItem.date : new Date(START_DATE);
+    const daysInActiveDecade = Math.max(1, Math.round((latest.date - activeAnchorDate) / 86400000));
+
+    const unreached = steps.filter(w => allTimeLow > w);
+    const fmtShortDate = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    // Chips for Decade Velocity Strip
+    const chipsHtml = [];
+    completedDecades.forEach(item => {
+      chipsHtml.push(`
+        <div class="decade-chip done" onclick="window.celebrateMilestone(${item.weight})" style="cursor:pointer" title="${item.label}: took ${item.daysTaken} days (${item.pace.toFixed(2)} lbs/wk)">
+          <span class="decade-chip-title">${item.weight}s</span>
+          <span class="decade-chip-days">${item.daysTaken}d</span>
+          <span class="decade-chip-rate">${item.pace.toFixed(1)}/wk</span>
+        </div>
+      `);
+    });
+
+    if (nextMilestone) {
+      chipsHtml.push(`
+        <div class="decade-chip active" title="Currently in the ${currentDecade}s: ${daysInActiveDecade} days in, ${lbsToNext} lbs to ${nextMilestone} lbs">
+          <span class="decade-chip-title">${currentDecade}s ⚡</span>
+          <span class="decade-chip-days">${daysInActiveDecade}d in</span>
+          <span class="decade-chip-rate">${lbsToNext} to go</span>
+        </div>
+      `);
+    }
+
+    unreached.forEach(w => {
+      if (w === nextMilestone) return;
+      const toGo = latest.weight - w;
+      const daysAway = Math.round(toGo / ratePerDay);
+      const wksAway = (daysAway / 7).toFixed(1);
+      const eta = new Date(latest.date.getTime() + daysAway * 86400000);
+      const isGoal = w === 210;
+      chipsHtml.push(`
+        <div class="decade-chip ${isGoal ? 'goal' : 'future'}" title="${isGoal ? '🏁 Goal ' + w + ' lbs' : w + ' lbs'}: ~${daysAway} days (~${wksAway} wks) · Est. ${fmtShortDate(eta)}">
+          <span class="decade-chip-title">${w}s ${isGoal ? '🏁' : '🎯'}</span>
+          <span class="decade-chip-days">~${wksAway}w</span>
+          <span class="decade-chip-rate">${fmtShortDate(eta)}</span>
+        </div>
+      `);
+    });
+
+    const velocityCardHtml = `
+      <div class="decade-velocity-card">
+        <div class="decade-velocity-header">
+          <div class="decade-velocity-title">
+            <span>⚡</span>
+            <span>Road to 210 &bull; Decade Velocity</span>
+          </div>
+          <div class="decade-velocity-summary">
+            Avg ~${avgDays} days per 10 lbs (${avgPace.toFixed(2)} lbs/wk)
+          </div>
+        </div>
+        <div class="decade-velocity-strip">
+          ${chipsHtml.join('')}
+        </div>
+      </div>
+    `;
+
+    // Future upcoming milestone cards
+    const futureHtml = unreached.map(w => {
+      const toGo = (latest.weight - w).toFixed(1);
+      const daysAway = Math.round((latest.weight - w) / ratePerDay);
+      const wksAway = (daysAway / 7).toFixed(1);
+      const eta = new Date(latest.date.getTime() + daysAway * 86400000);
+      const isGoal = w === 210;
+      return `
+        <div class="decade-history-item future-target ${isGoal ? 'goal' : ''}">
+          <div class="decade-item-icon">${isGoal ? '🏁' : '🎯'}</div>
+          <div class="decade-item-info">
+            <div class="decade-item-title">The ${w}s Club ${isGoal ? '<strong style="color:#7c3aed">(Ultimate Goal)</strong>' : ''}</div>
+            <div class="decade-item-sub">
+              <strong>${toGo} lbs to go</strong> &bull; Projected <strong>${fmtDate(eta)}</strong> (~${wksAway} wks at lifetime pace)
+            </div>
+          </div>
+          <div class="decade-item-badge" style="${isGoal ? 'background:rgba(124,58,237,0.15);color:#7c3aed' : ''}">${isGoal ? 'Goal' : 'Upcoming'}</div>
+        </div>
+      `;
+    }).join('');
 
     const timelineHtml = achieved.slice().reverse().map(item => {
       if (item.isStart) {
@@ -546,8 +639,18 @@ function renderMilestones(latest, data) {
 
     historyContainer.innerHTML = `
       ${activeCardHtml}
+      ${velocityCardHtml}
+      ${futureHtml ? `
+        <div class="decade-timeline-title" style="margin-top:0.9rem">
+          <span>🎯 Road Ahead to 210 lbs</span>
+          <span style="font-size:0.75rem;font-weight:normal;color:var(--text-sub)">Paced at 1.0%/wk lifetime trend</span>
+        </div>
+        <div class="decade-history-list" style="margin-bottom:1.1rem">
+          ${futureHtml}
+        </div>
+      ` : ''}
       <div class="decade-timeline-title">
-        <span>🏆 Unlocked Decade Badges</span>
+        <span>🏆 Unlocked Decade Badges (${achieved.length})</span>
         <span style="font-size:0.75rem;font-weight:normal;color:var(--text-sub)">Click any badge to celebrate</span>
       </div>
       <div class="decade-history-list">

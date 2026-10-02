@@ -742,6 +742,118 @@ main {
   transform: scale(1.04);
 }
 
+/* ── Decade Velocity Tracker ("Road to 210") ── */
+.decade-velocity-card {
+  margin: 0.85rem 0 1rem;
+  background: var(--stat-box-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+.decade-velocity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.decade-velocity-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.decade-velocity-summary {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0053e2;
+  background: rgba(0, 83, 226, 0.1);
+  padding: 0.22rem 0.6rem;
+  border-radius: 6px;
+}
+.decade-velocity-strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
+}
+.decade-chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg, #fff);
+  min-width: 68px;
+  text-align: center;
+  font-size: 0.72rem;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.decade-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+}
+.decade-chip.done {
+  border-color: rgba(42, 135, 3, 0.35);
+  background: rgba(42, 135, 3, 0.05);
+}
+.decade-chip.active {
+  border-color: #0053e2;
+  background: rgba(0, 83, 226, 0.08);
+  box-shadow: 0 0 0 1px #0053e2;
+}
+.decade-chip.future {
+  border-style: dashed;
+  border-color: var(--border);
+  opacity: 0.85;
+}
+.decade-chip.goal {
+  border: 1.5px solid #7c3aed;
+  background: rgba(124, 58, 237, 0.08);
+}
+.decade-chip-title {
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+.decade-chip-days {
+  font-weight: 700;
+  color: var(--text-sub);
+  font-size: 0.68rem;
+}
+.decade-chip-rate {
+  font-size: 0.62rem;
+  color: #2a8703;
+  font-weight: 600;
+}
+.decade-chip.active .decade-chip-rate {
+  color: #0053e2;
+}
+.decade-chip.future .decade-chip-rate {
+  color: var(--text-sub);
+}
+.decade-chip.goal .decade-chip-rate {
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+.decade-history-item.future-target {
+  border: 1.5px dashed var(--border);
+  background: rgba(0, 83, 226, 0.02);
+  cursor: default;
+}
+.decade-history-item.future-target.goal {
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.04);
+}
+
 /* ── Milestone Celebration Modal ─────────── */
 .milestone-modal {
   position: fixed;
