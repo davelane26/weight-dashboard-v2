@@ -230,19 +230,21 @@ function renderJourney(latest, data) {
   countUp('journey-lost',     lost, 1);
   countUp('journey-pct-stat', pct, 1, '%');
 
+  // Sync Hero Command Hub
+  countUp('hero-weight-val', latest.weight, 1);
+  setText('hero-weight-date', fmtDate(latest.date));
+  countUp('hero-stat-lost', lost, 1);
+  const remainingTarget = (typeof goalWeight !== 'undefined' && goalWeight) ? Math.max(0, latest.weight - goalWeight) : Math.max(0, latest.weight - 220);
+  countUp('hero-stat-remaining', remainingTarget, 1);
+  setText('hero-horizon-pct', Math.round(pct) + '%');
+  const hFill = el('hero-horizon-fill');
+  if (hFill) hFill.style.width = pct + '%';
+
   const bar = el('journey-bar');
   if (bar) {
     bar.style.width = pct + '%';
     bar.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
-    // Progress bar gradient: red → amber → yellow → green as journey advances.
-    // Scale the gradient so the colour at the leading edge matches progress.
-    const pctSafe = Math.max(1, pct);
-    bar.style.background = `linear-gradient(
-      90deg,
-      #ea1100 0%,
-      #ffc220 ${Math.min(100, (50 / pctSafe) * 100)}%,
-      #2a8703 ${Math.min(100, (100 / pctSafe) * 100)}%
-    )`;
+    bar.style.background = 'linear-gradient(90deg, #2563eb 0%, #10b981 100%)';
   }
   setText('journey-bar-label', `${fmt(latest.weight)} lbs now · ${fmt(lost)} lbs lost of ${START_WEIGHT} lbs start`);
 
@@ -288,10 +290,13 @@ function renderJourney(latest, data) {
   if (totalDaysElapsed > 0 && totalLostJourney > 0) {
     const lbsPerWeek = lifetimeLbsPerDay * 7;
     countUp('journey-rate', lbsPerWeek, 1);
+    countUp('hero-stat-pace', lbsPerWeek, 1);
+    setText('hero-velocity-val', '-' + lbsPerWeek.toFixed(1) + ' lbs/wk');
     const weeksElapsed = Math.floor(totalDaysElapsed / 7);
     setText('journey-rate-sub', `lbs/wk · overall avg across ${weeksElapsed} weeks`);
   } else {
     setText('journey-rate', '—');
+    setText('hero-stat-pace', '—');
     setText('journey-rate-sub', 'not enough data yet');
   }
 

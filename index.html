@@ -258,10 +258,66 @@
       </div>
     </section>
 
+    <!-- ── Hero Command Hub ── -->
+    <section class="weight-hero card fade-in" id="weight-hero-card" aria-label="Current weight command hub">
+      <div class="weight-hero-layout">
+        <div class="weight-hero-main">
+          <div class="weight-hero-tag">
+            <span class="hero-live-beacon" aria-hidden="true"></span>
+            <span class="hero-tag-text">CURRENT METRICS</span>
+            <span class="hero-timestamp" id="hero-weight-date">Latest Reading</span>
+          </div>
+          <div class="weight-hero-stat-row">
+            <span class="weight-hero-number" id="hero-weight-val">—</span>
+            <span class="weight-hero-unit">lbs</span>
+            <span class="weight-hero-velocity-pill" id="hero-velocity-pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span id="hero-velocity-val">—</span>
+            </span>
+          </div>
+          <p class="weight-hero-meta" id="hero-weight-sub">Active Deficit · DEXA Dynamic Calibration</p>
+        </div>
+
+        <div class="weight-hero-stats">
+          <div class="hero-stat-box">
+            <span class="hsb-label">TOTAL DOWN</span>
+            <strong class="hsb-val" id="hero-stat-lost">—</strong>
+            <span class="hsb-sub">since 315.0 lbs</span>
+          </div>
+          <div class="hero-stat-box">
+            <span class="hsb-label">TO GOAL (220)</span>
+            <strong class="hsb-val" id="hero-stat-remaining">—</strong>
+            <span class="hsb-sub">lbs to reach</span>
+          </div>
+          <div class="hero-stat-box">
+            <span class="hsb-label">RUNWAY PACE</span>
+            <strong class="hsb-val" id="hero-stat-pace">—</strong>
+            <span class="hsb-sub" id="hero-stat-pace-sub">lbs / week</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="weight-hero-horizon">
+        <div class="horizon-header">
+          <span class="horizon-title">Journey Roadmap</span>
+          <span class="horizon-pct" id="hero-horizon-pct">—%</span>
+        </div>
+        <div class="horizon-bar-wrap">
+          <div class="horizon-bar-fill" id="hero-horizon-fill" style="width:0%"></div>
+        </div>
+        <div class="horizon-milestone-row">
+          <span>Start: 315.0 lbs</span>
+          <span id="hero-milestone-marker">🎯 Target: 220.0 lbs</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Plateau / Deceleration Radar Card -->
-    <section class="card fade-in" aria-label="Plateau deceleration radar"
-      style="margin-top:1.25rem;border-top:3px solid #12b5a5">
-      <h2 class="card-title">&#128225; Plateau Radar</h2>
+    <section class="card fade-in" aria-label="Plateau deceleration radar" style="margin-top:1.25rem;">
+      <h2 class="card-title">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 12l5-5"/><circle cx="12" cy="12" r="2"/></svg>
+        <span>Plateau Radar</span>
+      </h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
         Early warning: is your 4-week pace itself <em>decelerating</em>, and how many weeks of runway before it hits the trigger? The 5mg lesson &mdash; catch the plateau while it's forming, not after.
       </p>
@@ -271,9 +327,11 @@
     </section>
 
     <!-- Trend Check Card -->
-    <section class="card fade-in" aria-label="Trend check"
-      style="margin-top:1.25rem;border-top:3px solid #2a8703">
-      <h2 class="card-title">&#128200; Trend Check</h2>
+    <section class="card fade-in" aria-label="Trend check" style="margin-top:1.25rem;">
+      <h2 class="card-title">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <span>Trend Check</span>
+      </h2>
       <p style="font-size:0.72rem;color:#6d7a95;margin-bottom:1rem">
         The only question worth asking: <em>is the 14-day slope still negative?</em> Daily readings bounce &plusmn;1.5 lb on water alone -- this card ignores that noise and gives you one of three answers so you never have to interpret a single reading again.
       </p>
@@ -283,30 +341,33 @@
     </section>
 
     <section class="fade-in" aria-label="Body composition">
-      <h2 class="card-title" style="margin-bottom:0.75rem">Body Composition</h2>
+      <h2 class="card-title" style="margin-bottom:0.75rem">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 12h6M12 9v6"/></svg>
+        <span>Body Composition</span>
+      </h2>
       <div id="kpi-catabolism-alert" style="display:none;margin-bottom:0.75rem;padding:0.6rem 0.85rem;border-radius:10px;font-size:0.82rem;line-height:1.4;border:1px solid #ef4444;background:rgba(239,68,68,0.12);color:#ef4444;"></div>
       <div class="kpi-grid">
         <div class="kpi kpi--gold" id="kpi-bmi-card">
-          <p class="kpi-label">&#128203; BMI</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> BMI</p>
           <p class="kpi-value skel" id="kpi-bmi">—</p>
           <p class="kpi-unit">kg/m²</p>
           <p class="kpi-sub" id="kpi-bmi-sub"></p>
         </div>
         <div class="kpi kpi--gold">
-          <p class="kpi-label">&#128293; Body Fat</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z"/></svg> Body Fat</p>
           <p class="kpi-value skel" id="kpi-fat">&mdash;</p>
           <p class="kpi-unit" id="kpi-fat-unit">% of total weight (DEXA dynamic anchor)</p>
           <p class="kpi-sub" id="kpi-fat-sub"></p>
           <p class="kpi-sub" id="kpi-fat-rolling-lbm" style="opacity:0.8;font-size:0.72rem;margin-top:0.25rem"></p>
         </div>
         <div class="kpi kpi--green">
-          <p class="kpi-label">&#128170; Muscle</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h12M6 6h12M6 12h12"/></svg> Muscle</p>
           <p class="kpi-value skel" id="kpi-muscle">—</p>
           <p class="kpi-unit">skeletal muscle %</p>
           <p class="kpi-sub" id="kpi-muscle-sub"></p>
         </div>
         <div class="kpi kpi--cyan">
-          <p class="kpi-label">&#128167; Body Water</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg> Body Water</p>
           <p class="kpi-value skel" id="kpi-water">—</p>
           <p class="kpi-unit">% of total weight</p>
           <p class="kpi-sub" id="kpi-water-sub"></p>
@@ -319,35 +380,35 @@
       </button>
       <div id="body-comp-extras" class="kpi-grid" style="display:none;margin-top:0.5rem">
         <div class="kpi kpi--gold">
-          <p class="kpi-label">&#128293; Fat Mass</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z"/></svg> Fat Mass</p>
           <p class="kpi-value skel" id="kpi-fat-lbs">—</p>
           <p class="kpi-unit">lbs of fat</p>
           <p class="kpi-sub" id="kpi-fat-lbs-sub"></p>
         </div>
         <div class="kpi kpi--green">
-          <p class="kpi-label">&#128170; Muscle Mass</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h12M6 6h12M6 12h12"/></svg> Muscle Mass</p>
           <p class="kpi-value skel" id="kpi-muscle-lbs">—</p>
           <p class="kpi-unit">lbs of muscle</p>
           <p class="kpi-sub" id="kpi-muscle-lbs-sub"></p>
         </div>
         <div class="kpi kpi--cyan">
-          <p class="kpi-label">&#9878; Lean Body Mass</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20"/></svg> Lean Body Mass</p>
           <p class="kpi-value skel" id="kpi-lean-lbs">—</p>
           <p class="kpi-unit">lbs (DEXA dynamic anchor)</p>
           <p class="kpi-sub" id="kpi-lean-lbs-sub"></p>
         </div>
         <div class="kpi kpi--gray">
-          <p class="kpi-label">&#129460; Bone Mass</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Bone Mass</p>
           <p class="kpi-value skel" id="kpi-bone">—</p>
           <p class="kpi-unit">lbs</p>
         </div>
         <div class="kpi kpi--purple">
-          <p class="kpi-label">&#9889; BMR</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> BMR</p>
           <p class="kpi-value skel" id="kpi-bmr">—</p>
           <p class="kpi-unit">kcal/day at rest</p>
         </div>
         <div class="kpi kpi--blue">
-          <p class="kpi-label">&#127939; TDEE</p>
+          <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> TDEE</p>
           <p class="kpi-value skel" id="kpi-tdee">—</p>
           <p class="kpi-unit">kcal/day total burn</p>
         </div>
@@ -357,7 +418,10 @@
     <!-- ── Muscle vs. Fat Loss Quality ── -->
     <section class="card fade-in card--accent-green" style="margin-top: 1.25rem;" aria-label="Muscle vs Fat loss quality">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-        <h2 class="card-title" style="margin:0;">🛡️ Muscle vs. Fat Loss</h2>
+        <h2 class="card-title" style="margin:0;">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Muscle vs. Fat Loss</span>
+        </h2>
         <span id="lq-badge" style="font-size:0.7rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:99px; background:var(--stat-box-bg, #f1f5f9); color:var(--text-sub, #6d7a95);">—</span>
       </div>
       <p id="lq-summary" style="font-size:0.9rem; font-weight:700; color:var(--text, #1a2340); margin:0.4rem 0;">Loading…</p>
@@ -368,7 +432,10 @@
     </section>
     
     <section class="card fade-in card--accent-gold" aria-label="Weight loss journey">
-      <h2 class="card-title">🏆 Weight Loss Journey</h2>
+      <h2 class="card-title">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34c3.48-1.07 6-4.27 6-8.66V4H3v4c0 4.39 2.52 7.59 6 8.66z"/></svg>
+        <span>Weight Loss Journey</span>
+      </h2>
       <p id="journey-duration" style="font-size:0.82rem;color:#6d7a95;margin:-0.25rem 0 0.85rem;font-weight:600">Computing…</p>
       <div class="stat-grid">
         <div class="stat-box stat-box--gray">
@@ -398,21 +465,21 @@
       <p style="font-size:0.68rem;color:#6d7a95;margin-top:0.35rem;text-align:right" id="journey-bar-label"></p>
       <div class="journey-insights">
         <div class="insight-chip" title="Overall average rate across your entire journey">
-          <p class="insight-label">📉 Avg rate</p>
+          <p class="insight-label">Avg Rate</p>
           <p class="insight-val" id="journey-rate">—</p>
           <p class="insight-sub" id="journey-rate-sub">lbs/wk · overall avg</p>
         </div>
         <div class="insight-chip">
-          <p class="insight-label">🏆 Personal best</p>
+          <p class="insight-label">Personal Best</p>
           <p class="insight-val" id="journey-best">—</p>
           <p class="insight-sub" id="journey-best-date"></p>
         </div>
         <div class="insight-chip">
-          <p class="insight-label">🎯 Next milestone</p>
+          <p class="insight-label">Next Milestone</p>
           <p class="insight-val" style="font-size:0.95rem" id="journey-next-eta">—</p>
         </div>
         <div class="insight-chip" id="best-week-chip">
-          <p class="insight-label">🔥 Best week ever</p>
+          <p class="insight-label">Best Week Ever</p>
           <p class="insight-val" id="best-week-loss">—</p>
           <p class="insight-sub" id="best-week-dates"></p>
         </div>
@@ -420,10 +487,13 @@
     </section>
 
     <section class="fade-in" aria-label="Weekly stats">
-      <h2 class="card-title" style="margin-bottom:0.75rem">Week-Over-Week</h2>
+      <h2 class="card-title" style="margin-bottom:0.75rem">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        <span>Week-Over-Week</span>
+      </h2>
       <div class="kpi-grid">
         <div class="kpi kpi--blue" id="weekly-avg-card">
-          <p class="kpi-label">&#128202; 7-Day Avg vs Last Week</p>
+          <p class="kpi-label">7-Day Avg vs Last Week</p>
           <p class="kpi-value" style="color:var(--gray-50)">—</p>
           <p class="kpi-unit">lbs difference</p>
           <p class="kpi-sub"></p>
@@ -432,7 +502,10 @@
     </section>
 
     <section class="fade-in" aria-label="Multi-window trends">
-      <h2 class="card-title" style="margin-bottom:0.75rem">Rolling Trend Windows</h2>
+      <h2 class="card-title" style="margin-bottom:0.75rem">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Rolling Trend Windows</span>
+      </h2>
       <p style="font-size:0.75rem;color:var(--text-sub);margin:-0.4rem 0 0.6rem 0">
         <strong>Short row</strong> (weeks): is the last month accelerating, plateauing, or noise?
         <strong>Long row</strong> (months): is the recent streak the real trend, or a mirage against the longer arc?
@@ -440,17 +513,17 @@
       </p>
       <p style="font-size:0.7rem;font-weight:600;color:var(--text-sub);margin:0.4rem 0 0.4rem 0;text-transform:uppercase;letter-spacing:0.06em">Short horizon &middot; week-scale</p>
       <div class="kpi-grid">
-        <div class="kpi kpi--blue"   id="mwt-card-7"  data-days="7"><p class="kpi-label">&#128200; 7-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--cyan"   id="mwt-card-14" data-days="14"><p class="kpi-label">&#128200; 14-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--purple" id="mwt-card-21" data-days="21"><p class="kpi-label">&#128200; 21-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--green"  id="mwt-card-28" data-days="28"><p class="kpi-label">&#128200; 28-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--blue"   id="mwt-card-7"  data-days="7"><p class="kpi-label">7-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--cyan"   id="mwt-card-14" data-days="14"><p class="kpi-label">14-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--purple" id="mwt-card-21" data-days="21"><p class="kpi-label">21-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--green"  id="mwt-card-28" data-days="28"><p class="kpi-label">28-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
       </div>
       <p style="font-size:0.7rem;font-weight:600;color:var(--text-sub);margin:0.9rem 0 0.4rem 0;text-transform:uppercase;letter-spacing:0.06em">Long horizon &middot; month-scale &amp; lifetime</p>
       <div class="kpi-grid">
-        <div class="kpi kpi--blue"   id="mwt-card-30"       data-days="30"><p class="kpi-label">&#128200; 30-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--cyan"   id="mwt-card-60"       data-days="60"><p class="kpi-label">&#128200; 60-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--purple" id="mwt-card-90"       data-days="90"><p class="kpi-label">&#128200; 90-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
-        <div class="kpi kpi--green"  id="mwt-card-lifetime" data-days="lifetime"><p class="kpi-label">&#128200; Lifetime Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--blue"   id="mwt-card-30"       data-days="30"><p class="kpi-label">30-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--cyan"   id="mwt-card-60"       data-days="60"><p class="kpi-label">60-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--purple" id="mwt-card-90"       data-days="90"><p class="kpi-label">90-Day Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
+        <div class="kpi kpi--green"  id="mwt-card-lifetime" data-days="lifetime"><p class="kpi-label">Lifetime Trend</p><p class="kpi-value" style="color:var(--gray-50)">&mdash;</p><p class="kpi-sub">loading&hellip;</p></div>
       </div>
       <p id="mwt-divergence-hint" style="display:none;font-size:0.78rem;color:var(--text-sub);margin:0.7rem 0 0 0;padding:0.55rem 0.75rem;background:var(--stat-box-bg);border-left:3px solid var(--blue-100);border-radius:6px;line-height:1.45"></p>
     </section>
@@ -458,7 +531,10 @@
     <section class="card fade-in" id="milestones-section" aria-label="Weight milestones and decade badges history">
       <button class="collapse-toggle" onclick="toggleMilestones()"
         aria-expanded="false" id="milestones-toggle">
-        <span>🏅 Milestones &amp; Decade Badges History</span>
+        <span style="display:flex;align-items:center;gap:0.45rem;">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+          <span>Milestones &amp; Decade Badges History</span>
+        </span>
         <span class="collapse-chevron closed" id="milestones-chevron">▲</span>
       </button>
       <div id="milestones-content" style="display:none">
@@ -470,14 +546,20 @@
     <section class="card fade-in" aria-label="BMI milestone timeline">
       <button class="collapse-toggle" onclick="toggleBMI()"
         aria-expanded="false" id="bmi-toggle">
-        <span>📈 BMI Timeline</span>
+        <span style="display:flex;align-items:center;gap:0.45rem;">
+          <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span>BMI Timeline</span>
+        </span>
         <span class="collapse-chevron closed" id="bmi-chevron">▲</span>
       </button>
       <div id="bmi-timeline" class="bmi-timeline" style="display:none"></div>
     </section>
 
     <section class="card fade-in card--accent-blue" aria-label="Goal weight tracker">
-      <h2 class="card-title">🎯 Goal Weight</h2>
+      <h2 class="card-title">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <span>Goal Weight</span>
+      </h2>
       <div class="goal-input-row">
         <label for="goal-input">Target (lbs)</label>
         <input type="number" id="goal-input" placeholder="e.g. 220" step="0.1" aria-label="Target weight in lbs" />

@@ -11,34 +11,35 @@
    ────────────────────────────────────────────────────────────── */
 
 /* color tokens (kept in a single place for dark-mode overrides) */
+/* color tokens (kept in a single place for dark-mode overrides) */
 :root {
-  --tone-blue:    #0053e2;
-  --tone-red:     #ea1100;
-  --tone-gold:    #ffc220;
-  --tone-gold-d:  #995213;
-  --tone-green:   #2a8703;
-  --tone-cyan:    #0891b2;
-  --tone-gray:    #6b7280;
-  --tone-gray-d:  #374151;
-  --tone-purple:  #7c3aed;
+  --tone-blue:    #2563eb;
+  --tone-red:     #ef4444;
+  --tone-gold:    #f59e0b;
+  --tone-gold-d:  #b45309;
+  --tone-green:   #10b981;
+  --tone-cyan:    #06b6d4;
+  --tone-gray:    #64748b;
+  --tone-gray-d:  #334155;
+  --tone-purple:  #8b5cf6;
 
-  --tint-blue:    #eff4ff;
-  --tint-red:     #fff1f0;
-  --tint-gold:    #fef9ec;
-  --tint-green:   #f0fdf4;
+  --tint-blue:    #eff6ff;
+  --tint-red:     #fef2f2;
+  --tint-gold:    #fffbeb;
+  --tint-green:   #ecfdf5;
   --tint-cyan:    #ecfeff;
-  --tint-gray:    #f9fafb;
+  --tint-gray:    #f8fafc;
   --tint-purple:  #f5f3ff;
 }
 #root.dark {
   /* darker gradients so the cards still feel "tinted" but readable */
-  --tint-blue:   rgba(0, 83, 226, 0.10);
-  --tint-red:    rgba(234, 17, 0, 0.10);
-  --tint-gold:   rgba(255, 194, 32, 0.10);
-  --tint-green:  rgba(42, 135, 3, 0.10);
-  --tint-cyan:   rgba(8, 145, 178, 0.10);
-  --tint-gray:   rgba(107, 114, 128, 0.10);
-  --tint-purple: rgba(124, 58, 237, 0.10);
+  --tint-blue:   rgba(37, 99, 235, 0.12);
+  --tint-red:    rgba(239, 68, 68, 0.12);
+  --tint-gold:   rgba(245, 158, 11, 0.12);
+  --tint-green:  rgba(16, 185, 129, 0.12);
+  --tint-cyan:   rgba(6, 182, 212, 0.12);
+  --tint-gray:   rgba(100, 116, 139, 0.12);
+  --tint-purple: rgba(139, 92, 246, 0.12);
 }
 
 /* ── KPI tone modifiers ───────────────────────────────────────── */
@@ -49,17 +50,15 @@
 .kpi--cyan,
 .kpi--gray,
 .kpi--purple {
-  /* Border + tinted bg gradient */
-  border-top-width: 3px;
-  border-top-style: solid;
+  border-radius: 18px;
 }
-.kpi--blue   { border-top-color: var(--tone-blue);   background-image: linear-gradient(135deg, var(--tint-blue)   0%, transparent 65%); }
-.kpi--red    { border-top-color: var(--tone-red);    background-image: linear-gradient(135deg, var(--tint-red)    0%, transparent 65%); }
-.kpi--gold   { border-top-color: var(--tone-gold);   background-image: linear-gradient(135deg, var(--tint-gold)   0%, transparent 65%); }
-.kpi--green  { border-top-color: var(--tone-green);  background-image: linear-gradient(135deg, var(--tint-green)  0%, transparent 65%); }
-.kpi--cyan   { border-top-color: var(--tone-cyan);   background-image: linear-gradient(135deg, var(--tint-cyan)   0%, transparent 65%); }
-.kpi--gray   { border-top-color: var(--tone-gray);   background-image: linear-gradient(135deg, var(--tint-gray)   0%, transparent 65%); }
-.kpi--purple { border-top-color: var(--tone-purple); background-image: linear-gradient(135deg, var(--tint-purple) 0%, transparent 65%); }
+.kpi--blue   { background-image: linear-gradient(135deg, var(--tint-blue)   0%, transparent 65%); }
+.kpi--red    { background-image: linear-gradient(135deg, var(--tint-red)    0%, transparent 65%); }
+.kpi--gold   { background-image: linear-gradient(135deg, var(--tint-gold)   0%, transparent 65%); }
+.kpi--green  { background-image: linear-gradient(135deg, var(--tint-green)  0%, transparent 65%); }
+.kpi--cyan   { background-image: linear-gradient(135deg, var(--tint-cyan)   0%, transparent 65%); }
+.kpi--gray   { background-image: linear-gradient(135deg, var(--tint-gray)   0%, transparent 65%); }
+.kpi--purple { background-image: linear-gradient(135deg, var(--tint-purple) 0%, transparent 65%); }
 
 /* Inner text color picks up the tone — NO need for inline style="color:#xxx" */
 .kpi--blue   .kpi-label, .kpi--blue   .kpi-value { color: var(--tone-blue);   }

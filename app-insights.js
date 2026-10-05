@@ -88,13 +88,17 @@ function updateSnapshot() {
       const arrow = d < 0 ? '↓ ' : d > 0 ? '↑ ' : '';
       setSnap('snap-weight-delta', arrow + sign + d.toFixed(1) + ' lbs vs 7d',
               d < 0 ? 'good' : d > 0 ? 'bad' : 'neutral');
+      const heroVel = document.getElementById('hero-velocity-val');
+      if (heroVel) {
+        heroVel.textContent = (d < 0 ? '' : '+') + d.toFixed(1) + ' lbs / 7d';
+      }
     } else {
       setSnap('snap-weight-delta', 'no 7d comparison', 'neutral');
     }
 
     // Weight sparkline: last 14 readings
     const lastWeights = allData.slice(-14).map(r => r.weight);
-    drawSnapshotSparkline('snap-sparkline-weight', lastWeights, isDark ? '#60a5fa' : '#0053e2');
+    drawSnapshotSparkline('snap-sparkline-weight', lastWeights, isDark ? '#60a5fa' : '#2563eb');
   }
 
   // Glucose

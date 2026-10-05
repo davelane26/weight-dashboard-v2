@@ -10,7 +10,7 @@
      • Old caches purged on activate
    ──────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'health-board-v3-13';
+const CACHE_VERSION = 'health-board-v4-0';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -63,9 +63,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML + JS: NETWORK-FIRST so deploys are immediately visible.
+  // HTML + JS + CSS: NETWORK-FIRST so deploys are immediately visible.
   // Cache is the offline fallback only.
-  if (sameOrigin && (path.endsWith('.html') || path.endsWith('.js') || path === '/' || path.endsWith('/'))) {
+  if (sameOrigin && (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css') || path === '/' || path.endsWith('/'))) {
     event.respondWith(networkFirst(req));
     return;
   }
