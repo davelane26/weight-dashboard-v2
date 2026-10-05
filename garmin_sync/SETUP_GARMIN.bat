@@ -1,8 +1,8 @@
 @echo off
 cd /d "%~dp0"
 echo ===================================================
-echo   Garmin Connect Dashboard Sync
+echo   Garmin Connect Setup & One-Time Login
 echo ===================================================
-python sync_garmin.py --today
+python setup_garmin.py
 echo.
 pause

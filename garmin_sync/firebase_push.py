@@ -14,22 +14,34 @@ logger = logging.getLogger(__name__)
 def push_day(firebase_url: str, date_key: str, data: dict) -> bool:
     """Push a single day's data to Firebase at /garmin/{date_key}.json."""
     url = f"{firebase_url}/garmin/{date_key}.json"
-    resp = requests.put(url, json=data, timeout=15)
-    if resp.ok:
-        logger.info("Pushed data for %s to Firebase", date_key)
-        return True
-    logger.error("Firebase PUT failed for %s: %s %s", date_key, resp.status_code, resp.text)
+    try:
+        resp = requests.put(url, json=data, timeout=15)
+        if resp.ok:
+            logger.info("Pushed data for %s to Firebase", date_key)
+            return True
+        if resp.status_code == 401:
+            logger.debug("Firebase RTDB locked (401) — skipping legacy fallback for %s", date_key)
+            return False
+        logger.warning("Firebase PUT note for %s: HTTP %s", date_key, resp.status_code)
+    except Exception as e:
+        logger.debug("Firebase push error: %s", e)
     return False
 
 
 def push_latest(firebase_url: str, data: dict) -> bool:
     """Push data to /garmin/latest.json (what the dashboard reads first)."""
     url = f"{firebase_url}/garmin/latest.json"
-    resp = requests.put(url, json=data, timeout=15)
-    if resp.ok:
-        logger.info("Pushed latest data to Firebase")
-        return True
-    logger.error("Firebase PUT failed for latest: %s %s", resp.status_code, resp.text)
+    try:
+        resp = requests.put(url, json=data, timeout=15)
+        if resp.ok:
+            logger.info("Pushed latest data to Firebase")
+            return True
+        if resp.status_code == 401:
+            logger.debug("Firebase RTDB locked (401) — skipping legacy latest fallback")
+            return False
+        logger.warning("Firebase PUT note for latest: HTTP %s", resp.status_code)
+    except Exception as e:
+        logger.debug("Firebase latest push error: %s", e)
     return False
 
 

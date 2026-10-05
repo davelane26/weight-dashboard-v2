@@ -1,113 +1,70 @@
-"""
-fetch_garmin.py — Pulls daily health data from Garmin Connect using garth.
-Authenticates via stored OAuth tokens (no password needed in CI).
+"""fetch_garmin.py — Pulls daily health data from Garmin Connect using python-garminconnect (v0.3.x).
 
-Required env vars:
-  GARMIN_TOKENS — base64-encoded zip of garth token files (from garmin_setup.py)
-  WORKER_URL    — e.g. https://glucose-relay.djtwo6.workers.dev
+Authenticates via stored session tokens (local .garmin_tokens or GARMIN_TOKENS secret in CI).
+Pushes metrics directly to the Cloudflare Worker (/health/patch).
+
+Usage:
+    python fetch_garmin.py
 """
 
-import base64
-import io
-import json
+import logging
 import os
-import pathlib
 import sys
-import tempfile
-import zipfile
-from datetime import date
 
-import requests
-
-try:
-    import garth
-except ImportError:
-    os.system(f'{sys.executable} -m pip install garth')
-    import garth
-
-# ── Config ────────────────────────────────────────────────────────────────
-TOKENS_B64 = os.environ.get('GARMIN_TOKENS', '')
-WORKER_URL = os.environ.get('WORKER_URL', 'https://glucose-relay.djtwo6.workers.dev')
-TODAY      = date.today().isoformat()
-
-# ── Restore tokens from secret ────────────────────────────────────────────
-if not TOKENS_B64:
-    print('ERROR: GARMIN_TOKENS secret not set.', file=sys.stderr)
-    print('Run garmin_setup.py on your home PC first.', file=sys.stderr)
-    sys.exit(1)
-
-tmp = pathlib.Path(tempfile.mkdtemp())
-with zipfile.ZipFile(io.BytesIO(base64.b64decode(TOKENS_B64))) as z:
-    z.extractall(tmp)
-
-garth.resume(str(tmp))
-print(f'Tokens loaded ✓ — fetching data for {TODAY}')
-
-# ── Garmin Connect API calls ──────────────────────────────────────────────
-BASE = 'https://connect.garmin.com'
-
-def gc_get(path, default=None):
+if hasattr(sys.stdout, "reconfigure"):
     try:
-        return garth.get(BASE, path).json()
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+from datetime import date
+from pathlib import Path
+
+# Add garmin_sync directory to Python path
+repo_root = Path(__file__).parent
+garmin_sync_dir = repo_root / "garmin_sync"
+if str(garmin_sync_dir) not in sys.path:
+    sys.path.insert(0, str(garmin_sync_dir))
+
+from garmin_client import get_client, fetch_all_for_day
+from push_worker import patch_garmin
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("fetch_garmin")
+
+WORKER_URL = os.environ.get("WORKER_URL", "https://glucose-relay.djtwo6.workers.dev")
+TODAY = date.today()
+
+
+def main() -> int:
+    logger.info("Connecting to Garmin Connect...")
+    try:
+        client = get_client()
     except Exception as e:
-        print(f'  Warning: GET {path} failed — {e}')
-        return default or {}
+        logger.error("Authentication failed: %s", e)
+        logger.info("Tip: Run 'python garmin_sync/setup_garmin.py' to generate your session token.")
+        return 1
 
-def get_steps():
-    data = gc_get(f'/proxy/usersummary-service/usersummary/daily/{TODAY}')
-    return int(data.get('totalSteps', 0) or 0)
+    logger.info("Authenticated ✓ — Fetching metrics for %s", TODAY.isoformat())
+    data = fetch_all_for_day(client, TODAY)
 
-def get_sleep():
-    data = gc_get(f'/proxy/wellness-service/wellness/dailySleepData/{TODAY}')
-    dto  = data.get('dailySleepDTO', {}) or {}
-    secs = int(dto.get('sleepTimeSeconds', 0) or 0)
-    score = (
-        (dto.get('sleepScores') or {}).get('overall', {}).get('value', 0) or
-        dto.get('sleepScore', 0) or 0
-    )
-    return round(secs / 3600, 2), int(score)
+    if not data.get("steps") and not data.get("sleepHours") and not data.get("restingHR"):
+        logger.warning("No activity or sleep data returned for %s yet", TODAY.isoformat())
 
-def get_hr():
-    data = gc_get(f'/proxy/wellness-service/wellness/dailyHeartRate/{TODAY}')
-    return int(data.get('restingHeartRate', 0) or 0)
+    # Patch data to Cloudflare Worker
+    ok = patch_garmin(TODAY, data, worker_url=WORKER_URL)
+    if ok:
+        logger.info("Done ✓ — Garmin metrics synced to Worker successfully")
+        return 0
+    else:
+        logger.error("Failed to patch Garmin metrics to Worker")
+        return 1
 
-def get_stress():
-    data = gc_get(f'/proxy/wellness-service/wellness/dailyStress/{TODAY}')
-    return int(data.get('avgStressLevel', 0) or 0)
 
-def get_floors():
-    data = gc_get(f'/proxy/usersummary-service/usersummary/daily/{TODAY}')
-    return int(data.get('floorsAscended', 0) or 0)
-
-def get_active_cal():
-    data = gc_get(f'/proxy/usersummary-service/usersummary/daily/{TODAY}')
-    return int(data.get('activeKilocalories', 0) or 0)
-
-# ── Pull data ─────────────────────────────────────────────────────────────
-steps        = get_steps()
-sleep_h, sleep_s = get_sleep()
-resting_hr   = get_hr()
-stress       = get_stress()
-floors       = get_floors()
-active_cal   = get_active_cal()
-
-payload = {
-    'date':           TODAY,
-    'steps':          steps,
-    'sleepHours':     sleep_h,
-    'sleepScore':     sleep_s,
-    'restingHR':      resting_hr,
-    'activeCalories': active_cal,
-    'floorsClimbed':  floors,
-    'stressLevel':    stress,
-}
-
-print(json.dumps(payload, indent=2))
-
-# ── Push to Worker ────────────────────────────────────────────────────────
-resp = requests.post(f'{WORKER_URL}/health', json=payload, timeout=15)
-print(f'Worker response: HTTP {resp.status_code} — {resp.text}')
-if resp.status_code != 200:
-    sys.exit(1)
-
-print('Done ✓')
+if __name__ == "__main__":
+    sys.exit(main())

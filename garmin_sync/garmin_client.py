@@ -1,80 +1,144 @@
 """Garmin Connect API client wrapper.
 
-Handles authentication, session caching, and data fetching
-from Garmin Connect using the garminconnect package.
+Handles authentication, token persistence, and data fetching from Garmin Connect
+using the modern python-garminconnect package (v0.3.x) with native curl_cffi auth.
 """
 
+import base64
 import json
 import logging
 import os
-from datetime import date, timedelta
+import sys
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Callable
 
-from garminconnect import Garmin
+from garminconnect import (
+    Garmin,
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectTooManyRequestsError,
+)
 
 logger = logging.getLogger(__name__)
 
-SESSION_FILE = Path(__file__).parent / ".garmin_session"
+# Default directory where tokenstore saves session tokens
+TOKEN_DIR = Path(__file__).parent / ".garmin_tokens"
+TOKEN_FILE = TOKEN_DIR / "garmin_tokens.json"
 
 
-def get_client(email: str, password: str) -> Garmin:
+def get_client(
+    email: str | None = None,
+    password: str | None = None,
+    prompt_mfa: Callable[[], str] | None = None,
+    tokenstore_dir: Path | str | None = None,
+) -> Garmin:
     """Authenticate with Garmin Connect, reusing cached session if valid.
 
     Session priority:
-      1. GARMIN_SESSION env var (base64-encoded session JSON — used in CI)
-      2. Local .garmin_session file (used on home machines)
-      3. Fresh login with email/password
+      1. GARMIN_TOKENS or GARMIN_SESSION env var (JSON or base64 string, used in CI)
+      2. Local token file (.garmin_tokens/garmin_tokens.json)
+      3. Fresh login with email and password
     """
-    import base64
+    token_dir = Path(tokenstore_dir) if tokenstore_dir else TOKEN_DIR
+    token_file = token_dir / "garmin_tokens.json" if token_dir.is_dir() else token_dir
 
-    client = Garmin(email, password)
+    client = Garmin(email=email or "", password=password or "", prompt_mfa=prompt_mfa)
 
-    # 1. Try session from env var (GitHub Actions injects this as a secret)
-    session_b64 = os.environ.get("GARMIN_SESSION")
-    if session_b64:
+    # 1. Try session from env var (CI / GitHub Actions)
+    env_token = os.environ.get("GARMIN_TOKENS") or os.environ.get("GARMIN_SESSION")
+    if env_token:
         try:
-            session_json = base64.b64decode(session_b64).decode("utf-8")
-            import json as _json
-            client.garth.loads(_json.loads(session_json))
-            client.display_name  # validate
-            logger.info("Reused Garmin session from GARMIN_SESSION env var")
-            # Persist locally so the cache step in CI can save it
-            SESSION_FILE.write_text(session_json)
-            return client
+            token_json = _decode_env_token(env_token)
+            if token_json:
+                client.login(tokenstore=token_json)
+                logger.info("Reused Garmin session from environment variable")
+                # Cache locally as well
+                token_dir.mkdir(parents=True, exist_ok=True)
+                token_file.write_text(token_json, encoding="utf-8")
+                return client
         except Exception as e:
-            logger.warning("GARMIN_SESSION env var invalid, falling through: %s", e)
+            logger.warning("Failed to authenticate with env token: %s", e)
 
-    # 2. Try local session file
-    if SESSION_FILE.exists():
+    # 2. Try cached local token file
+    if token_file.exists():
         try:
-            saved = json.loads(SESSION_FILE.read_text())
-            client.garth.loads(saved)
-            client.display_name  # quick check — throws if session expired
-            logger.info("Reused cached Garmin session from file")
-            return client
-        except Exception:
-            logger.info("Cached session expired, re-authenticating")
+            token_json = token_file.read_text(encoding="utf-8").strip()
+            if token_json:
+                client.login(tokenstore=str(token_dir))
+                logger.info("Reused cached Garmin session from %s", token_file.name)
+                return client
+        except Exception as e:
+            logger.info("Cached session invalid or expired (%s), attempting fresh login...", e)
 
-    # 3. Fresh login (works from home/non-blocked IPs)
-    client.login()
-    SESSION_FILE.write_text(json.dumps(client.garth.dumps()))
-    logger.info("Logged in to Garmin Connect, session cached")
+    # 3. Fresh login with credentials
+    if not email or not password:
+        email = email or os.environ.get("GARMIN_EMAIL")
+        password = password or os.environ.get("GARMIN_PASSWORD")
+
+    if not email or not password:
+        raise GarminConnectAuthenticationError(
+            "GARMIN_EMAIL and GARMIN_PASSWORD required for fresh login, or provide valid cached tokens."
+        )
+
+    logger.info("Performing fresh login to Garmin Connect as %s...", email)
+    client.username = email
+    client.password = password
+    token_dir.mkdir(parents=True, exist_ok=True)
+
+    client.login(tokenstore=str(token_dir))
+
+    # Explicitly ensure token file exists
+    try:
+        if hasattr(client.client, "dumps"):
+            token_file.write_text(client.client.dumps(), encoding="utf-8")
+    except Exception as e:
+        logger.debug("Client dump fallback note: %s", e)
+
+    logger.info("Logged in successfully to Garmin Connect (session saved to %s)", token_file.name)
     return client
 
 
+def _decode_env_token(raw_token: str) -> str | None:
+    """Decode a token string from env var which might be base64 or raw JSON."""
+    raw = raw_token.strip()
+    if not raw:
+        return None
+
+    # Check if raw JSON directly
+    if raw.startswith("{") and raw.endswith("}"):
+        return raw
+
+    # Attempt base64 decode
+    try:
+        decoded = base64.b64decode(raw).decode("utf-8")
+        if decoded.startswith("{") and decoded.endswith("}"):
+            return decoded
+    except Exception:
+        pass
+
+    return raw
+
+
+# ── Data Fetching Methods ───────────────────────────────────────────────────
+
 def fetch_daily_summary(client: Garmin, day: date) -> dict:
-    """Fetch the daily stats summary for a given date."""
+    """Fetch daily stats summary (steps, calories, HR, stress, body battery)."""
     iso = day.isoformat()
     try:
-        stats = client.get_stats(iso)
+        stats = client.get_stats(iso) or {}
     except Exception as e:
         logger.warning("Failed to get stats for %s: %s", iso, e)
         return {}
 
+    dist_meters = stats.get("totalDistanceMeters") or 0
+    dist_miles = round(dist_meters / 1609.34, 2) if dist_meters else 0.0
+
     return {
         "date": iso,
         "steps": stats.get("totalSteps", 0),
-        "distance": round((stats.get("totalDistanceMeters") or 0) / 1609.34, 2),
+        "distance": dist_miles,
+        "distanceMeters": dist_meters,
         "floorsClimbed": stats.get("floorsAscended", 0),
         "activeCalories": stats.get("activeKilocalories", 0),
         "totalCalories": stats.get("totalKilocalories", 0),
@@ -99,32 +163,42 @@ def fetch_sleep(client: Garmin, day: date) -> dict:
     """Fetch sleep data for a given date."""
     iso = day.isoformat()
     try:
-        sleep = client.get_sleep_data(iso)
+        sleep = client.get_sleep_data(iso) or {}
     except Exception as e:
         logger.warning("Failed to get sleep for %s: %s", iso, e)
         return {}
 
-    daily = sleep.get("dailySleepDTO", {})
+    daily = sleep.get("dailySleepDTO", {}) or {}
     if not daily:
         return {}
 
     duration_secs = daily.get("sleepTimeSeconds") or 0
-    hours = duration_secs / 3600
+    hours = round(duration_secs / 3600, 2)
     deep_secs = daily.get("deepSleepSeconds") or 0
     light_secs = daily.get("lightSleepSeconds") or 0
     rem_secs = daily.get("remSleepSeconds") or 0
     awake_secs = daily.get("awakeSleepSeconds") or 0
 
+    # Official Garmin Sleep Score (0-100)
+    score = (
+        (daily.get("sleepScores") or {}).get("overall", {}).get("value")
+        or daily.get("sleepScore")
+    )
+
     return {
-        "sleepHours": round(hours, 1),
+        "sleepHours": hours,
         "sleepDuration": f"{int(hours)}h {int((hours % 1) * 60)}m",
-        "sleepScore": daily.get("sleepScores", {}).get("overall", {}).get("value"),
+        "sleepScore": int(score) if score is not None else None,
         "sleepStart": daily.get("sleepStartTimestampLocal"),
         "sleepEnd": daily.get("sleepEndTimestampLocal"),
-        "deepSleep": round(deep_secs / 3600, 1),
-        "lightSleep": round(light_secs / 3600, 1),
-        "remSleep": round(rem_secs / 3600, 1),
-        "awakeSleep": round(awake_secs / 3600, 1),
+        "bedtime": daily.get("sleepStartTimestampLocal"),
+        "waketime": daily.get("sleepEndTimestampLocal"),
+        "sleepDeep": round(deep_secs / 3600, 2),
+        "sleepLight": round(light_secs / 3600, 2),
+        "sleepRem": round(rem_secs / 3600, 2),
+        "awakeSleep": round(awake_secs / 3600, 2),
+        "sleepAwakenings": daily.get("awakeCount") or (1 if awake_secs > 0 else 0),
+        "timeInBed": round((daily.get("unmeasurableSleepSeconds", 0) + duration_secs + awake_secs) / 3600, 2),
         "sleepStages": {
             "deep": round(deep_secs / 3600, 2),
             "light": round(light_secs / 3600, 2),
@@ -138,15 +212,17 @@ def fetch_hrv(client: Garmin, day: date) -> dict:
     """Fetch heart rate variability data."""
     iso = day.isoformat()
     try:
-        hrv = client.get_hrv_data(iso)
+        hrv = client.get_hrv_data(iso) or {}
     except Exception as e:
         logger.warning("Failed to get HRV for %s: %s", iso, e)
         return {}
 
-    summary = hrv.get("hrvSummary", {})
+    summary = hrv.get("hrvSummary", {}) or {}
+    last_night = summary.get("lastNightAvg")
     return {
         "hrvWeeklyAvg": summary.get("weeklyAvg"),
-        "hrvLastNight": summary.get("lastNightAvg"),
+        "hrvLastNight": last_night,
+        "hrvRmssd": last_night,  # Map to Worker's hrvRmssd field
         "hrvStatus": summary.get("status"),
         "hrvBaseline": {
             "low": summary.get("baselineLowUpper"),
@@ -157,43 +233,44 @@ def fetch_hrv(client: Garmin, day: date) -> dict:
 
 def fetch_training_status(client: Garmin, day: date) -> dict:
     """Fetch VO2 max, training load, and fitness age."""
+    iso = day.isoformat()
     try:
-        metrics = client.get_max_metrics(day.isoformat())
+        metrics = client.get_max_metrics(iso) or {}
     except Exception as e:
-        logger.warning("Failed to get training metrics: %s", e)
+        logger.warning("Failed to get training metrics for %s: %s", iso, e)
         return {}
 
     if not metrics:
         return {}
 
-    # metrics can be a list — take the latest entry
-    entry = metrics[0] if isinstance(metrics, list) else metrics
-    generic = entry.get("generic", {})
+    entry = metrics[0] if isinstance(metrics, list) and metrics else (metrics if isinstance(metrics, dict) else {})
+    generic = entry.get("generic", {}) or {}
+    vo2 = generic.get("vo2MaxPreciseValue") or generic.get("vo2MaxValue")
+
     return {
-        "vo2Max": generic.get("vo2MaxPreciseValue"),
+        "vo2Max": round(vo2, 1) if vo2 else None,
         "fitnessAge": generic.get("fitnessAge"),
     }
 
 
-def fetch_activities(client: Garmin, day: date, limit: int = 10) -> list:
-    """Fetch recent activities (workouts)."""
+def fetch_activities(client: Garmin, day: date, limit: int = 10) -> list[dict]:
+    """Fetch workout activities recorded on the date."""
+    iso = day.isoformat()
     try:
-        activities = client.get_activities_by_date(
-            day.isoformat(),
-            day.isoformat(),
-        )
+        activities = client.get_activities_by_date(iso, iso) or []
     except Exception as e:
-        logger.warning("Failed to get activities: %s", e)
+        logger.warning("Failed to get activities for %s: %s", iso, e)
         return []
 
     result = []
-    for act in (activities or [])[:limit]:
+    for act in activities[:limit]:
+        dist_m = act.get("distance") or 0
         result.append({
-            "name": act.get("activityName", "Unknown"),
+            "name": act.get("activityName", "Activity"),
             "type": act.get("activityType", {}).get("typeKey", "other"),
             "startTime": act.get("startTimeLocal"),
             "duration": round((act.get("duration") or 0) / 60, 1),
-            "distance": round((act.get("distance") or 0) / 1609.34, 2),
+            "distance": round(dist_m / 1609.34, 2) if dist_m else 0.0,
             "calories": act.get("calories", 0),
             "avgHR": act.get("averageHR"),
             "maxHR": act.get("maxHR"),
@@ -204,12 +281,12 @@ def fetch_activities(client: Garmin, day: date, limit: int = 10) -> list:
 
 
 def fetch_body_composition(client: Garmin, day: date) -> dict:
-    """Fetch body composition from Garmin (scale data)."""
+    """Fetch Garmin scale/weight and body composition data."""
     iso = day.isoformat()
     try:
-        data = client.get_body_composition(iso, iso)
+        data = client.get_body_composition(iso, iso) or {}
     except Exception as e:
-        logger.warning("Failed to get body composition: %s", e)
+        logger.warning("Failed to get body composition for %s: %s", iso, e)
         return {}
 
     weights = data.get("dateWeightList") or []
@@ -217,60 +294,63 @@ def fetch_body_composition(client: Garmin, day: date) -> dict:
         return {}
 
     latest = weights[-1]
+    weight_g = latest.get("weight") or 0
+    weight_lbs = round(weight_g / 1000 * 2.20462, 1) if weight_g else None
+    bone_g = latest.get("boneMass") or 0
+
     return {
-        "garminWeight": round((latest.get("weight") or 0) / 1000 * 2.205, 1),
+        "garminWeight": weight_lbs,
+        "garminWeightKg": round(weight_g / 1000, 2) if weight_g else None,
         "garminBMI": latest.get("bmi"),
         "garminBodyFat": latest.get("bodyFat"),
         "garminMuscle": latest.get("muscleMass"),
-        "garminBone": round((latest.get("boneMass") or 0) / 1000 * 2.205, 2),
+        "garminBone": round(bone_g / 1000 * 2.20462, 2) if bone_g else None,
         "garminWater": latest.get("bodyWater"),
+        "hcWeightTestLbs": weight_lbs,  # Optional Worker field for Activity tab
     }
 
 
 def fetch_all_for_day(client: Garmin, day: date) -> dict:
-    """Fetch all available data for a single day and merge into one dict."""
+    """Fetch all available Garmin metrics for a single date."""
     result = fetch_daily_summary(client, day)
     result.update(fetch_sleep(client, day))
     result.update(fetch_hrv(client, day))
     result.update(fetch_training_status(client, day))
     result.update(fetch_body_composition(client, day))
     result["activities"] = fetch_activities(client, day)
-    result["lastUpdated"] = _now_iso()
+    result["lastUpdated"] = datetime.now(timezone.utc).isoformat()
     return result
 
 
 def fetch_history(client: Garmin, days: int = 7) -> list[dict]:
-    """Fetch data for the last N days."""
+    """Fetch history for the past N days."""
     today = date.today()
     history = []
     for i in range(days - 1, -1, -1):
         day = today - timedelta(days=i)
-        logger.info("Fetching data for %s", day.isoformat())
+        logger.info("Fetching Garmin data for %s", day.isoformat())
         data = fetch_all_for_day(client, day)
-        if data.get("steps") or data.get("sleepHours"):
+        if data.get("steps") or data.get("sleepHours") or data.get("restingHR"):
             history.append(data)
     return history
 
 
-# ── Private helpers ──────────────────────────────────────────────
+# ── Private Helpers ─────────────────────────────────────────────────────────
+
 def _extract_body_battery(stats: dict) -> int | None:
-    """Pull highest body battery from daily stats."""
-    charged = stats.get("bodyBatteryChargedValue")
-    drained = stats.get("bodyBatteryDrainedValue")
-    highest = stats.get("bodyBatteryHighestValue")
-    return highest or charged
+    """Extract highest or current body battery level."""
+    return (
+        stats.get("bodyBatteryHighestValue")
+        or stats.get("bodyBatteryChargedValue")
+        or stats.get("bodyBatteryMostRecentValue")
+    )
 
 
 def _format_pace(speed_mps: float | None) -> str | None:
-    """Convert m/s to min:sec per mile pace string."""
+    """Convert speed (m/s) to pace string (min:sec per mile)."""
     if not speed_mps or speed_mps <= 0:
         return None
     secs_per_mile = 1609.34 / speed_mps
     mins = int(secs_per_mile // 60)
     secs = int(secs_per_mile % 60)
     return f"{mins}:{secs:02d}"
-
-
-def _now_iso() -> str:
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).isoformat()

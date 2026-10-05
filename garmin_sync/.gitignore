@@ -2,6 +2,9 @@
 .garmin_session
 .garmin_cookies
 .garmin_cookies.json
+.garmin_tokens/
+.garmin_tokens
+*.log
 .venv/
 __pycache__/
 *.pyc

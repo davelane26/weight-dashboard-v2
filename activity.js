@@ -329,12 +329,14 @@ function renderActivityKPIs(data) {
   } else {
     _set('act-spo2', '—');
   }
-  // NOTE: Floors, HRV, and VO2 Max tiles removed from the dashboard grid on 2026-08-21
-  // because Rylo's device stack (Samsung Galaxy Watch 6 + Garmin Vivosmart 5) can't
-  // reliably populate them: Vivosmart 5 has no altimeter (floors), Samsung's HRV to
-  // Health Connect bridge is spotty, and VO2 Max requires qualifying outdoor runs he
-  // doesn't do. The underlying data fields (floorsClimbed, hrvRmssd, vo2Max) are still
-  // ingested by the Worker and available in /health.json if any tile wants to come back.
+
+  // 🔋 Body Battery (Garmin)
+  _set('act-battery', data.bodyBattery != null ? data.bodyBattery : '—');
+
+  // 🧠 Stress Level (Garmin)
+  const stress = data.stressLevel;
+  _set('act-stress', stress != null ? stress : '—');
+  _set('act-stress-sub', stress != null ? _stressLabel(stress) : '');
 
   window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: score };
   if (typeof updateSnapshot    === 'function') updateSnapshot();
