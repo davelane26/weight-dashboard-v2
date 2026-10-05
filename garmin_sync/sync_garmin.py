@@ -148,7 +148,7 @@ def update_health_json(data_items: list[dict]) -> bool:
                 continue
             existing = by_date.get(dt, {"date": dt})
             for k, v in item.items():
-                if v is not None and k not in ("lastUpdated",):
+                if v is not None and k not in ("lastUpdated", "steps", "distance", "distanceMeters"):
                     existing[k] = v
             acts = existing.get("activities") or []
             if acts:

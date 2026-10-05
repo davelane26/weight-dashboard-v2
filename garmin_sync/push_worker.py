@@ -38,14 +38,12 @@ ALLOWED_PATCH_FIELDS = [
     "stressLevel",
     "bodyBattery",
     "fitnessAge",
-    # Activity
-    "steps",
+    # Activity (Kage records steps & distance; Garmin enriches intensity & calories)
     "intensityMinutes",
     "workoutsMins",
     "activeCalories",
     "totalCalories",
     "floorsClimbed",
-    "distanceMeters",
     # Biometrics & Sleep bounds
     "spo2Avg",
     "spo2Min",
