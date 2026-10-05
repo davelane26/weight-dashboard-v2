@@ -277,6 +277,7 @@ function renderGlucose(data) {
   renderGlucoseHero(data.current);
 
   if (data.readings && data.readings.length) {
+    window.snapGlucoseReadings = data.readings;
     const cl = flagCompressionLows(data.readings);
     renderGlucoseStats(data.readings, cl);
     renderGlucoseChart(data.readings, cl.flagged);

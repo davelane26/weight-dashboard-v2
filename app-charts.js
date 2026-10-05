@@ -16,10 +16,14 @@ function renderWeightChart(data) {
   const vals   = daily.map(r => r.weight);
   const avg7   = movingAvg(vals, 7);
 
+  const isDark = document.getElementById('root')?.classList.contains('dark') || false;
+  const primaryBlue = isDark ? '#60a5fa' : '#0053e2';
+
   const ctx  = el('weightChart').getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, 300);
-  grad.addColorStop(0, 'rgba(0,83,226,0.15)');
-  grad.addColorStop(1, 'rgba(0,83,226,0)');
+  grad.addColorStop(0, isDark ? 'rgba(96, 165, 250, 0.28)' : 'rgba(0, 83, 226, 0.22)');
+  grad.addColorStop(0.65, isDark ? 'rgba(96, 165, 250, 0.05)' : 'rgba(0, 83, 226, 0.04)');
+  grad.addColorStop(1, 'rgba(0, 83, 226, 0)');
 
   charts.weight = new Chart(ctx, {
     type: 'line',
@@ -29,12 +33,16 @@ function renderWeightChart(data) {
         {
           label: 'Weight (lbs)',
           data: vals,
-          borderColor: '#0053e2',
+          borderColor: primaryBlue,
           backgroundColor: grad,
           fill: true,
           tension: 0.35,
           pointRadius: daily.length < 40 ? 4 : 2,
           pointBorderWidth: 2,
+          pointBackgroundColor: isDark ? '#161b22' : '#ffffff',
+          pointBorderColor: primaryBlue,
+          pointHoverRadius: 6,
+          pointHoverBorderWidth: 3,
           borderWidth: 2.5,
         },
         {
@@ -49,7 +57,7 @@ function renderWeightChart(data) {
           borderDash: [6, 3],
         },
         ...(goalWeight ? [{
-          label: `🟢 Goal (${goalWeight} lbs)`,
+          label: `Goal (${goalWeight} lbs)`,
           data: labels.map(() => goalWeight),
           borderColor: '#2a8703',
           backgroundColor: 'transparent',
@@ -66,17 +74,40 @@ function renderWeightChart(data) {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 20 } },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            color: isDark ? '#e6edf3' : '#1a1f36',
+            font: { size: 11, weight: '600', family: 'Inter, system-ui, sans-serif' },
+            boxWidth: 12,
+            usePointStyle: true,
+            pointStyle: 'circle',
+          },
+        },
         tooltip: {
-          backgroundColor: '#1a1f36', padding: 12, cornerRadius: 10,
-          titleColor: '#fff', bodyColor: '#ccc',
+          backgroundColor: isDark ? 'rgba(22, 27, 34, 0.95)' : 'rgba(26, 31, 54, 0.95)',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 83, 226, 0.15)',
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 10,
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          titleFont: { size: 12, weight: 'bold', family: 'Inter, system-ui, sans-serif' },
+          bodyFont: { size: 12, family: 'Inter, system-ui, sans-serif' },
           callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1)} lbs` },
         },
         annotation: { annotations: buildEventAnnotations(daily) },
       },
       scales: {
-        x: { ticks: { color: '#6d7a95', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { color: '#eee' } },
-        y: { ticks: { color: '#6d7a95', font: { size: 11 }, callback: v => v + ' lbs' }, grid: { color: '#eee' } },
+        x: {
+          ticks: { color: isDark ? '#8b949e' : '#6d7a95', font: { size: 10, family: 'Inter, system-ui, sans-serif' }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', drawBorder: false },
+        },
+        y: {
+          ticks: { color: isDark ? '#8b949e' : '#6d7a95', font: { size: 11, family: 'Inter, system-ui, sans-serif' }, callback: v => v + ' lbs' },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', drawBorder: false },
+        },
       },
     },
   });

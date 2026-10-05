@@ -10,7 +10,8 @@ while ($listener.IsListening) {
         $response = $context.Response
         $rawPath = $request.Url.LocalPath.TrimStart('/')
         if (-not $rawPath) { $rawPath = 'index.html' }
-        $filePath = Join-Path (Get-Location) $rawPath
+        $root = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }
+        $filePath = Join-Path $root $rawPath
         if (Test-Path $filePath -PathType Leaf) {
             $bytes = [System.IO.File]::ReadAllBytes($filePath)
             $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
@@ -24,6 +25,8 @@ while ($listener.IsListening) {
                 default { 'application/octet-stream' }
             }
             $response.ContentType = $contentType
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $response.AddHeader("Cache-Control", "no-cache, no-store, must-revalidate")
             $response.ContentLength64 = $bytes.Length
             $response.OutputStream.Write($bytes, 0, $bytes.Length)
         } else {

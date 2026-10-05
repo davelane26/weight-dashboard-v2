@@ -227,18 +227,25 @@ function initTabDrag() {
 }
 
 // ── Dark mode ────────────────────────────────────────────────────────
+function updateDarkToggleBtn(isDark) {
+  const btn = el('dark-btn');
+  if (!btn) return;
+  btn.innerHTML = isDark
+    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`
+    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+}
 function loadDark() {
   const dark = localStorage.getItem('wt_v2_dark') === '1';
   document.getElementById('root').classList.toggle('dark', dark);
-  const btn = el('dark-btn');
-  if (btn) btn.textContent = dark ? '☀️' : '🌙';
+  updateDarkToggleBtn(dark);
 }
 function toggleDark() {
   const root = document.getElementById('root');
   const isDark = root.classList.toggle('dark');
   localStorage.setItem('wt_v2_dark', isDark ? '1' : '0');
-  const btn = el('dark-btn');
-  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+  updateDarkToggleBtn(isDark);
+  // Re-draw snapshot sparklines on theme toggle to match new theme colors
+  if (typeof updateSnapshot === 'function') updateSnapshot();
   // Bug 1 fix: theme change must never disturb active tab state
   const currentTab = localStorage.getItem('wt_v2_tab') || 'weight';
   if (TABS.includes(currentTab)) switchTab(currentTab);

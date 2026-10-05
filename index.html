@@ -18,12 +18,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=103" />
-  <link rel="stylesheet" href="activity_styles.css?v=100" />
-  <link rel="stylesheet" href="polish.css?v=2" />
-  <link rel="stylesheet" href="enhancements.css?v=4" />
-  <link rel="stylesheet" href="tokens.css?v=2" />
-  <link rel="stylesheet" href="a11y.css?v=1" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="activity_styles.css" />
+  <link rel="stylesheet" href="polish.css" />
+  <link rel="stylesheet" href="enhancements.css" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="a11y.css" />
+  <link rel="stylesheet" href="modern-ui.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
@@ -105,7 +106,11 @@
 <header class="header">
   <div class="header-inner">
     <div style="display:flex;align-items:center;gap:1rem">
-      <div class="header-logo" aria-hidden="true">⚖️</div>
+      <div class="header-logo" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a2340" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/>
+        </svg>
+      </div>
       <div>
         <h1 style="font-size:1.35rem;font-weight:800;letter-spacing:-0.01em">David's Health Board</h1>
         <p style="font-size:0.75rem;color:rgba(255,255,255,0.65);margin-top:2px">openScale · Powered by Code Puppy 🐶</p>
@@ -116,18 +121,20 @@
       <strong id="last-updated">Loading…</strong>
       <p id="readings-count" style="margin-top:2px"></p>
     </div>
-    <button class="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode" id="dark-btn">🌙</button>
-    <a id="add-weighin-btn" href="add-weighin.html" aria-label="Add a manual weigh-in"
-      style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);text-decoration:none;display:inline-block">
+    <button class="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode" id="dark-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <a id="add-weighin-btn" href="add-weighin.html" class="header-action-btn" aria-label="Add a manual weigh-in">
+       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
        <span class="add-weighin-label">Add Weigh-In</span>
     </a>
-    <a id="doctor-report-btn" href="doctor-report.html?v=3" aria-label="Open Doctor Visit Report"
-      style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);text-decoration:none;display:inline-block">
-       <span>🩺 Clinical Report</span>
+    <a id="doctor-report-btn" href="doctor-report.html?v=3" class="header-action-btn" aria-label="Open Doctor Visit Report">
+       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+       <span>Clinical Report</span>
     </a>
-    <button id="header-signout-btn" onclick="window.fbSignOut && window.fbSignOut()" aria-label="Sign out"
-      style="display:none;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0.35rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px)">
-      Sign Out
+    <button id="header-signout-btn" onclick="window.fbSignOut && window.fbSignOut()" class="header-action-btn" aria-label="Sign out" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Sign Out</span>
     </button>
   </div>
 </header>
@@ -137,15 +144,42 @@
 <main id="main-content" tabindex="-1">
 
   <nav class="tab-nav" role="tablist" aria-label="Dashboard sections">
-    <button class="tab-btn active" role="tab" id="tab-btn-weight" draggable="true" onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">⚖️ Weight</button>
-    <button class="tab-btn" role="tab" id="tab-btn-charts" draggable="true" onclick="switchTab('charts')" aria-selected="false" aria-controls="tab-charts">📊 Charts</button>
-    <button class="tab-btn" role="tab" id="tab-btn-projector" draggable="true" onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">🔮 Projector</button>
-    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">🩸 Glucose</button>
-    <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true" onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">&#127939; Activity</button>
-    <button class="tab-btn" role="tab" id="tab-btn-workout" draggable="true" onclick="switchTab('workout')" aria-selected="false" aria-controls="tab-workout">&#128170; Workout</button>
-    <button class="tab-btn" role="tab" id="tab-btn-medication" draggable="true" onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">💊 Medication</button>
-    <button class="tab-btn" role="tab" id="tab-btn-photos" draggable="true" onclick="switchTab('photos')" aria-selected="false" aria-controls="tab-photos">📷 Photos</button>
-    <button class="tab-btn" role="tab" id="tab-btn-health" draggable="true" onclick="switchTab('health')" aria-selected="false" aria-controls="tab-health">🏥 Health</button>
+    <button class="tab-btn active" role="tab" id="tab-btn-weight" draggable="true" onclick="switchTab('weight')" aria-selected="true" aria-controls="tab-weight">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/></svg>
+      <span>Weight</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-charts" draggable="true" onclick="switchTab('charts')" aria-selected="false" aria-controls="tab-charts">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 18 9 12 13 16 21 6"/><polyline points="15 6 21 6 21 12"/></svg>
+      <span>Charts</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-projector" draggable="true" onclick="switchTab('projector')" aria-selected="false" aria-controls="tab-projector">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+      <span>Projector</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>
+      <span>Glucose</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-activity" draggable="true" onclick="switchTab('activity')" aria-selected="false" aria-controls="tab-activity">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+      <span>Activity</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-workout" draggable="true" onclick="switchTab('workout')" aria-selected="false" aria-controls="tab-workout">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><rect x="2" y="8" width="4" height="8" rx="1"/><rect x="18" y="8" width="4" height="8" rx="1"/><line x1="6" y1="12" x2="18" y2="12"/></svg>
+      <span>Workout</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-medication" draggable="true" onclick="switchTab('medication')" aria-selected="false" aria-controls="tab-medication">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="18" rx="2"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="10" y1="16" x2="12" y2="16"/></svg>
+      <span>Medication</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-photos" draggable="true" onclick="switchTab('photos')" aria-selected="false" aria-controls="tab-photos">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M9 5l1.5-2h3L15 5"/></svg>
+      <span>Photos</span>
+    </button>
+    <button class="tab-btn" role="tab" id="tab-btn-health" draggable="true" onclick="switchTab('health')" aria-selected="false" aria-controls="tab-health">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21C12 21 4 14.5 4 9a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 5.5-8 12-8 12z"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+      <span>Health</span>
+    </button>
   </nav>
 
   <!-- ── Weight tab ── -->
@@ -153,29 +187,73 @@
 
     <section class="snapshot-strip fade-in" aria-label="Daily snapshot">
       <div class="snap-grid">
-        <div class="snap-cell">
-          <span class="snap-icon" aria-hidden="true">⚖️</span>
-          <p class="snap-label">Weight</p>
-          <p class="snap-val skel" id="snap-weight">—</p>
-          <p class="snap-delta" id="snap-weight-delta"></p>
+        <div class="snap-cell" id="snap-cell-weight">
+          <div class="snap-header">
+            <span class="snap-icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/></svg>
+            </span>
+            <span class="snap-label">Weight</span>
+          </div>
+          <div class="snap-metric-row">
+            <p class="snap-val skel" id="snap-weight">—</p>
+          </div>
+          <div class="snap-chart-wrap">
+            <svg class="snap-sparkline" id="snap-sparkline-weight" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="snap-footer">
+            <span class="snap-delta" id="snap-weight-delta"></span>
+          </div>
         </div>
-        <div class="snap-cell">
-          <span class="snap-icon" aria-hidden="true">🩸</span>
-          <p class="snap-label">Glucose</p>
-          <p class="snap-val skel" id="snap-glucose">—</p>
-          <p class="snap-delta" id="snap-glucose-delta"></p>
+        <div class="snap-cell" id="snap-cell-glucose">
+          <div class="snap-header">
+            <span class="snap-icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>
+            </span>
+            <span class="snap-label">Glucose</span>
+          </div>
+          <div class="snap-metric-row">
+            <p class="snap-val skel" id="snap-glucose">—</p>
+          </div>
+          <div class="snap-chart-wrap">
+            <svg class="snap-sparkline" id="snap-sparkline-glucose" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="snap-footer">
+            <span class="snap-delta" id="snap-glucose-delta"></span>
+          </div>
         </div>
-        <div class="snap-cell">
-          <span class="snap-icon" aria-hidden="true">👟</span>
-          <p class="snap-label">Steps</p>
-          <p class="snap-val skel" id="snap-steps">—</p>
-          <p class="snap-delta" id="snap-steps-delta"></p>
+        <div class="snap-cell" id="snap-cell-steps">
+          <div class="snap-header">
+            <span class="snap-icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+            </span>
+            <span class="snap-label">Steps</span>
+          </div>
+          <div class="snap-metric-row">
+            <p class="snap-val skel" id="snap-steps">—</p>
+          </div>
+          <div class="snap-chart-wrap">
+            <svg class="snap-sparkline" id="snap-sparkline-steps" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="snap-footer">
+            <span class="snap-delta" id="snap-steps-delta"></span>
+          </div>
         </div>
-        <div class="snap-cell">
-          <span class="snap-icon" aria-hidden="true">💤</span>
-          <p class="snap-label">Sleep</p>
-          <p class="snap-val skel" id="snap-sleep">—</p>
-          <p class="snap-delta" id="snap-sleep-delta"></p>
+        <div class="snap-cell" id="snap-cell-sleep">
+          <div class="snap-header">
+            <span class="snap-icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </span>
+            <span class="snap-label">Sleep</span>
+          </div>
+          <div class="snap-metric-row">
+            <p class="snap-val skel" id="snap-sleep">—</p>
+          </div>
+          <div class="snap-chart-wrap">
+            <svg class="snap-sparkline" id="snap-sparkline-sleep" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="snap-footer">
+            <span class="snap-delta" id="snap-sleep-delta"></span>
+          </div>
         </div>
       </div>
     </section>
