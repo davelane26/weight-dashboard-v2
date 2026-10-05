@@ -70,18 +70,32 @@ function applyHiddenModules() {
     const desktopBtn = el('tab-btn-' + name);
     const panel      = el('tab-'     + name);
     const mobileBtn  = document.querySelector(`.mob-tab[data-tab="${name}"]`);
-    if (desktopBtn) desktopBtn.hidden = true;
-    if (panel)      panel.hidden      = true;
-    if (mobileBtn)  mobileBtn.hidden  = true;
+    if (desktopBtn) {
+      desktopBtn.hidden = true;
+      desktopBtn.style.setProperty('display', 'none', 'important');
+    }
+    if (panel) {
+      panel.hidden = true;
+      panel.style.setProperty('display', 'none', 'important');
+    }
+    if (mobileBtn) {
+      mobileBtn.hidden = true;
+      mobileBtn.style.setProperty('display', 'none', 'important');
+    }
 
     const snapId = SNAP_CELL_BY_TAB[name];
-    if (snapId) {
-      const cell = document.getElementById(snapId)?.closest('.snap-cell');
-      if (cell) cell.hidden = true;
+    const cell = document.getElementById('snap-cell-' + name) || (snapId ? document.getElementById(snapId)?.closest('.snap-cell') : null);
+    if (cell) {
+      cell.hidden = true;
+      cell.style.setProperty('display', 'none', 'important');
     }
   });
 }
-document.addEventListener('DOMContentLoaded', applyHiddenModules);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', applyHiddenModules);
+} else {
+  applyHiddenModules();
+}
 
 // ── Tab switching ────────────────────────────────────────────────────
 function switchTab(name) {
