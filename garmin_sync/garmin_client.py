@@ -149,7 +149,18 @@ def fetch_daily_summary(client: Garmin, day: date) -> dict:
         "avgHR": stats.get("averageHeartRate"),
         "stressLevel": stats.get("averageStressLevel"),
         "maxStress": stats.get("maxStressLevel"),
+        "restStressPct": (
+            round(stats.get("restStressPercentage"), 1)
+            if stats.get("restStressPercentage") is not None
+            else None
+        ),
         "bodyBattery": _extract_body_battery(stats),
+        "bodyBatteryCharged": stats.get("bodyBatteryChargedValue"),
+        "bodyBatteryDrained": stats.get("bodyBatteryDrainedValue"),
+        "bodyBatteryWake": stats.get("bodyBatteryAtWakeTime"),
+        "respirationWaking": stats.get("avgWakingRespirationValue"),
+        "respirationMin": stats.get("lowestRespirationValue"),
+        "respirationMax": stats.get("highestRespirationValue"),
         "intensityMinutes": (
             (stats.get("moderateIntensityMinutes") or 0)
             + (stats.get("vigorousIntensityMinutes") or 0)
@@ -185,6 +196,8 @@ def fetch_sleep(client: Garmin, day: date) -> dict:
         or daily.get("sleepScore")
     )
 
+    resp_sleep = daily.get("averageRespirationValue")
+
     return {
         "sleepHours": hours,
         "sleepDuration": f"{int(hours)}h {int((hours % 1) * 60)}m",
@@ -199,6 +212,7 @@ def fetch_sleep(client: Garmin, day: date) -> dict:
         "awakeSleep": round(awake_secs / 3600, 2),
         "sleepAwakenings": daily.get("awakeCount") or (1 if awake_secs > 0 else 0),
         "timeInBed": round((daily.get("unmeasurableSleepSeconds", 0) + duration_secs + awake_secs) / 3600, 2),
+        "respirationSleep": resp_sleep,
         "sleepStages": {
             "deep": round(deep_secs / 3600, 2),
             "light": round(light_secs / 3600, 2),
@@ -231,26 +245,51 @@ def fetch_hrv(client: Garmin, day: date) -> dict:
     }
 
 
+def fetch_respiration(client: Garmin, day: date) -> dict:
+    """Fetch daily respiration summary if available."""
+    iso = day.isoformat()
+    try:
+        resp = client.get_respiration_data(iso) or {}
+        return {
+            "respirationWaking": resp.get("avgWakingRespirationValue"),
+            "respirationSleep": resp.get("avgSleepRespirationValue"),
+            "respirationMin": resp.get("lowestRespirationValue"),
+            "respirationMax": resp.get("highestRespirationValue"),
+        }
+    except Exception as e:
+        logger.debug("get_respiration_data failed for %s: %s", iso, e)
+        return {}
+
+
 def fetch_training_status(client: Garmin, day: date) -> dict:
     """Fetch VO2 max, training load, and fitness age."""
     iso = day.isoformat()
+    result = {}
     try:
         metrics = client.get_max_metrics(iso) or {}
+        entry = metrics[0] if isinstance(metrics, list) and metrics else (metrics if isinstance(metrics, dict) else {})
+        generic = entry.get("generic", {}) or {}
+        vo2 = generic.get("vo2MaxPreciseValue") or generic.get("vo2MaxValue")
+        if vo2:
+            result["vo2Max"] = round(vo2, 1)
+        if generic.get("fitnessAge"):
+            result["fitnessAge"] = round(generic.get("fitnessAge"), 1)
     except Exception as e:
-        logger.warning("Failed to get training metrics for %s: %s", iso, e)
-        return {}
+        logger.debug("Failed to get max_metrics for %s: %s", iso, e)
 
-    if not metrics:
-        return {}
+    # vívosmart 5 & modern wellness devices have a dedicated fitness age endpoint
+    try:
+        fa = client.get_fitnessage_data(iso) or {}
+        cur_fa = fa.get("fitnessAge")
+        ach_fa = fa.get("achievableFitnessAge")
+        if cur_fa:
+            result["fitnessAge"] = round(cur_fa, 1)
+        if ach_fa:
+            result["achievableFitnessAge"] = round(ach_fa, 1)
+    except Exception as e:
+        logger.debug("Failed to get fitnessage_data for %s: %s", iso, e)
 
-    entry = metrics[0] if isinstance(metrics, list) and metrics else (metrics if isinstance(metrics, dict) else {})
-    generic = entry.get("generic", {}) or {}
-    vo2 = generic.get("vo2MaxPreciseValue") or generic.get("vo2MaxValue")
-
-    return {
-        "vo2Max": round(vo2, 1) if vo2 else None,
-        "fitnessAge": generic.get("fitnessAge"),
-    }
+    return result
 
 
 def fetch_activities(client: Garmin, day: date, limit: int = 10) -> list[dict]:
@@ -315,6 +354,9 @@ def fetch_all_for_day(client: Garmin, day: date) -> dict:
     result = fetch_daily_summary(client, day)
     result.update(fetch_sleep(client, day))
     result.update(fetch_hrv(client, day))
+    for k, v in fetch_respiration(client, day).items():
+        if v is not None or k not in result:
+            result[k] = v
     result.update(fetch_training_status(client, day))
     result.update(fetch_body_composition(client, day))
     result["activities"] = fetch_activities(client, day)

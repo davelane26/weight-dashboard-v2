@@ -188,9 +188,26 @@ def _print_summary(data: dict) -> None:
         print(f"     Deep: {stages.get('deep', 0)}h | Light: {stages.get('light', 0)}h | REM: {stages.get('rem', 0)}h | Awake: {stages.get('awake', 0)}h")
 
     if data.get('stressLevel') is not None:
-        print(f"  🧠 Stress Level:    {data['stressLevel']}/100 avg")
+        rest_str = f" ({data['restStressPct']}% in recovery/rest)" if data.get('restStressPct') is not None else ""
+        print(f"  🧠 Stress Level:    {data['stressLevel']}/100 avg{rest_str}")
     if data.get('bodyBattery') is not None:
-        print(f"  🔋 Body Battery:    {data['bodyBattery']}/100")
+        bb_parts = []
+        if data.get('bodyBatteryCharged') is not None or data.get('bodyBatteryDrained') is not None:
+            bb_parts.append(f"+{data.get('bodyBatteryCharged', 0)} charged / -{data.get('bodyBatteryDrained', 0)} drained")
+        if data.get('bodyBatteryWake') is not None:
+            bb_parts.append(f"wake: {data['bodyBatteryWake']}")
+        bb_detail = f" ({', '.join(bb_parts)})" if bb_parts else ""
+        print(f"  🔋 Body Battery:    {data['bodyBattery']}/100{bb_detail}")
+    if data.get('respirationWaking') or data.get('respirationSleep'):
+        resp_parts = []
+        if data.get('respirationWaking'):
+            resp_parts.append(f"{data['respirationWaking']} waking")
+        if data.get('respirationSleep'):
+            resp_parts.append(f"{data['respirationSleep']} sleep")
+        print(f"  🫁 Respiration:     {' · '.join(resp_parts)} brpm")
+    if data.get('fitnessAge'):
+        ach_str = f" (target: {data['achievableFitnessAge']} yrs)" if data.get('achievableFitnessAge') else ""
+        print(f"  🏃 Fitness Age:     {data['fitnessAge']} yrs{ach_str}")
     if data.get('intensityMinutes') is not None:
         print(f"  ⚡ Intensity:       {data['intensityMinutes']} min")
     if data.get('vo2Max'):

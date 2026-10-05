@@ -387,12 +387,16 @@ export default {
         'sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
         'sleepAwakenings','timeInBed',
         // Heart / stress / battery
-        'restingHR','minHR','maxHR','avgHR','currentHR','stressLevel','bodyBattery','fitnessAge',
+        'restingHR','minHR','maxHR','avgHR','currentHR','stressLevel','restStressPct',
+        'bodyBattery','bodyBatteryCharged','bodyBatteryDrained','bodyBatteryWake',
+        'fitnessAge','achievableFitnessAge',
         // Activity
         'steps','intensityMinutes','workoutsMins','activeCalories','totalCalories','floorsClimbed',
         // v0.3.4 Kage additions: distance today, blood oxygen, HRV, VO2 max,
         // bedtime/waketime bounds from the last sleep session.
-        'distanceMeters','spo2Avg','spo2Min','hrvRmssd','vo2Max','bedtime','waketime',
+        'distanceMeters','spo2Avg','spo2Min','hrvRmssd','vo2Max',
+        'respirationWaking','respirationSleep','respirationMin','respirationMax',
+        'bedtime','waketime',
         // v0.4.7: experimental Health Connect weight test (Activity tab only --
         // deliberately not "weight", not the Weight tab's data source).
         'hcWeightTestLbs',

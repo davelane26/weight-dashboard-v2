@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-08-19T18:28:58+00:00",
-  "lastUpdated": "2026-10-05T00:28:02+00:00",
+  "lastUpdated": "2026-10-05T00:44:23+00:00",
   "source": "samsung_health",
   "days": [
     {
@@ -448,17 +448,17 @@
       "steps": 3113,
       "distance": 1.38,
       "distanceMeters": 2215,
-      "activeCalories": 286.0,
-      "totalCalories": 1234.0,
-      "restingCalories": 948.0,
+      "activeCalories": 586.0,
+      "totalCalories": 2537.0,
+      "restingCalories": 1951.0,
       "restingHR": 64,
       "minHR": 61,
       "maxHR": 116,
-      "stressLevel": 25,
+      "stressLevel": 46,
       "maxStress": 96,
       "bodyBattery": 55,
-      "intensityMinutes": 17,
-      "moderateIntensity": 17,
+      "intensityMinutes": 20,
+      "moderateIntensity": 20,
       "vigorousIntensity": 0,
       "sleepHours": 7.83,
       "sleepDuration": "7h 49m",
@@ -498,7 +498,17 @@
         }
       ],
       "workoutsMins": 13.8,
-      "workoutsKm": 0.53
+      "workoutsKm": 0.53,
+      "restStressPct": 30.3,
+      "bodyBatteryCharged": 42,
+      "bodyBatteryDrained": 43,
+      "bodyBatteryWake": 54,
+      "respirationWaking": 13.0,
+      "respirationMin": 9.0,
+      "respirationMax": 21.0,
+      "respirationSleep": 17.0,
+      "fitnessAge": 44.5,
+      "achievableFitnessAge": 38.0
     }
   ]
 }

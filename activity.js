@@ -332,11 +332,41 @@ function renderActivityKPIs(data) {
 
   // 🔋 Body Battery (Garmin)
   _set('act-battery', data.bodyBattery != null ? data.bodyBattery : '—');
+  const bbParts = [];
+  if (data.bodyBatteryCharged != null || data.bodyBatteryDrained != null) {
+    bbParts.push(`+${data.bodyBatteryCharged ?? 0} \u00b7 -${data.bodyBatteryDrained ?? 0}`);
+  }
+  if (data.bodyBatteryWake != null) {
+    bbParts.push(`wake ${data.bodyBatteryWake}`);
+  }
+  _set('act-battery-sub', bbParts.join(' \u00b7 '));
 
   // 🧠 Stress Level (Garmin)
   const stress = data.stressLevel;
   _set('act-stress', stress != null ? stress : '—');
-  _set('act-stress-sub', stress != null ? _stressLabel(stress) : '');
+  const stressParts = [];
+  if (stress != null) stressParts.push(_stressLabel(stress));
+  if (data.restStressPct != null) stressParts.push(`${Math.round(data.restStressPct)}% rest`);
+  _set('act-stress-sub', stressParts.join(' \u00b7 '));
+
+  // 🫁 Respiration (Garmin)
+  const respVal = data.respirationWaking ?? data.respirationSleep;
+  _set('act-resp', respVal != null ? (Math.round(respVal * 10) / 10).toString() : '—');
+  _set('act-resp-unit', data.respirationWaking != null ? 'brpm waking' : 'brpm');
+  const respParts = [];
+  if (data.respirationSleep != null) respParts.push(`sleep ${Math.round(data.respirationSleep)}`);
+  if (data.respirationMin != null && data.respirationMax != null) {
+    respParts.push(`range ${data.respirationMin}\u2013${data.respirationMax}`);
+  }
+  _set('act-resp-sub', respParts.join(' \u00b7 '));
+
+  // 🏃‍♂️ Fitness Age (Garmin)
+  _set('act-fitness-age', data.fitnessAge != null ? data.fitnessAge : '—');
+  const faParts = [];
+  if (data.achievableFitnessAge != null) {
+    faParts.push(`target ${data.achievableFitnessAge} yrs`);
+  }
+  _set('act-fitness-age-sub', faParts.join(' \u00b7 '));
 
   window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: score };
   if (typeof updateSnapshot    === 'function') updateSnapshot();
