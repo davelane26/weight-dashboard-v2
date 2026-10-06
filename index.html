@@ -51,21 +51,21 @@
   </script>
   <script type="module" src="auth.js?v=3"></script>
   <!-- Modular app split -->
-  <script src="app-config.js?v=1"   defer></script>
+  <script src="app-config.js?v=2"   defer></script>
   <script src="app-utils.js?v=6"    defer></script>
-  <script src="app-tabs.js?v=5"     defer></script>
-  <script src="app-kpis.js?v=5"     defer></script>
-  <script src="app-charts.js?v=1"   defer></script>
+  <script src="app-tabs.js?v=8"     defer></script>
+  <script src="app-kpis.js?v=8"     defer></script>
+  <script src="app-charts.js?v=2"   defer></script>
   <script src="multi-window-trends.js?v=6" defer></script>
   <script src="app-goal.js?v=6"     defer></script>
-  <script src="app-insights.js?v=1" defer></script>
-  <script src="app.js?v=103"        defer></script>
+  <script src="app-insights.js?v=8" defer></script>
+  <script src="app.js?v=104"        defer></script>
   <script src="weight-qa.js?v=3"    defer></script>
   <script src="heatmap.js?v=1" defer></script>
   <script src="healthscore.js?v=1" defer></script>
   <script src="reportcard.js?v=1" defer></script>
   <script src="healthcard.js?v=1" defer></script>
-  <script src="glucose.js?v=102" defer></script>
+  <script src="glucose.js?v=105" defer></script>
   <script src="activity.js?v=99" defer></script>
   <script src="workout.js?v=2" defer></script>
   <script src="enhancements.js?v=6" defer></script>
@@ -156,7 +156,7 @@
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
       <span>Projector</span>
     </button>
-    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose">
+    <button class="tab-btn" role="tab" id="tab-btn-glucose" draggable="true" onclick="switchTab('glucose')" aria-selected="false" aria-controls="tab-glucose" hidden style="display:none !important;">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>
       <span>Glucose</span>
     </button>
@@ -164,7 +164,7 @@
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
       <span>Activity</span>
     </button>
-    <button class="tab-btn" role="tab" id="tab-btn-workout" draggable="true" onclick="switchTab('workout')" aria-selected="false" aria-controls="tab-workout">
+    <button class="tab-btn" role="tab" id="tab-btn-workout" draggable="true" onclick="switchTab('workout')" aria-selected="false" aria-controls="tab-workout" hidden style="display:none !important;">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><rect x="2" y="8" width="4" height="8" rx="1"/><rect x="18" y="8" width="4" height="8" rx="1"/><line x1="6" y1="12" x2="18" y2="12"/></svg>
       <span>Workout</span>
     </button>
@@ -204,7 +204,7 @@
             <span class="snap-delta" id="snap-weight-delta"></span>
           </div>
         </div>
-        <div class="snap-cell" id="snap-cell-glucose">
+        <div class="snap-cell" id="snap-cell-glucose" hidden style="display:none !important;">
           <div class="snap-header">
             <span class="snap-icon-badge" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 12 6 8 9 14 12 10 15 14 18 8 21 12"/></svg>

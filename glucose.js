@@ -338,6 +338,16 @@ async function loadGMI() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────
-loadGlucose();
-loadGMI();
-setInterval(() => { loadGlucose(); loadGMI(); }, GLUCOSE_REFRESH_MS);
+if (typeof SHOW_GLUCOSE === 'undefined' || SHOW_GLUCOSE) {
+  loadGlucose();
+  loadGMI();
+  setInterval(() => { loadGlucose(); loadGMI(); }, GLUCOSE_REFRESH_MS);
+} else {
+  // Glucose tracking paused (SHOW_GLUCOSE=false)
+  window.snapGlucoseNow = null;
+  const gCell = document.getElementById('snap-cell-glucose');
+  if (gCell) {
+    gCell.hidden = true;
+    gCell.style.setProperty('display', 'none', 'important');
+  }
+}

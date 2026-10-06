@@ -85,7 +85,12 @@
 #root.dark .insight-row:hover { background: #21262d; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-[hidden] { display: none !important; }
+[hidden],
+#snap-cell-glucose,
+#tab-btn-glucose,
+#tab-glucose,
+#tab-btn-workout,
+#tab-workout { display: none !important; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;

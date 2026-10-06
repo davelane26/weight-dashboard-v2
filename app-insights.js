@@ -102,19 +102,27 @@ function updateSnapshot() {
   }
 
   // Glucose
-  const g = window.snapGlucoseNow;
-  if (g != null) {
-    setSnap('snap-glucose', g + ' mg/dL');
-    const inRange = g >= 70 && g <= 180;
-    const icon = inRange ? '✓ ' : '! ';
-    setSnap('snap-glucose-delta', icon + (inRange ? 'in range' : 'out of range'), inRange ? 'good' : 'bad');
+  if (typeof SHOW_GLUCOSE !== 'undefined' && !SHOW_GLUCOSE) {
+    const gCell = document.getElementById('snap-cell-glucose');
+    if (gCell) {
+      gCell.hidden = true;
+      gCell.style.setProperty('display', 'none', 'important');
+    }
+  } else {
+    const g = window.snapGlucoseNow;
+    if (g != null) {
+      setSnap('snap-glucose', g + ' mg/dL');
+      const inRange = g >= 70 && g <= 180;
+      const icon = inRange ? '✓ ' : '! ';
+      setSnap('snap-glucose-delta', icon + (inRange ? 'in range' : 'out of range'), inRange ? 'good' : 'bad');
 
-    // Glucose sparkline: recent readings from window.snapGlucoseReadings or window.glucoseHistory
-    const readings = window.snapGlucoseReadings || window.glucoseHistory || [];
-    if (readings.length) {
-      const gPoints = readings.slice(-16).map(r => r.value != null ? r.value : r.sgv).filter(Boolean);
-      if (gPoints.length >= 2) {
-        drawSnapshotSparkline('snap-sparkline-glucose', gPoints, isDark ? '#4ade80' : '#16a34a');
+      // Glucose sparkline: recent readings from window.snapGlucoseReadings or window.glucoseHistory
+      const readings = window.snapGlucoseReadings || window.glucoseHistory || [];
+      if (readings.length) {
+        const gPoints = readings.slice(-16).map(r => r.value != null ? r.value : r.sgv).filter(Boolean);
+        if (gPoints.length >= 2) {
+          drawSnapshotSparkline('snap-sparkline-glucose', gPoints, isDark ? '#4ade80' : '#16a34a');
+        }
       }
     }
   }
