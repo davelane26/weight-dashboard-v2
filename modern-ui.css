@@ -1109,3 +1109,352 @@ main > [role="tabpanel"]:not([hidden]) {
   vertical-align: middle !important;
 }
 
+/* ── 14. Universal Dark Mode Contrast & Legibility Overhaul ──────── */
+#root.dark {
+  --text: #f8fafc !important;
+  --text-sub: #cbd5e1 !important;
+  --gray-160: #f8fafc !important;
+  --gray-100: #cbd5e1 !important;
+  --gray-50:  #e2e8f0 !important;
+  --border:   rgba(255, 255, 255, 0.1) !important;
+  --card-bg:  #111726 !important;
+  --kpi-bg:   #111726 !important;
+  --input-bg: #090d16 !important;
+  --input-border: rgba(255, 255, 255, 0.15) !important;
+  --stat-box-bg: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ── 14.1 Base Text Contrast Inside Cards, Tabs, and Sections ───────── */
+#root.dark .card,
+#root.dark [role="tabpanel"],
+#root.dark section,
+#root.dark article {
+  color: #f8fafc;
+}
+
+#root.dark .card p,
+#root.dark [role="tabpanel"] p,
+#root.dark section p,
+#root.dark .card span:not(.hero-live-beacon):not(.snap-icon-badge):not(.snap-delta):not(.badge),
+#root.dark [role="tabpanel"] span:not(.hero-live-beacon):not(.snap-icon-badge):not(.snap-delta):not(.badge),
+#root.dark .card li,
+#root.dark [role="tabpanel"] li,
+#root.dark .card label,
+#root.dark [role="tabpanel"] label,
+#root.dark .card td,
+#root.dark [role="tabpanel"] td,
+#root.dark .card th,
+#root.dark [role="tabpanel"] th,
+#root.dark main p {
+  color: #e2e8f0;
+}
+
+/* Subtext, secondary labels, units, and descriptive blurbs in dark mode */
+#root.dark .card p:not(.card-title):not(.snap-val):not(.kpi-value):not(.hsb-val):not(.val),
+#root.dark [role="tabpanel"] p:not(.card-title):not(.snap-val):not(.kpi-value):not(.hsb-val):not(.val) {
+  color: #cbd5e1;
+}
+
+#root.dark .kpi-unit,
+#root.dark .kpi-sub,
+#root.dark .stat-box .sub,
+#root.dark .stat-box .label,
+#root.dark .hsb-sub,
+#root.dark .snap-label,
+#root.dark .kpi-label,
+#root.dark .subtext,
+#root.dark .sub,
+#root.dark em,
+#root.dark small,
+#root.dark .insight-sub,
+#root.dark .insight-label,
+#root.dark [style*="color:var(--text-sub)"],
+#root.dark [style*="color: var(--text-sub)"],
+#root.dark [style*="color:var(--gray-50)"],
+#root.dark [style*="color: var(--gray-50)"] {
+  color: #cbd5e1 !important;
+}
+
+/* ── 14.2 Hardcoded Dark/Black Hex & RGB Overrides ───────────────────── */
+#root.dark [style*="#1a2340"], #root.dark [style*="26, 35, 64"], #root.dark [style*="26,35,64"],
+#root.dark [style*="#0f172a"], #root.dark [style*="15, 23, 42"], #root.dark [style*="15,23,42"],
+#root.dark [style*="#111827"], #root.dark [style*="17, 24, 39"], #root.dark [style*="17,24,39"],
+#root.dark [style*="#1e293b"], #root.dark [style*="30, 41, 59"], #root.dark [style*="30,41,59"],
+#root.dark [style*="#1f2937"], #root.dark [style*="31, 41, 55"], #root.dark [style*="31,41,55"],
+#root.dark [style*="#374151"], #root.dark [style*="55, 65, 81"], #root.dark [style*="55,65,81"],
+#root.dark [style*="#334155"], #root.dark [style*="51, 65, 85"], #root.dark [style*="51,65,85"] {
+  color: #f8fafc !important;
+}
+
+/* Slate & secondary text colors (#475569, #4b5563, #64748b, #6d7a95, #9aa5b4, #94a3b8) */
+#root.dark [style*="#475569"], #root.dark [style*="71, 85, 105"], #root.dark [style*="71,85,105"],
+#root.dark [style*="#4b5563"], #root.dark [style*="75, 85, 99"],   #root.dark [style*="75,85,99"],
+#root.dark [style*="#64748b"], #root.dark [style*="100, 116, 139"], #root.dark [style*="100,116,139"],
+#root.dark [style*="#6d7a95"], #root.dark [style*="109, 122, 149"], #root.dark [style*="109,122,149"],
+#root.dark [style*="#9aa5b4"], #root.dark [style*="154, 165, 180"], #root.dark [style*="154,165,180"],
+#root.dark [style*="#94a3b8"], #root.dark [style*="148, 163, 184"], #root.dark [style*="148,163,184"] {
+  color: #cbd5e1 !important;
+}
+
+/* ── 14.3 Semantic Accent Color Brightening ──────────────────────────── */
+/* Blues: map dark/medium blues to luminous sky blue */
+#root.dark [style*="#0053e2"], #root.dark [style*="0, 83, 226"],   #root.dark [style*="0,83,226"],
+#root.dark [style*="#0369a1"], #root.dark [style*="3, 105, 161"],  #root.dark [style*="3,105,161"],
+#root.dark [style*="#1d4ed8"], #root.dark [style*="29, 78, 216"],  #root.dark [style*="29,78,216"],
+#root.dark [style*="#1971c2"], #root.dark [style*="25, 113, 194"], #root.dark [style*="25,113,194"] {
+  color: #60a5fa !important;
+}
+
+/* Greens: map dark/medium greens to vibrant emerald / mint */
+#root.dark [style*="#2a8703"], #root.dark [style*="42, 135, 3"],   #root.dark [style*="42,135,3"],
+#root.dark [style*="#16a34a"], #root.dark [style*="22, 163, 74"],  #root.dark [style*="22,163,74"],
+#root.dark [style*="#166534"], #root.dark [style*="22, 101, 52"],  #root.dark [style*="22,101,52"],
+#root.dark [style*="#15803d"], #root.dark [style*="21, 128, 61"],  #root.dark [style*="21,128,61"],
+#root.dark [style*="#2f9e44"], #root.dark [style*="47, 158, 68"],  #root.dark [style*="47,158,68"],
+#root.dark [style*="#059669"], #root.dark [style*="5, 150, 105"],  #root.dark [style*="5,150,105"] {
+  color: #4ade80 !important;
+}
+
+/* Purples & Indigos: map dark purples to bright lavender */
+#root.dark [style*="#7c3aed"], #root.dark [style*="124, 58, 237"], #root.dark [style*="124,58,237"],
+#root.dark [style*="#6d28d9"], #root.dark [style*="109, 40, 217"], #root.dark [style*="109,40,217"],
+#root.dark [style*="#534ab7"], #root.dark [style*="83, 74, 183"],  #root.dark [style*="83,74,183"] {
+  color: #a78bfa !important;
+}
+
+/* Reds: map dark reds to bright coral / rose */
+#root.dark [style*="#ea1100"], #root.dark [style*="234, 17, 0"],   #root.dark [style*="234,17,0"],
+#root.dark [style*="#dc2626"], #root.dark [style*="220, 38, 38"],  #root.dark [style*="220,38,38"],
+#root.dark [style*="#991b1b"], #root.dark [style*="153, 27, 27"],  #root.dark [style*="153,27,27"],
+#root.dark [style*="#c92a2a"], #root.dark [style*="201, 42, 42"],  #root.dark [style*="201,42,42"],
+#root.dark [style*="#e03131"], #root.dark [style*="224, 49, 49"],  #root.dark [style*="224,49,49"],
+#root.dark [style*="#7f1d1d"], #root.dark [style*="127, 29, 29"],  #root.dark [style*="127,29,29"] {
+  color: #f87171 !important;
+}
+
+/* Ambers & Golds: map dark ambers/oranges to bright gold */
+#root.dark [style*="#995213"], #root.dark [style*="153, 82, 19"],  #root.dark [style*="153,82,19"],
+#root.dark [style*="#b45309"], #root.dark [style*="180, 83, 9"],   #root.dark [style*="180,83,9"],
+#root.dark [style*="#d97706"], #root.dark [style*="217, 119, 6"],  #root.dark [style*="217,119,6"],
+#root.dark [style*="#e67700"], #root.dark [style*="230, 119, 0"],  #root.dark [style*="230,119,0"],
+#root.dark [style*="#f59f00"], #root.dark [style*="245, 159, 0"],  #root.dark [style*="245,159,0"],
+#root.dark [style*="#854d0e"], #root.dark [style*="133, 77, 14"],  #root.dark [style*="133,77,14"],
+#root.dark [style*="#c2410c"], #root.dark [style*="194, 65, 12"],  #root.dark [style*="194,65,12"] {
+  color: #fbbf24 !important;
+}
+
+/* Cyans: map dark cyans to bright cyan */
+#root.dark [style*="#0891b2"], #root.dark [style*="8, 145, 178"],  #root.dark [style*="8,145,178"],
+#root.dark [style*="#0284c7"], #root.dark [style*="2, 132, 199"],  #root.dark [style*="2,132,199"] {
+  color: #67e8f9 !important;
+}
+
+/* ── 14.4 Callout Bodies & Dynamic Panels ───────────────────────────── */
+#root.dark #pr-card-body p,
+#root.dark #pr-card-body span,
+#root.dark #sr-card-body p,
+#root.dark #sr-card-body span,
+#root.dark #tr-card-body p,
+#root.dark #tr-card-body span,
+#root.dark #dc-card-body p,
+#root.dark #dc-card-body span {
+  color: #e2e8f0 !important;
+}
+#root.dark #pr-card-body strong,
+#root.dark #sr-card-body strong,
+#root.dark #tr-card-body strong,
+#root.dark #dc-card-body strong,
+#root.dark #pr-card-body b,
+#root.dark #sr-card-body b,
+#root.dark #tr-card-body b,
+#root.dark #dc-card-body b {
+  color: #ffffff !important;
+}
+
+/* ── 14.5 Light Pastel Callouts & Gradients to Dark Frosted Surfaces ── */
+#root.dark [style*="background:#f0f4ff"], #root.dark [style*="background: #f0f4ff"],
+#root.dark [style*="background:#f5f0ff"], #root.dark [style*="background: #f5f0ff"],
+#root.dark [style*="background:#fef9ec"], #root.dark [style*="background: #fef9ec"],
+#root.dark [style*="background:#fff1f0"], #root.dark [style*="background: #fff1f0"],
+#root.dark [style*="background:#f0fdf4"], #root.dark [style*="background: #f0fdf4"],
+#root.dark [style*="background:#fef2f2"], #root.dark [style*="background: #fef2f2"],
+#root.dark [style*="background:#eff4ff"], #root.dark [style*="background: #eff4ff"],
+#root.dark [style*="background:#f0eeff"], #root.dark [style*="background: #f0eeff"],
+#root.dark [style*="background:#f8f7ff"], #root.dark [style*="background: #f8f7ff"],
+#root.dark [style*="background:#f9fafb"], #root.dark [style*="background: #f9fafb"],
+#root.dark [style*="background:#f8fafc"], #root.dark [style*="background: #f8fafc"],
+#root.dark [style*="background:#f5f6f8"], #root.dark [style*="background: #f5f6f8"],
+#root.dark [style*="background:#fff9db"], #root.dark [style*="background: #fff9db"],
+#root.dark [style*="background:#f8f9fe"], #root.dark [style*="background: #f8f9fe"],
+#root.dark [style*="background:#fff"],    #root.dark [style*="background: #fff"],
+#root.dark [style*="background:#ffffff"], #root.dark [style*="background: #ffffff"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── 14.6 Tab-Specific Overrides ─────────────────────────────────────── */
+/* Medication tab */
+#root.dark #tab-medication > div:first-child {
+  background: #0f1523 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+#root.dark #tab-medication button[id^="medtab-btn-"]:not([style*="background:#534ab7"]):not([style*="background: #534ab7"]) {
+  color: #cbd5e1 !important;
+}
+#root.dark #g1-reminder {
+  background: rgba(245, 159, 0, 0.12) !important;
+  border-left: 4px solid #f59f00 !important;
+}
+#root.dark #g1-reminder-text {
+  color: #fef08a !important;
+}
+#root.dark #g1-site-rotation-banner {
+  background: rgba(47, 158, 68, 0.12) !important;
+  border-left: 4px solid #4ade80 !important;
+}
+#root.dark #g1-banner-next-site {
+  color: #f8fafc !important;
+}
+#root.dark #g1-banner-last-site {
+  color: #cbd5e1 !important;
+}
+#root.dark #g1-plasma-gauge-card,
+#root.dark [id^="medpanel-"] .card {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+#root.dark #g1-plasma-note {
+  color: #cbd5e1 !important;
+}
+#root.dark #g1-dial-countdown {
+  color: #f8fafc !important;
+}
+#root.dark #g1-heatmap-toggle-btn {
+  background: #161b26 !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Health tab */
+#root.dark #health-analysis-wrap {
+  background: rgba(124, 58, 237, 0.12) !important;
+  border: 1.5px solid rgba(167, 139, 250, 0.3) !important;
+}
+#root.dark #health-analysis-text {
+  color: #f8fafc !important;
+}
+#root.dark #health-compare-wrap {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border: 1.5px solid rgba(74, 222, 128, 0.3) !important;
+}
+
+/* Activity tab */
+#root.dark #actSystemHealth {
+  color: #cbd5e1 !important;
+}
+#root.dark #actSleepTotal {
+  color: #f8fafc !important;
+}
+#root.dark #actSleepTimes,
+#root.dark #actSleepLegend,
+#root.dark #actRingsLegend,
+#root.dark #actWeeklyCompare {
+  color: #cbd5e1 !important;
+}
+
+/* Charts tab stat labels & calibration */
+#root.dark #tab-charts [style*="color:#475569"],
+#root.dark #tab-charts [style*="71, 85, 105"] {
+  color: #94a3b8 !important;
+}
+#root.dark #tab-charts p[style*="#334155"] {
+  color: #94a3b8 !important;
+}
+#root.dark #tab-charts .ct-range-pill:not([style*="background:#7c3aed"]) {
+  background: #161b26 !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Photos tab preview placeholders & buttons */
+#root.dark #photos-before-preview,
+#root.dark #photos-goal-preview,
+#root.dark #photos-after-preview {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.18) !important;
+}
+#root.dark #tab-photos button:not(.btn-primary) {
+  background: #161b26 !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Projector tab countdown & slowdown */
+#root.dark #proj-countdown {
+  background: rgba(124, 58, 237, 0.12) !important;
+  border-color: rgba(167, 139, 250, 0.3) !important;
+}
+#root.dark #proj-cd-date,
+#root.dark #proj-cd-days,
+#root.dark #proj-cd-adjusted {
+  color: #f8fafc !important;
+}
+#root.dark #proj-slowdown {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+#root.dark #proj-sd-prior,
+#root.dark #proj-sd-current {
+  color: #f8fafc !important;
+}
+#root.dark #proj-sd-pct,
+#root.dark #proj-sd-note {
+  color: #cbd5e1 !important;
+}
+#root.dark #tj-pace-badge {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── 14.7 Form Controls & Tables ─────────────────────────────────────── */
+#root.dark input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+#root.dark select,
+#root.dark textarea {
+  background: #090d16 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+#root.dark input:focus,
+#root.dark select:focus,
+#root.dark textarea:focus {
+  border-color: #60a5fa !important;
+  outline: none;
+}
+#root.dark select option {
+  background: #090d16 !important;
+  color: #f8fafc !important;
+}
+#root.dark input::placeholder,
+#root.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+#root.dark table,
+#root.dark table thead,
+#root.dark table tbody {
+  color: #e2e8f0 !important;
+}
+#root.dark table thead tr,
+#root.dark table thead tr[style*="background"] {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+#root.dark table th {
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+#root.dark table td {
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+
+
