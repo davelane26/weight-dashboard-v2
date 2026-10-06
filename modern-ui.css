@@ -23,11 +23,13 @@ body::before {
 
 body {
   font-family: var(--font-display) !important;
-  background-color: #f8fafc !important;
+  background-color: #eaf0f8 !important;
   background-image:
-    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.06) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 50%) !important;
+    radial-gradient(ellipse 90% 60% at 50% -8%, rgba(37, 99, 235, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 0% 25%, rgba(6, 182, 212, 0.11) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 45%, rgba(139, 92, 246, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 60%) !important;
+  background-attachment: fixed !important;
   color: #0f172a !important;
   min-height: 100vh !important;
   -webkit-font-smoothing: antialiased !important;
@@ -35,11 +37,13 @@ body {
 }
 
 #root.dark body {
-  background-color: #090d16 !important;
+  background-color: #0b0f19 !important;
   background-image:
-    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.14) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%) !important;
+    radial-gradient(ellipse 90% 60% at 50% -8%, rgba(37, 99, 235, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 0% 25%, rgba(6, 182, 212, 0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 45%, rgba(139, 92, 246, 0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(16, 185, 129, 0.1) 0%, transparent 60%) !important;
+  background-attachment: fixed !important;
   color: #f1f5f9 !important;
 }
 
