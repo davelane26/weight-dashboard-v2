@@ -86,8 +86,38 @@ main {
 
 .header-inner {
   max-width: 1240px !important;
+  margin: 0 auto !important;
   padding: 0.85rem 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 1.25rem !important;
   color: #0f172a !important;
+}
+
+.header-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.85rem !important;
+  flex-shrink: 0 !important;
+}
+
+.header-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.6rem !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+}
+
+@media (max-width: 640px) {
+  .header-inner {
+    padding: 0.75rem 1rem !important;
+    gap: 0.75rem !important;
+  }
+  .header-actions {
+    gap: 0.4rem !important;
+  }
 }
 
 .header-logo {
@@ -226,22 +256,29 @@ main {
 
 /* ── 4. Segmented Floating Tab Navigation ────────────────────────── */
 .tab-nav {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
-  padding: 0.5rem 1rem !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 16px !important;
+  padding: 0.45rem 0.65rem !important;
   gap: 0.35rem !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
   position: sticky !important;
   top: var(--header-h, 75px) !important;
   z-index: 40 !important;
   display: flex !important;
   align-items: center !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  margin-bottom: 0.75rem !important;
 }
+.tab-nav::-webkit-scrollbar { display: none !important; }
 #root.dark .tab-nav {
-  background: rgba(11, 15, 26, 0.85) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  background: rgba(13, 19, 34, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
 }
 
 .tab-btn {
@@ -372,6 +409,7 @@ main {
   display: flex !important;
   flex-direction: column !important;
   justify-content: space-between !important;
+  text-align: left !important;
   min-height: 126px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, border-color 0.2s !important;
@@ -505,7 +543,15 @@ main {
 
 /* ── 7. Body Composition & KPI Grid ──────────────────────────────── */
 .kpi-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 12px !important;
+}
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr !important; }
 }
 .kpi {
   background: #ffffff !important;
@@ -601,8 +647,16 @@ main {
 }
 
 .stat-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 12px !important;
   margin-bottom: 1rem !important;
+}
+@media (max-width: 900px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 480px) {
+  .stat-grid { grid-template-columns: 1fr !important; }
 }
 .stat-box {
   background: #f8fafc !important;

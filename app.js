@@ -77,9 +77,14 @@ async function fetchWeightRaw() {
   // DEV: on localhost, load the local snapshot so the dashboard renders
   // without the token-gated worker or a Firebase login. Inert in prod.
   if (['localhost', '127.0.0.1'].includes(location.hostname)) {
-    const resp = await fetch('./data.json?t=' + Date.now());
-    if (resp.ok) return await resp.json();
-    console.warn('[weight] local data.json not found, falling through');
+    try {
+      const resp = await fetch('./data.json?t=' + Date.now());
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text && text.trim().length > 2) return JSON.parse(text);
+      }
+    } catch {}
+    console.warn('[weight] local data.json not populated, falling through');
   }
 
   const workerUrl = window.WEIGHT_WORKER_URL;

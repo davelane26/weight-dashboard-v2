@@ -123,8 +123,6 @@ main, header, #status-bar { position: relative; z-index: 1; }
 }
 
 /* Mesh overlay on header */
-.header::before {
-  content: '';
 .header::before,
 .header::after {
   display: none !important;
@@ -1341,7 +1339,7 @@ main {
 }
 .snap-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 .snap-cell {
@@ -1350,7 +1348,7 @@ main {
   border-top: 3px solid var(--gray-50);
   border-radius: 12px;
   padding: 14px 12px 12px;
-  text-align: center;
+  text-align: left;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   transition: transform 0.2s, box-shadow 0.2s, background-color 0.28s, border-color 0.28s;
