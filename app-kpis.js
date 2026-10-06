@@ -234,11 +234,20 @@ function renderJourney(latest, data) {
   countUp('hero-weight-val', latest.weight, 1);
   setText('hero-weight-date', fmtDate(latest.date));
   countUp('hero-stat-lost', lost, 1);
-  const remainingTarget = (typeof goalWeight !== 'undefined' && goalWeight) ? Math.max(0, latest.weight - goalWeight) : Math.max(0, latest.weight - 220);
+
+  const targetWeight = (typeof goalWeight === 'number' && goalWeight > 0) ? goalWeight : 220;
+  const targetDisp = Number.isInteger(targetWeight) ? targetWeight : targetWeight.toFixed(1);
+  const remainingTarget = Math.max(0, latest.weight - targetWeight);
+
+  setText('hero-goal-label', `TO GOAL (${targetDisp})`);
+  setText('hero-milestone-marker', `🎯 Target: ${targetWeight.toFixed(1)} lbs`);
   countUp('hero-stat-remaining', remainingTarget, 1);
-  setText('hero-horizon-pct', Math.round(pct) + '%');
+
+  const totalJourneyDistance = Math.max(1, START_WEIGHT - targetWeight);
+  const roadmapPct = Math.min(100, Math.max(0, (lost / totalJourneyDistance) * 100));
+  setText('hero-horizon-pct', Math.round(roadmapPct) + '%');
   const hFill = el('hero-horizon-fill');
-  if (hFill) hFill.style.width = pct + '%';
+  if (hFill) hFill.style.width = roadmapPct + '%';
 
   const bar = el('journey-bar');
   if (bar) {

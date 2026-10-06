@@ -142,6 +142,9 @@ function setGoal() {
   if (allData.length) {
     renderGoal(allData[allData.length - 1], allData);
     renderWeightChart(allData);
+    if (typeof renderJourney === 'function') {
+      renderJourney(allData[allData.length - 1], allData);
+    }
   }
 }
 function clearGoal() {
@@ -151,6 +154,9 @@ function clearGoal() {
   if (allData.length) {
     renderGoal(allData[allData.length - 1], allData);
     renderWeightChart(allData);
+    if (typeof renderJourney === 'function') {
+      renderJourney(allData[allData.length - 1], allData);
+    }
   }
 }
 window.setGoal   = setGoal;
