@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="enhancements.css?v=13" />
   <link rel="stylesheet" href="tokens.css?v=13" />
   <link rel="stylesheet" href="a11y.css?v=13" />
-  <link rel="stylesheet" href="modern-ui.css?v=14" />
+  <link rel="stylesheet" href="modern-ui.css?v=15" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
@@ -58,7 +58,7 @@
   <script type="module" src="auth.js?v=3"></script>
   <!-- Modular app split -->
   <script src="app-config.js?v=2"   defer></script>
-  <script src="app-utils.js?v=6"    defer></script>
+  <script src="app-utils.js?v=7"    defer></script>
   <script src="app-tabs.js?v=8"     defer></script>
   <script src="app-kpis.js?v=9"     defer></script>
   <script src="app-charts.js?v=2"   defer></script>
@@ -383,10 +383,10 @@
       </div>
       <button class="collapse-toggle" onclick="toggleCollapsible('body-comp-extras','body-comp-toggle','body-comp-chevron')"
         aria-expanded="false" id="body-comp-toggle" style="margin-top:0.75rem">
-        <span>Show all metrics</span>
+        <span id="body-comp-toggle-text" data-open-text="Hide metrics" data-closed-text="Show all metrics">Show all metrics</span>
         <span class="collapse-chevron closed" id="body-comp-chevron">▲</span>
       </button>
-      <div id="body-comp-extras" class="kpi-grid" style="display:none;margin-top:0.5rem">
+      <div id="body-comp-extras" class="kpi-grid is-hidden" hidden style="display:none !important;margin-top:0.5rem">
         <div class="kpi kpi--gold">
           <p class="kpi-label"><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z"/></svg> Fat Mass</p>
           <p class="kpi-value skel" id="kpi-fat-lbs">—</p>

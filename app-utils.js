@@ -213,10 +213,31 @@ function toggleCollapsible(bodyId, toggleId, chevronId) {
   const body = el(bodyId), tog = el(toggleId), chev = el(chevronId);
   if (!body || !tog || !chev) return;
   const isOpen = tog.getAttribute('aria-expanded') === 'true';
-  body.style.display = isOpen ? 'none' : '';
+  if (isOpen) {
+    body.style.display = 'none';
+    body.style.setProperty('display', 'none', 'important');
+    body.classList.add('is-hidden');
+    body.setAttribute('hidden', '');
+  } else {
+    body.style.removeProperty('display');
+    body.style.display = '';
+    body.classList.remove('is-hidden');
+    body.removeAttribute('hidden');
+  }
   tog.setAttribute('aria-expanded', String(!isOpen));
-  chev.classList.toggle('closed', isOpen);
+  if (chev) chev.classList.toggle('closed', isOpen);
+
+  // Dynamic label toggling (e.g. "Show all metrics" <-> "Hide metrics")
+  const label = el(toggleId + '-text') || tog.querySelector('span:not(.collapse-chevron)');
+  if (label) {
+    if (label.dataset && label.dataset.openText && label.dataset.closedText) {
+      label.textContent = isOpen ? label.dataset.closedText : label.dataset.openText;
+    } else if (bodyId === 'body-comp-extras' || toggleId === 'body-comp-toggle') {
+      label.textContent = isOpen ? 'Show all metrics' : 'Hide metrics';
+    }
+  }
 }
+window.toggleCollapsible = toggleCollapsible;
 
 // ── Animated counter ─────────────────────────────────────────────────
 function countUp(id, target, decimals = 1, suffix = '', duration = 900) {

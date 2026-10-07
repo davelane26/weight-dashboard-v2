@@ -547,7 +547,7 @@ main {
 
 /* ── 7. Body Composition & KPI Grid ──────────────────────────────── */
 .kpi-grid {
-  display: grid !important;
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 12px !important;
 }
@@ -556,6 +556,14 @@ main {
 }
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr !important; }
+}
+#body-comp-extras[hidden],
+#body-comp-extras.is-hidden,
+#body-comp-extras[style*="display: none"],
+#body-comp-extras[style*="display:none"],
+.kpi-grid[hidden],
+.kpi-grid.is-hidden {
+  display: none !important;
 }
 .kpi {
   background: #ffffff !important;
@@ -811,6 +819,7 @@ main {
   align-items: center !important;
   justify-content: space-between !important;
   width: 100% !important;
+  cursor: pointer !important;
 }
 #root.dark .collapse-toggle {
   color: #f8fafc !important;
