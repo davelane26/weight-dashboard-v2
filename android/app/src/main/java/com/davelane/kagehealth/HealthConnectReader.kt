@@ -38,69 +38,22 @@ import java.time.ZoneId
 object HealthConnectReader {
 
     /**
-     * Combined Health Connect snapshot for today. All fields nullable because
-     * we don't want a missing HR reading to prevent the steps count from
-     * being pushed.
+     * Health Connect snapshot for today: steps only.
+     * All biometrics, sleep, HR, and workouts belong to Garmin.
      */
     data class Snapshot(
         val steps: Long? = null,
-        val restingHR: Long? = null,
-        val minHR: Long? = null,
-        val maxHR: Long? = null,
-        val avgHR: Double? = null,
-        val currentHR: Long? = null,          // v0.4.2: most recent HR sample in last 30min
-        val activeCalories: Double? = null,   // kcal
-        val totalCalories: Double? = null,    // kcal
-        val floorsClimbed: Double? = null,
-        val intensityMinutes: Long? = null,   // total workout minutes today
-        val sleepHours: Double? = null,       // last night's total
-        val sleepDeep: Double? = null,        // hours in deep stage
-        val sleepLight: Double? = null,
-        val sleepRem: Double? = null,
-        val sleepAwakenings: Long? = null,    // count of "awake" segments
-        // v0.3.4 additions:
-        val distanceMeters: Double? = null,   // today's total distance in meters
-        val spo2Avg: Double? = null,          // last night avg blood oxygen (%)
-        val spo2Min: Double? = null,          // last night min blood oxygen (%)
-        val hrvRmssd: Double? = null,         // last night avg HRV in milliseconds
-        val vo2Max: Double? = null,           // most recent VO2 max estimate (mL/kg/min)
-        val bedtime: String? = null,          // last night sleep session startTime (ISO)
-        val waketime: String? = null,         // last night sleep session endTime (ISO)
-        // v0.4.7: EXPERIMENTAL. Most recent WeightRecord from Health Connect,
-        // in lbs. Test-only field for the Activity tab -- deliberately NOT
-        // named "weight" and NOT wired into the Weight tab's data source
-        // (that stays on openScale/openScale-sync until this is proven out).
-        val hcWeightTestLbs: Double? = null,
     )
 
     /**
-     * Full set of Health Connect permissions the app needs. Passed to the
-     * PermissionController.createRequestPermissionResultContract() launcher.
+     * Health Connect permissions the app needs: StepsRecord only.
      */
     val PERMISSIONS: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(FloorsClimbedRecord::class),
-        // v0.3.4 additions:
-        HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(OxygenSaturationRecord::class),
-        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
-        HealthPermission.getReadPermission(Vo2MaxRecord::class),
-        // v0.4.7: experimental, see hcWeightTestLbs.
-        HealthPermission.getReadPermission(WeightRecord::class),
     )
 
     /**
-     * Check whether we ACTUALLY have permission to read all our record types.
-     * Health Connect can silently revoke permissions (Samsung's auto-revoke,
-     * HC app updates, user action) and our reads then throw SecurityException
-     * which safeAggregate swallows — leading to "OK: no metrics" instead of
-     * a clear "permissions revoked, tap Grant" signal.
+     * Check whether we ACTUALLY have permission to read steps.
      */
     suspend fun hasAllPermissions(context: Context): Boolean {
         if (!isAvailable(context)) return false
@@ -117,9 +70,7 @@ object HealthConnectReader {
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 
     /**
-     * Read everything, tolerantly. A single metric throwing SecurityException
-     * (permission not granted) or IllegalStateException (nothing recorded)
-     * shouldn't take down the whole sync — we swallow per-metric and continue.
+     * Read today's steps faithfully from Health Connect.
      */
     suspend fun readSnapshot(
         context: Context,
@@ -131,91 +82,12 @@ object HealthConnectReader {
         val zone = ZoneId.systemDefault()
         val startOfDay = LocalDate.now(zone).atStartOfDay(zone).toInstant()
         val now = Instant.now()
-        val today = TimeRangeFilter.between(startOfDay, now)
 
-        // Sum-type metrics: read primary origin first, fall back to secondary
-        // if primary has no data for today. Prevents double-counting when
-        // both Samsung Health AND Garmin Connect are writing to HC on the
-        // same day (e.g., wearing both watches).
         val primaryFilter = originFilter(primaryOrigin)
         val fallbackFilter = originFilter(otherOrigin(primaryOrigin))
 
         val steps = readTodayStepsPreferring(client, startOfDay, now, primaryFilter, fallbackFilter)
-        val activeCal = aggregatePreferring(
-            client, today, primaryFilter, fallbackFilter,
-            ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
-        )?.inKilocalories
-        val totalCal = aggregatePreferring(
-            client, today, primaryFilter, fallbackFilter,
-            TotalCaloriesBurnedRecord.ENERGY_TOTAL,
-        )?.inKilocalories
-        val floors = aggregatePreferring(
-            client, today, primaryFilter, fallbackFilter,
-            FloorsClimbedRecord.FLOORS_CLIMBED_TOTAL,
-        )
-
-        // Point-in-time / already-deduped metrics: unfiltered reads are OK.
-        // - HR aggregates (min/max/avg): mixing origins is imperfect but not
-        //   inflationary — bigger min/max are meaningful, avg is diluted.
-        // - Sleep, resting HR, VO2Max: most-recent-wins already.
-        // - SpO2, HRV: averaged across origins is still reasonable.
-        val minHR = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MIN), today))
-                .get(HeartRateRecord.BPM_MIN)
-        }
-        val maxHR = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_MAX), today))
-                .get(HeartRateRecord.BPM_MAX)
-        }
-        val avgHR = safeAggregate {
-            client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_AVG), today))
-                .get(HeartRateRecord.BPM_AVG)
-        }?.toDouble()
-
-        val restingHR = readRestingHR(client)
-        val currentHR = readCurrentHR(client)
-        val workoutMins = readWorkoutMinutesPreferring(client, today, primaryFilter, fallbackFilter)
-        val sleep = readLastNightSleep(client, now)
-
-        // v0.3.4 metrics — distance is sum-type (needs origin priority),
-        // rest are point-in-time / averaged.
-        val distance = readTodayDistancePreferring(client, startOfDay, now, primaryFilter, fallbackFilter)
-        // SpO2 and HRV are typically only measured during sleep, so we query
-        // the window of last night's sleep session if we have it (falls back
-        // to "last 30 hours" if we don't).
-        val healthWindow: TimeRangeFilter =
-            if (sleep != null) TimeRangeFilter.between(sleep.startInstant, sleep.endInstant)
-            else TimeRangeFilter.between(now.minus(Duration.ofHours(30)), now)
-        val spo2 = readSpO2Stats(client, healthWindow)
-        val hrv  = readHRVAvg(client, healthWindow)
-        val vo2  = readLatestVO2Max(client)
-        val hcWeightTestLbs = readLatestWeightLbs(client)
-
-        return Snapshot(
-            steps = steps,
-            minHR = minHR,
-            maxHR = maxHR,
-            avgHR = avgHR,
-            currentHR = currentHR,
-            restingHR = restingHR,
-            activeCalories = activeCal,
-            totalCalories = totalCal,
-            floorsClimbed = floors,
-            intensityMinutes = workoutMins,
-            sleepHours = sleep?.hours,
-            sleepDeep = sleep?.deep,
-            sleepLight = sleep?.light,
-            sleepRem = sleep?.rem,
-            sleepAwakenings = sleep?.awakenings,
-            distanceMeters = distance,
-            spo2Avg = spo2?.first,
-            spo2Min = spo2?.second,
-            hrvRmssd = hrv,
-            vo2Max = vo2,
-            bedtime = sleep?.startInstant?.toString(),
-            waketime = sleep?.endInstant?.toString(),
-            hcWeightTestLbs = hcWeightTestLbs,
-        )
+        return Snapshot(steps = steps)
     }
 
     // ── Data-origin identifiers (v0.4.0) ──────────────────────────────────

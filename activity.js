@@ -624,7 +624,7 @@ function renderSystemHealth(data, source) {
   box.innerHTML = [
     `<div><b>${dot} ${state}</b> · last data ${freshness}</div>`,
     `<div>source · ${source || 'unknown'}</div>`,
-    `<div>pipeline · Samsung Health → Health Connect → Kage v0.3.3 → Cloudflare Worker → dashboard</div>`,
+    `<div>pipeline · Steps: Kage (Health Connect) · Sleep &amp; Biometrics: Garmin Connect → Cloudflare Worker</div>`,
     `<div>next expected sync · within 15 min (Kage watchdog: 5 min)</div>`,
   ].join('');
 }

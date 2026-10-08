@@ -364,43 +364,76 @@ export default {
     // ── GET /health.json  (dashboard fetch) ───────────────────────────────
     if (method === 'GET' && url.pathname === '/health.json') {
       const data = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
-      return cors(JSON.stringify({ days: data, updatedAt: new Date().toISOString() }));
+      // Clean any recent Kage-injected Samsung Health sleep that lacks an authoritative Garmin sleepScore
+      const cleaned = data.map(d => {
+        if (d.sleepHours != null && d.sleepScore == null && d.date >= '2026-10-08') {
+          const { sleepHours, sleepDeep, sleepLight, sleepRem, sleepAwakenings, bedtime, waketime, timeInBed, ...rest } = d;
+          return rest;
+        }
+        return d;
+      });
+      return cors(JSON.stringify({ days: cleaned, updatedAt: new Date().toISOString() }));
     }
 
     // ── PATCH /health/patch  (merge specific fields into an existing day) ──
-    // Used by the local Garmin sync to add sleepScore + precise sleepHours
-    // without clobbering the richer Exist.io data already stored.
+    // Kage is strictly for recording live steps.
+    // Garmin sync patches sleepScore, sleepHours, biometrics, and workouts.
     if (method === 'POST' && url.pathname === '/health/patch') {
       if (!await isAuthorized(request, env)) return cors('{"error":"Unauthorized"}', 401);
       let body;
       try { body = await request.json(); } catch { return cors('{"error":"Invalid JSON"}', 400); }
       const date = body.date;
       if (!date) return cors('{"error":"date required"}', 400);
+
+      // Identify whether this patch originates from Kage Health Bridge (Android app)
+      const clientHeader = (request.headers.get('X-Client') || '').toLowerCase();
+      const userAgent    = request.headers.get('User-Agent') || '';
+      const authHeader   = request.headers.get('API-SECRET') || request.headers.get('api-secret') || '';
+      const isKageSecret = env.API_SECRET_V2 && (authHeader === env.API_SECRET_V2 || authHeader === await sha1(env.API_SECRET_V2));
+      const isKage       = clientHeader === 'kage' ||
+                           body.source === 'kage' ||
+                           isKageSecret ||
+                           userAgent.includes('Dalvik') ||
+                           userAgent.includes('Android') ||
+                           userAgent.includes('KageHealth');
+
       const stored   = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
       const dedupMap = new Map();
       for (const r of stored) dedupMap.set(r.date, r);
       const existing = dedupMap.get(date) ?? { date };
-      // Merge: only overwrite fields that are explicitly provided and non-null
+
+      // If existing day has sleep data injected by Samsung/Kage (no Garmin sleepScore), purge it
+      if (isKage && existing.sleepHours != null && existing.sleepScore == null) {
+        delete existing.sleepHours;
+        delete existing.sleepDeep;
+        delete existing.sleepLight;
+        delete existing.sleepRem;
+        delete existing.sleepAwakenings;
+        delete existing.bedtime;
+        delete existing.waketime;
+        delete existing.timeInBed;
+      }
+
+      // Merge: Kage is STRICTLY restricted to updating steps only
       const patched = { ...existing };
-      const allowed = [
-        // Sleep
-        'sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
-        'sleepAwakenings','timeInBed',
-        // Heart / stress / battery
-        'restingHR','minHR','maxHR','avgHR','currentHR','stressLevel','restStressPct',
-        'bodyBattery','bodyBatteryCharged','bodyBatteryDrained','bodyBatteryWake',
-        'fitnessAge','achievableFitnessAge',
-        // Activity
-        'steps','intensityMinutes','workoutsMins','activeCalories','totalCalories','floorsClimbed',
-        // v0.3.4 Kage additions: distance today, blood oxygen, HRV, VO2 max,
-        // bedtime/waketime bounds from the last sleep session.
-        'distanceMeters','spo2Avg','spo2Min','hrvRmssd','vo2Max',
-        'respirationWaking','respirationSleep','respirationMin','respirationMax',
-        'bedtime','waketime',
-        // v0.4.7: experimental Health Connect weight test (Activity tab only --
-        // deliberately not "weight", not the Weight tab's data source).
-        'hcWeightTestLbs',
-      ];
+      const allowed = isKage
+        ? ['steps']
+        : [
+            // Sleep (Garmin authoritative)
+            'sleepScore','sleepHours','sleepDeep','sleepLight','sleepRem',
+            'sleepAwakenings','timeInBed',
+            // Heart / stress / battery
+            'restingHR','minHR','maxHR','avgHR','currentHR','stressLevel','restStressPct',
+            'bodyBattery','bodyBatteryCharged','bodyBatteryDrained','bodyBatteryWake',
+            'fitnessAge','achievableFitnessAge',
+            // Activity
+            'steps','intensityMinutes','workoutsMins','activeCalories','totalCalories','floorsClimbed',
+            'distanceMeters','spo2Avg','spo2Min','hrvRmssd','vo2Max',
+            'respirationWaking','respirationSleep','respirationMin','respirationMax',
+            'bedtime','waketime',
+            'hcWeightTestLbs',
+          ];
+
       for (const key of allowed) {
         if (body[key] !== undefined && body[key] !== null) patched[key] = body[key];
       }
