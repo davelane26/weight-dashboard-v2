@@ -202,9 +202,9 @@ async function loadActivityData() {
   if (!data) return;
 
   window.snapActivityDays = allDays;
-  renderActivityKPIs(data);
+  renderActivityKPIs(data, allDays);
   renderActivities(data.activities);
-  renderSleepDonut(data);
+  renderSleepDonut(data, allDays);
   renderProgressRings(data);
   renderWeeklyCompare(allDays);
   renderSystemHealth(data, source);
@@ -235,8 +235,36 @@ async function loadActivityData() {
   }
 }
 
+// ── Fallback Helpers for Multi-Device Stream ───────────────────────
+// Steps arrive in real time from Kage on Android. Garmin biometrics (sleep,
+// body battery, stress, respiration, fitness age) sync on schedule or at home.
+// When today's live record has steps but hasn't received today's Garmin push yet,
+// search backwards for the most recent recorded reading so tiles stay informative.
+function _findLatestDay(days, predicate) {
+  if (!Array.isArray(days)) return null;
+  for (let i = days.length - 1; i >= 0; i--) {
+    if (days[i] && predicate(days[i])) return days[i];
+  }
+  return null;
+}
+
+function _formatDateTag(targetDateStr, todayDateStr) {
+  if (!targetDateStr || !todayDateStr || targetDateStr === todayDateStr) return '';
+  try {
+    const [ty, tm, td] = todayDateStr.split('-').map(Number);
+    const [py, pm, pd] = targetDateStr.split('-').map(Number);
+    const tDate = new Date(ty, tm - 1, td);
+    const pDate = new Date(py, pm - 1, pd);
+    const diffDays = Math.round((tDate - pDate) / 86400000);
+    if (diffDays === 1) return 'yesterday';
+    return pDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return targetDateStr;
+  }
+}
+
 // ── KPI Cards ──────────────────────────────────────────────────────
-function renderActivityKPIs(data) {
+function renderActivityKPIs(data, allDays = []) {
   // Steps hero. Distance preference order:
   //   1. data.distanceMeters (Kage v0.3.4+, GPS-accurate from Samsung Health)
   //   2. data.distance (legacy Garmin/other field, already in miles)
@@ -258,8 +286,13 @@ function renderActivityKPIs(data) {
   _set('act-steps-sub',
     `${distMi} mi · ${Math.round(stepPct)}% of ${_fmtK(stepGoal)} goal`);
 
-  // Sleep — format decimal hours as "Xh Ym"
-  const rawSleepH = data.sleepHours || 0;
+  // Sleep — prefer today's record, fall back to most recent night if today hasn't synced yet
+  const sleepDay = (data.sleepHours != null && data.sleepHours > 0)
+    ? data
+    : (_findLatestDay(allDays, d => d.sleepHours != null && d.sleepHours > 0) || data);
+  const sleepTag = _formatDateTag(sleepDay.date, data.date);
+
+  const rawSleepH = sleepDay.sleepHours || 0;
   const sleepDisplay = rawSleepH
     ? (() => { const h = Math.floor(rawSleepH); const m = Math.round((rawSleepH - h) * 60); return m > 0 ? `${h}h ${m}m` : `${h}h`; })()
     : '—';
@@ -268,8 +301,8 @@ function renderActivityKPIs(data) {
   // Sleep score - prefer Garmin's authoritative score, fall back to our
   // estimate from duration + stage data (Samsung Health path). The
   // estimate uses deep/REM %, efficiency, and awakenings when available.
-  const rawScore  = data.sleepScore ?? null;
-  const estScore  = rawScore == null ? _calcSleepScore(data) : null;
+  const rawScore  = sleepDay.sleepScore ?? null;
+  const estScore  = rawScore == null ? _calcSleepScore(sleepDay) : null;
   const score     = rawScore ?? estScore;
   const hasScore  = score !== null && score !== undefined;
   const isEst     = rawScore == null && estScore != null;
@@ -283,7 +316,10 @@ function renderActivityKPIs(data) {
     : score >= 70 ? 'Good'
     : score >= 50 ? 'Fair'
     : 'Poor';
-  const scoreLabel = isEst ? baseLabel + ' (est)' : baseLabel;
+  let scoreLabel = isEst ? baseLabel + ' (est)' : baseLabel;
+  if (sleepTag && hasScore) {
+    scoreLabel += ` · ${sleepTag === 'yesterday' ? 'last night' : sleepTag}`;
+  }
   if (_el('act-sleep-score-val')) {
     _el('act-sleep-score-val').textContent   = hasScore ? score : '—';
     _el('act-sleep-score-val').style.color   = scoreColor;
@@ -293,16 +329,20 @@ function renderActivityKPIs(data) {
   // Heart Rate card: v0.4.2 preference is currentHR (latest sample from the
   // last 30min) so the tile feels alive. Falls back to avgHR when the
   // current-HR pipeline hasn't landed a recent sample (device off, sync gap).
-  // Sub-line surfaces avg + resting + range so the aggregate context is
-  // still visible in one glance.
+  // Resting HR falls back to latest day with restingHR if today hasn't synced yet.
+  const rhrDay = data.restingHR != null ? data : (_findLatestDay(allDays, d => d.restingHR != null) || data);
+  const rhrTag = _formatDateTag(rhrDay.date, data.date);
+
   const hasCurrent = data.currentHR != null;
   const hrPrimary  = hasCurrent ? data.currentHR
-                                : (data.avgHR != null ? Math.round(data.avgHR) : (data.restingHR || '\u2014'));
+                                : (data.avgHR != null ? Math.round(data.avgHR) : (rhrDay.restingHR || '\u2014'));
   _set('act-hr', hrPrimary.toString());
   _set('act-hr-unit', hasCurrent ? 'bpm now' : 'bpm avg today');
   const hrSubParts = [];
   if (hasCurrent && data.avgHR != null)  hrSubParts.push(`avg ${Math.round(data.avgHR)}`);
-  if (data.restingHR)                    hrSubParts.push(`resting ${data.restingHR}`);
+  if (rhrDay.restingHR) {
+    hrSubParts.push(`resting ${rhrDay.restingHR}${rhrTag ? ` (${rhrTag})` : ''}`);
+  }
   _set('act-hr-sub', hrSubParts.join(' \u00b7 '));
   // Range gets its own line so it doesn't visually blur into avg/resting.
   _set('act-hr-range', (data.minHR && data.maxHR) ? `range ${data.minHR}\u2013${data.maxHR}` : '');
@@ -323,52 +363,76 @@ function renderActivityKPIs(data) {
 
   // v0.3.4 additions ---------------------------------------------------
   // SpO2 (blood oxygen). Show avg with min as sub. <90% min flags possible sleep apnea.
-  if (data.spo2Avg != null) {
-    _set('act-spo2', data.spo2Avg.toFixed(1) + '%');
-    _set('act-spo2-sub', data.spo2Min != null ? `min ${data.spo2Min.toFixed(0)}%` : 'nightly avg');
+  const spo2Day = data.spo2Avg != null ? data : (_findLatestDay(allDays, d => d.spo2Avg != null) || data);
+  const spo2Tag = _formatDateTag(spo2Day.date, data.date);
+  if (spo2Day.spo2Avg != null) {
+    _set('act-spo2', spo2Day.spo2Avg.toFixed(1) + '%');
+    const spo2Sub = spo2Day.spo2Min != null ? `min ${spo2Day.spo2Min.toFixed(0)}%` : 'nightly avg';
+    _set('act-spo2-sub', spo2Tag ? `${spo2Sub} · ${spo2Tag}` : spo2Sub);
   } else {
     _set('act-spo2', '—');
+    _set('act-spo2-sub', 'nightly avg');
   }
 
   // 🔋 Body Battery (Garmin)
-  _set('act-battery', data.bodyBattery != null ? data.bodyBattery : '—');
+  const bbDay = data.bodyBattery != null ? data : (_findLatestDay(allDays, d => d.bodyBattery != null) || data);
+  const bbTag = _formatDateTag(bbDay.date, data.date);
+  _set('act-battery', bbDay.bodyBattery != null ? bbDay.bodyBattery : '—');
   const bbParts = [];
-  if (data.bodyBatteryCharged != null || data.bodyBatteryDrained != null) {
-    bbParts.push(`+${data.bodyBatteryCharged ?? 0} \u00b7 -${data.bodyBatteryDrained ?? 0}`);
+  if (bbDay.bodyBatteryCharged != null || bbDay.bodyBatteryDrained != null) {
+    bbParts.push(`+${bbDay.bodyBatteryCharged ?? 0} \u00b7 -${bbDay.bodyBatteryDrained ?? 0}`);
   }
-  if (data.bodyBatteryWake != null) {
-    bbParts.push(`wake ${data.bodyBatteryWake}`);
+  if (bbDay.bodyBatteryWake != null) {
+    bbParts.push(`wake ${bbDay.bodyBatteryWake}`);
+  }
+  if (bbTag && bbParts.length) {
+    bbParts.push(bbTag);
   }
   _set('act-battery-sub', bbParts.join(' \u00b7 '));
 
   // 🧠 Stress Level (Garmin)
-  const stress = data.stressLevel;
+  const stressDay = (data.stressLevel != null && data.stressLevel > 0) ? data : (_findLatestDay(allDays, d => d.stressLevel != null && d.stressLevel > 0) || data);
+  const stressTag = _formatDateTag(stressDay.date, data.date);
+  const stress = stressDay.stressLevel;
   _set('act-stress', stress != null ? stress : '—');
   const stressParts = [];
   if (stress != null) stressParts.push(_stressLabel(stress));
-  if (data.restStressPct != null) stressParts.push(`${Math.round(data.restStressPct)}% rest`);
+  if (stressDay.restStressPct != null) stressParts.push(`${Math.round(stressDay.restStressPct)}% rest`);
+  if (stressTag && stressParts.length) stressParts.push(stressTag);
   _set('act-stress-sub', stressParts.join(' \u00b7 '));
 
   // 🫁 Respiration (Garmin)
-  const respVal = data.respirationWaking ?? data.respirationSleep;
+  const respDay = (data.respirationWaking != null || data.respirationSleep != null)
+    ? data
+    : (_findLatestDay(allDays, d => d.respirationWaking != null || d.respirationSleep != null) || data);
+  const respTag = _formatDateTag(respDay.date, data.date);
+  const respVal = respDay.respirationWaking ?? respDay.respirationSleep;
   _set('act-resp', respVal != null ? (Math.round(respVal * 10) / 10).toString() : '—');
-  _set('act-resp-unit', data.respirationWaking != null ? 'brpm waking' : 'brpm');
+  _set('act-resp-unit', respDay.respirationWaking != null ? 'brpm waking' : 'brpm');
   const respParts = [];
-  if (data.respirationSleep != null) respParts.push(`sleep ${Math.round(data.respirationSleep)}`);
-  if (data.respirationMin != null && data.respirationMax != null) {
-    respParts.push(`range ${data.respirationMin}\u2013${data.respirationMax}`);
+  if (respDay.respirationSleep != null) respParts.push(`sleep ${Math.round(respDay.respirationSleep)}`);
+  if (respDay.respirationMin != null && respDay.respirationMax != null) {
+    respParts.push(`range ${respDay.respirationMin}\u2013${respDay.respirationMax}`);
   }
+  if (respTag && respParts.length) respParts.push(respTag);
   _set('act-resp-sub', respParts.join(' \u00b7 '));
 
   // 🏃‍♂️ Fitness Age (Garmin)
-  _set('act-fitness-age', data.fitnessAge != null ? data.fitnessAge : '—');
+  const faDay = data.fitnessAge != null ? data : (_findLatestDay(allDays, d => d.fitnessAge != null) || data);
+  const faTag = _formatDateTag(faDay.date, data.date);
+  _set('act-fitness-age', faDay.fitnessAge != null ? faDay.fitnessAge : '—');
   const faParts = [];
-  if (data.achievableFitnessAge != null) {
-    faParts.push(`target ${data.achievableFitnessAge} yrs`);
+  if (faDay.achievableFitnessAge != null) {
+    faParts.push(`target ${faDay.achievableFitnessAge} yrs`);
   }
+  if (faTag && faParts.length) faParts.push(faTag);
   _set('act-fitness-age-sub', faParts.join(' \u00b7 '));
 
-  window.snapActivityNow = { steps: data.steps || 0, sleepHours: data.sleepHours || 0, sleepScore: score };
+  window.snapActivityNow = {
+    steps: data.steps || 0,
+    sleepHours: (data.sleepHours || sleepDay.sleepHours || 0),
+    sleepScore: (score ?? (sleepDay ? (sleepDay.sleepScore ?? _calcSleepScore(sleepDay)) : null))
+  };
   if (typeof updateSnapshot    === 'function') updateSnapshot();
   if (typeof generateInsights  === 'function') generateInsights();
   if (typeof refreshHealthScore=== 'function') refreshHealthScore();
@@ -444,30 +508,38 @@ window.actSleepDonutInst = null;
 // hasn't changed since you woke up).
 let _lastSleepSig = '';
 
-function renderSleepDonut(data) {
+function renderSleepDonut(data, allDays = []) {
   const canvas = _el('actSleepDonut');
   if (!canvas) return;
-  const deep  = +(data.sleepDeep  || 0);
-  const light = +(data.sleepLight || 0);
-  const rem   = +(data.sleepRem   || 0);
-  const total = deep + light + rem;
+  const sleepDay = (+(data.sleepDeep || 0) + +(data.sleepLight || 0) + +(data.sleepRem || 0) > 0 || (data.sleepHours || 0) > 0)
+    ? data
+    : (_findLatestDay(allDays, d => (+(d.sleepDeep || 0) + +(d.sleepLight || 0) + +(d.sleepRem || 0) > 0) || (d.sleepHours || 0) > 0) || data);
+
+  const deep  = +(sleepDay.sleepDeep  || 0);
+  const light = +(sleepDay.sleepLight || 0);
+  const rem   = +(sleepDay.sleepRem   || 0);
+  const total = deep + light + rem || +(sleepDay.sleepHours || 0);
+  const sleepTag = _formatDateTag(sleepDay.date, data.date);
 
   // Skip if nothing changed since last render.
-  const sig = `${deep}|${light}|${rem}`;
+  const sig = `${deep}|${light}|${rem}|${sleepDay.date || ''}`;
   if (sig === _lastSleepSig && actSleepDonutInst) return;
   _lastSleepSig = sig;
 
-  _set('actSleepTotal', total > 0 ? total.toFixed(1) + 'h' : '—');
+  _set('actSleepTotal', total > 0 ? (sleepDay.sleepHours ? sleepDay.sleepHours.toFixed(1) : total.toFixed(1)) + 'h' : '—');
 
-  // Bedtime + Waketime line (v0.3.4). Only shows if we have both from Kage.
+  // Bedtime + Waketime line (v0.3.4). Shows bedtime/waketime with date annotation.
   const bedwake = _el('actSleepTimes');
   if (bedwake) {
-    if (data.bedtime && data.waketime) {
+    if (sleepDay.bedtime && sleepDay.waketime) {
       const fmt = iso => {
         const d = new Date(iso);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
       };
-      bedwake.innerHTML = `<b>${fmt(data.bedtime)}</b> → <b>${fmt(data.waketime)}</b>`;
+      const tagStr = sleepTag ? ` · <span style="opacity:0.75">${sleepTag === 'yesterday' ? 'last night' : sleepTag}</span>` : '';
+      bedwake.innerHTML = `<b>${fmt(sleepDay.bedtime)}</b> → <b>${fmt(sleepDay.waketime)}</b>${tagStr}`;
+    } else if (sleepTag) {
+      bedwake.innerHTML = `<span style="opacity:0.75">${sleepTag === 'yesterday' ? 'Last night' : sleepTag}</span>`;
     } else {
       bedwake.innerHTML = '';
     }
