@@ -10,7 +10,7 @@
      • Old caches purged on activate
    ──────────────────────────────────────────────────────────────────── */
 
-const CACHE_VERSION = 'health-board-v4-9';
+const CACHE_VERSION = 'health-board-v5-0';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -57,8 +57,8 @@ self.addEventListener('fetch', (event) => {
   const sameOrigin = url.origin === self.location.origin;
   const path = url.pathname;
 
-  // data.json: network-first (always try fresh)
-  if (path.endsWith('data.json') || path.endsWith('weekly-summary.json')) {
+  // Live API & data endpoints: NETWORK-FIRST (always fresh from network, cache is offline fallback)
+  if (url.hostname.includes('workers.dev') || path.endsWith('.json')) {
     event.respondWith(networkFirst(req));
     return;
   }

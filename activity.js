@@ -207,7 +207,7 @@ async function loadActivityData() {
   renderSleepDonut(data, allDays);
   renderProgressRings(data);
   renderWeeklyCompare(allDays);
-  renderSystemHealth(data, source);
+  renderSystemHealth(data, source, allDays);
 
   // Hide setup prompt
   const setup = _el('act-setup');
@@ -675,7 +675,7 @@ function renderWeeklyCompare(history = []) {
 }
 
 // ── Live System Health (the nerd-flex card) ────────────────────────────
-function renderSystemHealth(data, source) {
+function renderSystemHealth(data, source, allDays = []) {
   const box = _el('actSystemHealth');
   if (!box) return;
   const ts    = data.updatedAt || data.lastUpdated;
@@ -685,19 +685,25 @@ function renderSystemHealth(data, source) {
   if (ts) {
     const ageMs  = now - new Date(ts).getTime();
     const ageMin = Math.floor(ageMs / 60000);
-    stale = ageMin > 30;
+    stale = ageMin > 60;
     freshness = ageMin < 1  ? 'just now'
               : ageMin < 60 ? `${ageMin} min ago`
               :               `${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`;
   }
-  const dot   = stale ? '' : '';  // visual live/stale indicator
-  const state = stale ? 'STALE' : 'LIVE';
+  const dot   = stale ? '🟡' : '🟢';
+  const state = stale ? 'STANDBY' : 'LIVE';
+
+  const latestGarmin = _findLatestDay(allDays, d => d.sleepScore != null || d.bodyBattery != null);
+  const garminStatus = latestGarmin
+    ? (latestGarmin.date === data.date ? `synced today (${latestGarmin.date})` : `as of ${latestGarmin.date} (pending home sync)`)
+    : 'no sync yet';
 
   box.innerHTML = [
-    `<div><b>${dot} ${state}</b> · last data ${freshness}</div>`,
+    `<div><b>${dot} ${state}</b> · steps updated ${freshness}</div>`,
     `<div>source · ${source || 'unknown'}</div>`,
-    `<div>pipeline · Steps: Kage (Health Connect) · Sleep &amp; Biometrics: Garmin Connect → Cloudflare Worker</div>`,
-    `<div>next expected sync · within 15 min (Kage watchdog: 5 min)</div>`,
+    `<div>pipeline · Steps: Kage (Health Connect) · Biometrics: Garmin Connect</div>`,
+    `<div>Garmin sync · ${garminStatus}</div>`,
+    `<div>next expected steps · within 15 min (watchdog: 5 min)</div>`,
   ].join('');
 }
 
