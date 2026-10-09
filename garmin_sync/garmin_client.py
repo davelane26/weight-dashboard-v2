@@ -51,11 +51,14 @@ def get_client(
         try:
             token_json = _decode_env_token(env_token)
             if token_json:
-                client.login(tokenstore=token_json)
-                logger.info("Reused Garmin session from environment variable")
-                # Cache locally as well
+                # Cache to disk first so python-garminconnect reads garmin_tokens.json
                 token_dir.mkdir(parents=True, exist_ok=True)
                 token_file.write_text(token_json, encoding="utf-8")
+                try:
+                    client.login(tokenstore=str(token_dir))
+                except Exception:
+                    client.login(tokenstore=str(token_file))
+                logger.info("Reused Garmin session from environment variable")
                 return client
         except Exception as e:
             logger.warning("Failed to authenticate with env token: %s", e)

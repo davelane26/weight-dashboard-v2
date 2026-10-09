@@ -18,7 +18,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 # Add garmin_sync directory to Python path
@@ -50,19 +50,27 @@ def main() -> int:
         logger.info("Tip: Run 'python garmin_sync/setup_garmin.py' to generate your session token.")
         return 1
 
-    logger.info("Authenticated ✓ — Fetching metrics for %s", TODAY.isoformat())
-    data = fetch_all_for_day(client, TODAY)
+    days_to_sync = int(os.environ.get("SYNC_DAYS", "3"))
+    logger.info("Syncing last %d days of Garmin metrics...", days_to_sync)
 
-    if not data.get("steps") and not data.get("sleepHours") and not data.get("restingHR"):
-        logger.warning("No activity or sleep data returned for %s yet", TODAY.isoformat())
+    all_ok = True
+    for offset in range(days_to_sync - 1, -1, -1):
+        target_date = TODAY - timedelta(days=offset)
+        logger.info("Fetching Garmin metrics for %s", target_date.isoformat())
+        data = fetch_all_for_day(client, target_date)
 
-    # Patch data to Cloudflare Worker
-    ok = patch_garmin(TODAY, data, worker_url=WORKER_URL)
-    if ok:
+        if not data.get("steps") and not data.get("sleepHours") and not data.get("restingHR"):
+            logger.warning("No activity or sleep data returned for %s yet", target_date.isoformat())
+
+        ok = patch_garmin(target_date, data, worker_url=WORKER_URL)
+        if not ok and offset == 0:
+            all_ok = False
+
+    if all_ok:
         logger.info("Done ✓ — Garmin metrics synced to Worker successfully")
         return 0
     else:
-        logger.error("Failed to patch Garmin metrics to Worker")
+        logger.error("Failed to patch some Garmin metrics to Worker")
         return 1
 
 

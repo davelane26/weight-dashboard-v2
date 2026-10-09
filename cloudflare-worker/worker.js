@@ -385,17 +385,25 @@ export default {
       const date = body.date;
       if (!date) return cors('{"error":"date required"}', 400);
 
-      // Identify whether this patch originates from Kage Health Bridge (Android app)
+      // Identify whether this patch originates from Garmin or Kage Health Bridge (Android app)
       const clientHeader = (request.headers.get('X-Client') || '').toLowerCase();
-      const userAgent    = request.headers.get('User-Agent') || '';
-      const authHeader   = request.headers.get('API-SECRET') || request.headers.get('api-secret') || '';
-      const isKageSecret = env.API_SECRET_V2 && (authHeader === env.API_SECRET_V2 || authHeader === await sha1(env.API_SECRET_V2));
-      const isKage       = clientHeader === 'kage' ||
-                           body.source === 'kage' ||
-                           isKageSecret ||
-                           userAgent.includes('Dalvik') ||
-                           userAgent.includes('Android') ||
-                           userAgent.includes('KageHealth');
+      const userAgent    = (request.headers.get('User-Agent') || '').toLowerCase();
+      const source       = ((body && body.source) || '').toLowerCase();
+
+      // Explicit Garmin detection (script, header, or source)
+      const isGarmin     = clientHeader === 'garmin' ||
+                           source === 'garmin' ||
+                           userAgent.includes('garmin');
+
+      // Kage detection: ONLY if explicitly from Kage or Android Dalvik client runtime
+      // (Do NOT use API secret comparison as a client differentiator, since secrets may be shared)
+      const isKage       = !isGarmin && (
+                           clientHeader === 'kage' ||
+                           source === 'kage' ||
+                           userAgent.includes('dalvik') ||
+                           userAgent.includes('kagehealth') ||
+                           (userAgent.includes('android') && !userAgent.includes('mozilla'))
+                         );
 
       const stored   = await env.GLUCOSE_KV.get('health', { type: 'json' }) ?? [];
       const dedupMap = new Map();

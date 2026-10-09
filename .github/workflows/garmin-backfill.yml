@@ -10,7 +10,7 @@ on:
 
 jobs:
   backfill:
-    runs-on: [self-hosted, home-pc, garmin]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
@@ -21,19 +21,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-        continue-on-error: true
 
       - name: Install dependencies
         run: pip install -r garmin_sync/requirements.txt
 
-      # Session persists on self-hosted runner between runs
-
       - name: Backfill Garmin data
         working-directory: garmin_sync
         env:
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
+          GARMIN_SESSION: ${{ secrets.GARMIN_SESSION }}
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          WORKER_URL: https://glucose-relay.djtwo6.workers.dev
+          API_SECRET: ${{ secrets.API_SECRET }}
+          API_SECRET_V2: ${{ secrets.API_SECRET_V2 }}
+          WORKER_API_SECRET: ${{ secrets.API_SECRET }}
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
-          GARMIN_SESSION: ${{ secrets.GARMIN_SESSION }}
-          GARMIN_COOKIES: ${{ secrets.GARMIN_COOKIES }}
         run: python sync_garmin.py --days ${{ inputs.days }}
+

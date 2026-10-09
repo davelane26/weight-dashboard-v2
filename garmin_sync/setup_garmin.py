@@ -119,12 +119,16 @@ def main() -> int:
         if TOKEN_FILE_GITHUB.exists():
             _try_push_github_secret(token_b64)
 
-    # Save email to .env if not already there
+    # Save configuration to .env if not already there
     env_file = _script_dir / ".env"
     if not env_file.exists():
+        api_sec = os.getenv("API_SECRET") or os.getenv("API_SECRET_V2", "")
+        if not api_sec:
+            api_sec = input("Cloudflare Worker API_SECRET (press Enter to skip): ").strip()
         env_file.write_text(
             f"GARMIN_EMAIL={email}\n"
             f"WORKER_URL=https://glucose-relay.djtwo6.workers.dev\n"
+            f"API_SECRET={api_sec}\n"
             f"FIREBASE_URL=https://weight-dashboard-6b5f3-default-rtdb.firebaseio.com\n",
             encoding="utf-8",
         )

@@ -17,7 +17,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 WORKER_URL = os.environ.get("WORKER_URL", "https://glucose-relay.djtwo6.workers.dev")
-API_SECRET = os.environ.get("WORKER_API_SECRET") or os.environ.get("API_SECRET", "")
+API_SECRET = os.environ.get("API_SECRET") or os.environ.get("API_SECRET_V2") or os.environ.get("WORKER_API_SECRET", "")
 
 # Exact fields permitted by cloudflare-worker/worker.js /health/patch endpoint
 ALLOWED_PATCH_FIELDS = [
@@ -66,7 +66,11 @@ ALLOWED_PATCH_FIELDS = [
 
 
 def _headers() -> dict[str, str]:
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "X-Client": "garmin",
+        "User-Agent": "GarminSync/1.0",
+    }
     if API_SECRET:
         headers["API-SECRET"] = API_SECRET
     return headers
@@ -88,15 +92,18 @@ def _coerce(val: Any) -> Any:
 def patch_garmin(day: date, garmin_data: dict[str, Any], worker_url: str | None = None) -> bool:
     """Patch all available Garmin fields into the Worker for a given day."""
     url = f"{worker_url or WORKER_URL}/health/patch"
-    payload: dict[str, Any] = {"date": day.isoformat()}
+    payload: dict[str, Any] = {
+        "date": day.isoformat(),
+        "source": "garmin",
+    }
 
     for field in ALLOWED_PATCH_FIELDS:
         val = _coerce(garmin_data.get(field))
         if val is not None:
             payload[field] = val
 
-    # If only "date" is present, there is nothing meaningful to patch
-    if len(payload) <= 1:
+    # If only "date" and "source" are present, there is nothing meaningful to patch
+    if len(payload) <= 2:
         logger.warning("patch_garmin: no patchable fields found for %s", day.isoformat())
         return False
 
