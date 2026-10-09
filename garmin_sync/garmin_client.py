@@ -40,8 +40,19 @@ def get_client(
       2. Local token file (.garmin_tokens/garmin_tokens.json)
       3. Fresh login with email and password
     """
-    token_dir = Path(tokenstore_dir) if tokenstore_dir else TOKEN_DIR
-    token_file = token_dir / "garmin_tokens.json" if token_dir.is_dir() else token_dir
+    if tokenstore_dir:
+        p = Path(tokenstore_dir)
+        if p.suffix == ".json":
+            token_file = p
+            token_dir = p.parent
+        else:
+            token_dir = p
+            token_file = p / "garmin_tokens.json"
+    else:
+        token_dir = TOKEN_DIR
+        token_file = TOKEN_FILE
+
+    token_dir.mkdir(parents=True, exist_ok=True)
 
     client = Garmin(email=email or "", password=password or "", prompt_mfa=prompt_mfa)
 
@@ -51,26 +62,23 @@ def get_client(
         try:
             token_json = _decode_env_token(env_token)
             if token_json:
-                # Cache to disk first so python-garminconnect reads garmin_tokens.json
-                token_dir.mkdir(parents=True, exist_ok=True)
+                # Write to disk so it's cached as a valid JSON file
                 token_file.write_text(token_json, encoding="utf-8")
                 try:
-                    client.login(tokenstore=str(token_dir))
-                except Exception:
                     client.login(tokenstore=str(token_file))
-                logger.info("Reused Garmin session from environment variable")
+                except Exception:
+                    client.login(tokenstore=token_json)
+                logger.info("Reused Garmin session from environment variable ✓")
                 return client
         except Exception as e:
             logger.warning("Failed to authenticate with env token: %s", e)
 
     # 2. Try cached local token file
-    if token_file.exists():
+    if token_file.is_file():
         try:
-            token_json = token_file.read_text(encoding="utf-8").strip()
-            if token_json:
-                client.login(tokenstore=str(token_dir))
-                logger.info("Reused cached Garmin session from %s", token_file.name)
-                return client
+            client.login(tokenstore=str(token_file))
+            logger.info("Reused cached Garmin session from %s", token_file.name)
+            return client
         except Exception as e:
             logger.info("Cached session invalid or expired (%s), attempting fresh login...", e)
 
@@ -87,9 +95,8 @@ def get_client(
     logger.info("Performing fresh login to Garmin Connect as %s...", email)
     client.username = email
     client.password = password
-    token_dir.mkdir(parents=True, exist_ok=True)
 
-    client.login(tokenstore=str(token_dir))
+    client.login(tokenstore=str(token_file))
 
     # Explicitly ensure token file exists
     try:
@@ -104,7 +111,7 @@ def get_client(
 
 def _decode_env_token(raw_token: str) -> str | None:
     """Decode a token string from env var which might be base64 or raw JSON."""
-    raw = raw_token.strip()
+    raw = raw_token.strip().strip("'\"")
     if not raw:
         return None
 
@@ -114,7 +121,7 @@ def _decode_env_token(raw_token: str) -> str | None:
 
     # Attempt base64 decode
     try:
-        decoded = base64.b64decode(raw).decode("utf-8")
+        decoded = base64.b64decode(raw).decode("utf-8").strip()
         if decoded.startswith("{") and decoded.endswith("}"):
             return decoded
     except Exception:
