@@ -54,7 +54,9 @@ def get_client(
 
     token_dir.mkdir(parents=True, exist_ok=True)
 
-    client = Garmin(email=email or "", password=password or "", prompt_mfa=prompt_mfa)
+    email = email or os.environ.get("GARMIN_EMAIL", "")
+    password = password or os.environ.get("GARMIN_PASSWORD", "")
+    client = Garmin(email=email, password=password, prompt_mfa=prompt_mfa)
 
     # 1. Try session from env var (CI / GitHub Actions)
     env_token = os.environ.get("GARMIN_TOKENS") or os.environ.get("GARMIN_SESSION")
