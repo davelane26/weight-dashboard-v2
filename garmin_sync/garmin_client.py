@@ -196,11 +196,17 @@ def fetch_sleep(client: Garmin, day: date) -> dict:
         return {}
 
     duration_secs = daily.get("sleepTimeSeconds") or 0
-    hours = round(duration_secs / 3600, 2)
+    awake_secs = daily.get("awakeSleepSeconds") or 0
     deep_secs = daily.get("deepSleepSeconds") or 0
     light_secs = daily.get("lightSleepSeconds") or 0
     rem_secs = daily.get("remSleepSeconds") or 0
-    awake_secs = daily.get("awakeSleepSeconds") or 0
+    unmeasurable_secs = daily.get("unmeasurableSleepSeconds") or 0
+
+    # If no sleep session exists for this date yet (e.g. future/early date in UTC)
+    if not duration_secs and not awake_secs and not daily.get("sleepScores"):
+        return {}
+
+    hours = round(duration_secs / 3600, 2)
 
     # Official Garmin Sleep Score (0-100)
     score = (
@@ -223,7 +229,7 @@ def fetch_sleep(client: Garmin, day: date) -> dict:
         "sleepRem": round(rem_secs / 3600, 2),
         "awakeSleep": round(awake_secs / 3600, 2),
         "sleepAwakenings": daily.get("awakeCount") or (1 if awake_secs > 0 else 0),
-        "timeInBed": round((daily.get("unmeasurableSleepSeconds", 0) + duration_secs + awake_secs) / 3600, 2),
+        "timeInBed": round((unmeasurable_secs + duration_secs + awake_secs) / 3600, 2),
         "respirationSleep": resp_sleep,
         "sleepStages": {
             "deep": round(deep_secs / 3600, 2),
@@ -318,7 +324,7 @@ def fetch_activities(client: Garmin, day: date, limit: int = 10) -> list[dict]:
         dist_m = act.get("distance") or 0
         result.append({
             "name": act.get("activityName", "Activity"),
-            "type": act.get("activityType", {}).get("typeKey", "other"),
+            "type": (act.get("activityType") or {}).get("typeKey", "other"),
             "startTime": act.get("startTimeLocal"),
             "duration": round((act.get("duration") or 0) / 60, 1),
             "distance": round(dist_m / 1609.34, 2) if dist_m else 0.0,
