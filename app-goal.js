@@ -140,10 +140,14 @@ function setGoal() {
   goalWeight = v;
   localStorage.setItem('wt_v2_goal', goalWeight);
   if (allData.length) {
-    renderGoal(allData[allData.length - 1], allData);
+    const latest = allData[allData.length - 1];
+    renderGoal(latest, allData);
     renderWeightChart(allData);
     if (typeof renderJourney === 'function') {
-      renderJourney(allData[allData.length - 1], allData);
+      renderJourney(latest, allData);
+    }
+    if (typeof renderMilestones === 'function') {
+      renderMilestones(latest, allData);
     }
   }
 }
@@ -152,15 +156,32 @@ function clearGoal() {
   el('goal-input').value = '';
   localStorage.removeItem('wt_v2_goal');
   if (allData.length) {
-    renderGoal(allData[allData.length - 1], allData);
+    const latest = allData[allData.length - 1];
+    renderGoal(latest, allData);
     renderWeightChart(allData);
     if (typeof renderJourney === 'function') {
-      renderJourney(allData[allData.length - 1], allData);
+      renderJourney(latest, allData);
+    }
+    if (typeof renderMilestones === 'function') {
+      renderMilestones(latest, allData);
     }
   }
 }
-window.setGoal   = setGoal;
-window.clearGoal = clearGoal;
+function promptSetGoal() {
+  const current = (typeof goalWeight === 'number' && goalWeight > 0) ? goalWeight : 220;
+  const val = prompt('Set target weight (lbs):', current);
+  if (val !== null) {
+    const num = parseFloat(val.trim());
+    if (!isNaN(num) && num > 0) {
+      const input = el('goal-input');
+      if (input) input.value = num;
+      setGoal();
+    }
+  }
+}
+window.setGoal        = setGoal;
+window.clearGoal      = clearGoal;
+window.promptSetGoal  = promptSetGoal;
 
 // ── Slowdown check (Weight Projector card) ───────────────────────────
 // Fills the "Slowdown Check" panel: recent 4-wk regression rate vs the

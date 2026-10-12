@@ -316,7 +316,7 @@ function renderJourney(latest, data) {
 
   // Next milestone ETA (uses journey average for consistency with AVG RATE card)
   const allTimeLow = Math.min(...data.map(r => r.weight));
-  const floor  = 210; // Road to 210
+  const floor  = (typeof goalWeight === 'number' && goalWeight > 0) ? Math.floor(goalWeight / 10) * 10 : 220;
   const steps  = [];
   for (let w = Math.floor(START_WEIGHT / 10) * 10; w >= floor; w -= 10) steps.push(w);
   const nextMilestone = steps.find(w => allTimeLow > w);
@@ -411,8 +411,8 @@ function renderMilestones(latest, data) {
   if (!row && !historyContainer) return;
 
   const allTimeLow = Math.min(...data.map(d => d.weight));
-  // Build milestones every 10 lbs from START_WEIGHT down to 210
-  const floor = 210;
+  // Build milestones every 10 lbs from START_WEIGHT down to goal or 220
+  const floor = (typeof goalWeight === 'number' && goalWeight > 0) ? Math.floor(goalWeight / 10) * 10 : 220;
   const startDecade = Math.floor(START_WEIGHT / 10) * 10;
   const steps = [];
   for (let w = startDecade; w >= floor; w -= 10) steps.push(w);
@@ -576,7 +576,7 @@ function renderMilestones(latest, data) {
       const daysAway = Math.round(toGo / ratePerDay);
       const wksAway = (daysAway / 7).toFixed(1);
       const eta = new Date(latest.date.getTime() + daysAway * 86400000);
-      const isGoal = w === 210;
+      const isGoal = w === floor;
       chipsHtml.push(`
         <div class="decade-chip ${isGoal ? 'goal' : 'future'}" title="${isGoal ? '🏁 Goal ' + w + ' lbs' : w + ' lbs'}: ~${daysAway} days (~${wksAway} wks) · Est. ${fmtShortDate(eta)}">
           <span class="decade-chip-title">${w}s ${isGoal ? '🏁' : '🎯'}</span>
@@ -591,7 +591,7 @@ function renderMilestones(latest, data) {
         <div class="decade-velocity-header">
           <div class="decade-velocity-title">
             <span>⚡</span>
-            <span>Road to 210 &bull; Decade Velocity</span>
+            <span>Road to ${floor} &bull; Decade Velocity</span>
           </div>
           <div class="decade-velocity-summary">
             Avg ~${avgDays} days per 10 lbs (${avgPace.toFixed(2)} lbs/wk)
@@ -609,7 +609,7 @@ function renderMilestones(latest, data) {
       const daysAway = Math.round((latest.weight - w) / ratePerDay);
       const wksAway = (daysAway / 7).toFixed(1);
       const eta = new Date(latest.date.getTime() + daysAway * 86400000);
-      const isGoal = w === 210;
+      const isGoal = w === floor;
       return `
         <div class="decade-history-item future-target ${isGoal ? 'goal' : ''}">
           <div class="decade-item-icon">${isGoal ? '🏁' : '🎯'}</div>
@@ -656,7 +656,7 @@ function renderMilestones(latest, data) {
       ${velocityCardHtml}
       ${futureHtml ? `
         <div class="decade-timeline-title" style="margin-top:0.9rem">
-          <span>🎯 Road Ahead to 210 lbs</span>
+          <span>🎯 Road Ahead to ${floor} lbs</span>
           <span style="font-size:0.75rem;font-weight:normal;color:var(--text-sub)">Paced at 1.0%/wk lifetime trend</span>
         </div>
         <div class="decade-history-list" style="margin-bottom:1.1rem">

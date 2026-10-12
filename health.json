@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-08-19T18:28:58+00:00",
-  "lastUpdated": "2026-10-11T02:06:57+00:00",
+  "lastUpdated": "2026-10-11T16:00:12+00:00",
   "source": "samsung_health",
   "days": [
     {
@@ -902,6 +902,70 @@
       ],
       "workoutsMins": 26.5,
       "workoutsKm": 1.01
+    },
+    {
+      "date": "2026-10-11",
+      "activeCalories": 202.0,
+      "totalCalories": 1184.0,
+      "restingCalories": 982.0,
+      "restingHR": 62,
+      "minHR": 58,
+      "maxHR": 122,
+      "stressLevel": 16,
+      "maxStress": 90,
+      "restStressPct": 79.8,
+      "bodyBattery": 94,
+      "bodyBatteryCharged": 71,
+      "bodyBatteryDrained": 18,
+      "respirationWaking": 14.0,
+      "respirationMin": 11.0,
+      "respirationMax": 20.0,
+      "intensityMinutes": 12,
+      "moderateIntensity": 12,
+      "vigorousIntensity": 0,
+      "hrvBaseline": {
+        "low": null,
+        "balanced": null
+      },
+      "fitnessAge": 44.6,
+      "achievableFitnessAge": 38.0,
+      "activities": [
+        {
+          "name": "Loveland Walking",
+          "type": "walking",
+          "startTime": "2026-10-11 09:14:26",
+          "duration": 11.2,
+          "distance": 0.29,
+          "calories": 84.0,
+          "avgHR": 113.0,
+          "maxHR": 142.0,
+          "avgPace": "38:55",
+          "elevationGain": 0.0
+        }
+      ],
+      "bodyBatteryWake": 94,
+      "sleepHours": 8.82,
+      "sleepDuration": "8h 49m",
+      "sleepScore": 92,
+      "sleepStart": 1791673680000,
+      "sleepEnd": 1791705660000,
+      "bedtime": 1791673680000,
+      "waketime": 1791705660000,
+      "sleepDeep": 0.87,
+      "sleepLight": 5.47,
+      "sleepRem": 2.48,
+      "awakeSleep": 0.07,
+      "sleepAwakenings": 1,
+      "timeInBed": 8.88,
+      "respirationSleep": 16.0,
+      "sleepStages": {
+        "deep": 0.87,
+        "light": 5.47,
+        "rem": 2.48,
+        "awake": 0.07
+      },
+      "workoutsMins": 11.2,
+      "workoutsKm": 0.47
     }
   ]
 }

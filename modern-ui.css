@@ -1018,6 +1018,22 @@ main > [role="tabpanel"]:not([hidden]) {
   background: #111726 !important;
   border-color: rgba(255, 255, 255, 0.06) !important;
 }
+.hero-stat-box[onclick] {
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+.hero-stat-box[onclick]:hover {
+  border-color: rgba(37, 99, 235, 0.45) !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
+  transform: translateY(-1px) !important;
+}
+#root.dark .hero-stat-box[onclick]:hover {
+  border-color: rgba(96, 165, 250, 0.4) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+}
+#hero-milestone-marker[onclick]:hover {
+  text-decoration: underline;
+  opacity: 0.9;
+}
 .hsb-label {
   font-size: 0.64rem !important;
   font-weight: 800 !important;

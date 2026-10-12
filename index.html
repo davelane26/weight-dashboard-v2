@@ -292,10 +292,10 @@
             <strong class="hsb-val" id="hero-stat-lost">—</strong>
             <span class="hsb-sub">since 315.0 lbs</span>
           </div>
-          <div class="hero-stat-box">
+          <div class="hero-stat-box" onclick="window.promptSetGoal && window.promptSetGoal()" title="Click to change target weight" style="cursor:pointer">
             <span class="hsb-label" id="hero-goal-label">TO GOAL (220)</span>
             <strong class="hsb-val" id="hero-stat-remaining">—</strong>
-            <span class="hsb-sub">lbs to reach</span>
+            <span class="hsb-sub">lbs to reach <span style="font-size:0.75rem;opacity:0.7" title="Edit target">✏️</span></span>
           </div>
           <div class="hero-stat-box">
             <span class="hsb-label">RUNWAY PACE</span>
@@ -315,7 +315,7 @@
         </div>
         <div class="horizon-milestone-row">
           <span>Start: 315.0 lbs</span>
-          <span id="hero-milestone-marker">🎯 Target: 220.0 lbs</span>
+          <span id="hero-milestone-marker" onclick="window.promptSetGoal && window.promptSetGoal()" title="Click to change target weight" style="cursor:pointer">🎯 Target: 220.0 lbs</span>
         </div>
       </div>
     </section>
