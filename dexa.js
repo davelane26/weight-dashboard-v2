@@ -273,7 +273,9 @@ window.toggleDexaForm = toggleDexaForm;
       fatMass: Number(calculatedFatMass.toFixed(1)),
       leanMass: Number(expectedLeanMass.toFixed(1)),
       hasMuscleLossAlert,
-      avgScaleLBM: Number(avgScaleLBM.toFixed(1))
+      avgScaleLBM: Number(avgScaleLBM.toFixed(1)),
+      impedance: currentImpedance,
+      rawImpedance: (todayRow.impedance != null && !isNaN(todayRow.impedance)) ? Number(todayRow.impedance) : (todayRow.IMPEDANCE != null && !isNaN(todayRow.IMPEDANCE) ? Number(todayRow.IMPEDANCE) : null)
     };
   }
 

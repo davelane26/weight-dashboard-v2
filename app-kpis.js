@@ -84,7 +84,8 @@ function renderKPIs(latest, prev) {
   if (rollingEl) {
     if (dynCompLatest?.avgScaleLBM != null) {
       const isProtected = dynCompLatest.avgScaleLBM >= 170.0;
-      rollingEl.innerHTML = `${isProtected ? '🛡️' : '⚠️'} 7d rolling lean: <strong>${dynCompLatest.avgScaleLBM} lbs</strong>`;
+      const impText = dynCompLatest.impedance != null ? ` · ${dynCompLatest.impedance} Ω` : '';
+      rollingEl.innerHTML = `${isProtected ? '🛡️' : '⚠️'} 7d rolling lean: <strong>${dynCompLatest.avgScaleLBM} lbs</strong>${impText}`;
       rollingEl.title = `7-day rolling average of scale Lean Body Mass (${dynCompLatest.avgScaleLBM} lbs). Catabolism watch threshold: < 170.0 lbs + impedance > 520 Ω.`;
       rollingEl.style.display = '';
     } else {
@@ -117,6 +118,41 @@ function renderKPIs(latest, prev) {
     ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠️ Alert</span>'
     : '<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e">Protected</span>';
   setHTML('kpi-lean-lbs-sub', `${leanStatusText}${lld != null && lld !== 0 ? ' ' + delta(lld, false) + ' lbs' : ''}`);
+
+  // Bioelectrical Impedance (Ω) Card
+  const rawImp = (latest.impedance != null && !isNaN(latest.impedance))
+    ? Number(latest.impedance)
+    : (latest.IMPEDANCE != null && !isNaN(latest.IMPEDANCE) ? Number(latest.IMPEDANCE) : null);
+  const impVal = rawImp != null ? Math.round(rawImp) : (dynCompLatest?.impedance || 495);
+
+  const rawPrevImp = prev ? ((prev.impedance != null && !isNaN(prev.impedance))
+    ? Number(prev.impedance)
+    : (prev.IMPEDANCE != null && !isNaN(prev.IMPEDANCE) ? Number(prev.IMPEDANCE) : null)) : null;
+  const prevImpVal = rawPrevImp != null ? Math.round(rawPrevImp) : (dynCompPrev?.impedance || null);
+  const impDiff = (prevImpVal != null && impVal != null) ? (impVal - prevImpVal) : null;
+
+  const impCard = document.getElementById('kpi-impedance-card');
+  if (impVal != null) {
+    countUp('kpi-impedance', impVal, 0);
+    const isElevated = impVal > 520;
+    const badgeHtml = rawImp == null
+      ? '<span class="badge" style="background:rgba(100,116,139,0.15);color:#94a3b8">Baseline</span>'
+      : (isElevated
+          ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444">⚠️ Elevated</span>'
+          : '<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e">Optimal</span>');
+    const diffHtml = (impDiff != null && impDiff !== 0)
+      ? ` <span class="${impDiff <= 0 ? 'down' : 'up'}">${impDiff < 0 ? '▼' : '▲'} ${Math.abs(Math.round(impDiff))} Ω</span>`
+      : '';
+    setHTML('kpi-impedance-sub', `${badgeHtml}${diffHtml}`);
+
+    if (impCard) {
+      impCard.classList.remove('kpi--cyan', 'kpi--red');
+      impCard.classList.add(isElevated ? 'kpi--red' : 'kpi--cyan');
+    }
+  } else {
+    setText('kpi-impedance', '—');
+    setHTML('kpi-impedance-sub', '');
+  }
 
   latest.water ? countUp('kpi-water', latest.water, 0, '%') : setText('kpi-water', '—');
   const wad = prev?.water ? latest.water - prev.water : null;
