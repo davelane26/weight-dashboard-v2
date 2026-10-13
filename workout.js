@@ -37,7 +37,7 @@
       knee: true,
       exercises: [
         { m: 'Leg Press',                        s: '3 x 5-8', rir: '2 RIR' },
-        { m: 'Back Extension (45-degree Hyper)', s: '2 x 10-15', rir: '1-2 RIR' },
+        { m: 'Machine Back Extension',           s: '2 x 10-15', rir: '1-2 RIR' },
         { m: 'Seated Leg Curl',                  s: '3 x 8-12', rir: '1 RIR' },
         { m: 'Standing Calf Raise',              s: '3 x 8-15', rir: '1 RIR' },
         { m: 'Machine Crunch',                   s: '3 x 10-15', rir: '1 RIR' },
@@ -63,7 +63,7 @@
       knee: true,
       exercises: [
         { m: 'Leg Press',                        s: '3 x 8-12', rir: '1-3 RIR' },
-        { m: 'Back Extension (45-degree Hyper)', s: '3 x 10-15', rir: '1-3 RIR' },
+        { m: 'Machine Back Extension',           s: '3 x 10-15', rir: '1-3 RIR' },
         { m: 'Leg Extension (pain-free)',        s: '2 x 10-15', rir: '1-3 RIR' },
         { m: 'Seated Leg Curl',                  s: '2 x 10-15', rir: '1-3 RIR' },
         { m: 'Calf Raise',                       s: '3 x 10-15', rir: '1-3 RIR' },
