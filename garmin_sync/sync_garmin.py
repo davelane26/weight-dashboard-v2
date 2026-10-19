@@ -172,8 +172,12 @@ def _print_summary(data: dict) -> None:
     print("\n" + "=" * 55)
     print(f"  📊 Garmin Summary for {day_str}")
     print("=" * 55)
-    print(f"  👟 Steps:           {data.get('steps', 0):,} steps ({data.get('distance', 0)} mi)")
-    print(f"  🔥 Calories:        {data.get('totalCalories', 0):,} kcal ({data.get('activeCalories', 0):,} active)")
+    steps = data.get('steps') or 0
+    distance = data.get('distance') or 0
+    print(f"  👟 Steps:           {steps:,} steps ({distance} mi)")
+    total_cal = data.get('totalCalories') or 0
+    active_cal = data.get('activeCalories') or 0
+    print(f"  🔥 Calories:        {total_cal:,} kcal ({active_cal:,} active)")
     print(f"  ❤️  Resting HR:      {data.get('restingHR', '—')} bpm")
     if data.get('minHR') and data.get('maxHR'):
         print(f"  💓 HR Range:        {data['minHR']} – {data['maxHR']} bpm (avg: {data.get('avgHR', '—')})")
