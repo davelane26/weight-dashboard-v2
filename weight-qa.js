@@ -199,7 +199,67 @@
     return Math.round((today - d) / 86400000);
   }
 
+  function extractSpanDays(q) {
+    q = normalizeNumberWords(q);
+    let m = q.match(/(?:last|past|previous|for|over|in)?\s*(\d+)\s*(day|days|week|weeks|month|months)\b/);
+    if (m) return parseInt(m[1], 10) * UNIT_DAYS[m[2]];
+    m = q.match(/\b(?:last|past|previous|this)\s+(day|week|month)\b/);
+    if (m) return UNIT_DAYS[m[1]];
+    return null;
+  }
+
   // ── Individual answerers ────────────────────────────────────────────
+  // List all individual weigh-ins over a given period (e.g., last week or 2 weeks)
+  function answerWeighInList(spanDays) {
+    const latest = latestRecord();
+    if (!latest) return null;
+    const windowDays = (spanDays != null && spanDays > 0) ? spanDays : 7;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const latestMid = new Date(latest.date);
+    latestMid.setHours(0, 0, 0, 0);
+    const anchor = (today - latestMid <= 2 * 86400000) ? today : latestMid;
+    const cutoff = daysBefore(anchor, windowDays);
+    cutoff.setHours(0, 0, 0, 0);
+
+    const rows = [];
+    for (let i = 0; i < allData.length; i++) {
+      if (allData[i].date >= cutoff) {
+        const prev = i > 0 ? allData[i - 1] : null;
+        rows.push({ rec: allData[i], prev });
+      }
+    }
+
+    if (!rows.length) {
+      return `No weigh-ins found in the last ${periodLabel(windowDays)} (latest reading is ${fmt2(latest.weight)} lbs on ${fmtDate(latest.date)}).`;
+    }
+
+    const lines = [`**Weigh-ins over the last ${periodLabel(windowDays)} (${rows.length} reading${rows.length === 1 ? '' : 's'}):**`];
+    rows.forEach(({ rec, prev }) => {
+      let deltaStr = '';
+      if (prev && prev.weight != null) {
+        const diff = rec.weight - prev.weight;
+        const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
+        deltaStr = ` (${sign}${Math.abs(diff).toFixed(1)} lbs)`;
+      }
+      lines.push(`• **${fmtDate(rec.date)}:** ${fmt2(rec.weight)} lbs${deltaStr}`);
+    });
+
+    if (rows.length >= 2) {
+      const firstW  = rows[0].rec.weight;
+      const lastW   = rows[rows.length - 1].rec.weight;
+      const net     = lastW - firstW;
+      const weights = rows.map(r => r.rec.weight);
+      const avgW    = weights.reduce((a, b) => a + b, 0) / weights.length;
+      const minW    = Math.min(...weights);
+      const maxW    = Math.max(...weights);
+      const netStr  = net < 0 ? `down ${fmtLbs(net)}` : net > 0 ? `up +${fmtLbs(net)}` : '0.0 lbs net change';
+      lines.push(`**Summary:** ${netStr} (${fmt2(firstW)} → ${fmt2(lastW)} lbs) · Avg: ${fmt2(avgW)} lbs · Low: ${fmt2(minW)} lbs · High: ${fmt2(maxW)} lbs`);
+    }
+
+    return lines.join('\n');
+  }
+
   // Direct historical value lookup — "what was my weight last Thursday" —
   // as opposed to answerRateOrLoss, which answers the *change* over a period.
   function answerHistoricalWeight(days) {
@@ -515,6 +575,14 @@
     if (/\bdexa\b/.test(q)) return answerLeanMass();
 
     const days = extractPeriodDays(q);
+    const spanDays = extractSpanDays(q);
+
+    // List of weigh-ins over a period (e.g., "weigh ins last week", "give me my weigh-ins for the last 2 weeks")
+    const isWeighInList = !/streak/.test(q) && !/\b(average|avg\.?|rate)\b/.test(q) && (
+      /\b(weigh[\s-]?ins?|readings|entries|logs?)\b/.test(q) ||
+      (/\b(list|show|give me|all|every)\b/.test(q) && /\bweights?\b/.test(q))
+    );
+    if (isWeighInList) return answerWeighInList(spanDays ?? days ?? 7);
 
     if (/\b(average|avg\.?|rate)\b/.test(q)) return answerRateOrLoss(days);
     if (days != null && /(lost|lose|losing|gain|gained|change|down|up)/.test(q)) return answerRateOrLoss(days);
@@ -609,6 +677,17 @@
     lines.push(`DEXA baseline (July 27, 2026): 172.9 lbs lean mass, current lean ~172.8 lbs (99.9% preserved, 95% fat loss purity)`);
     lines.push(`Milestone roadmap: Road to 210 lbs (Current decade: ${Math.floor(latest.weight / 10) * 10}s)`);
 
+    // Recent daily weigh-ins (last 14 days) so AI can answer granular recent questions
+    const cutoff14 = daysBefore(new Date(latest.date), 14);
+    cutoff14.setHours(0, 0, 0, 0);
+    const recentDaily = allData.filter(r => r.date >= cutoff14);
+    if (recentDaily.length) {
+      const dailyLine = recentDaily
+        .map(r => `${fmtDate(r.date)}: ${fmt2(r.weight)} lbs`)
+        .join('; ');
+      lines.push(`Daily weigh-ins (last 14 days): ${dailyLine}`);
+    }
+
     // Weekly average rollup so the model has broader trend context
     // without needing every raw daily reading.
     const byWeek = {};
@@ -669,7 +748,7 @@
     if (!question.trim()) return;
 
     const deterministic = answerQuestion(question);
-    out.textContent = deterministic;
+    out.innerHTML = renderMarkdownLite(deterministic);
     out.classList.add('qa-answer--visible');
 
     if (deterministic !== FALLBACK_MESSAGE) return;
