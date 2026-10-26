@@ -22,13 +22,13 @@ All changes and implementations have been completed strictly within `C:\Projects
 
 ### Active Plasma Concentration & Steady-State Gauge
 - **Pharmacokinetic (PK) Accumulation Engine**:
-  - Implements multi-dose Bateman pharmacokinetic modeling across the last 30 days of injections:
-    $$\text{Active Plasma Level (mg)} = \sum_{i} D_i \cdot \text{pkNorm}(t_i)$$
-    accounting for the ~120h (5.0 day) elimination half-life of tirzepatide ($k_e = 0.00578\text{ hr}^{-1}$) and subcutaneous absorption ($k_a = 0.03\text{ hr}^{-1}$).
-  - Calculates steady-state peak ($\sim 1.61 \times \text{dose}$) and trough levels for weekly cycles.
+  - Implements multi-dose 1-compartment Bateman pharmacokinetic modeling across dose history ($dt_i \ge 0$):
+    $$\text{Bateman}(dt_i) = \frac{k_a}{k_a - k_e} \left(e^{-k_e \cdot dt_i} - e^{-k_a \cdot dt_i}\right)$$
+    accounting for the 120h (5.0 day) elimination half-life of tirzepatide ($k_e = \ln(2)/120\text{ hr}^{-1}$), subcutaneous absorption ($k_a = 0.045\text{ hr}^{-1}$), and clinical subcutaneous bioavailability ($F = 0.80$), with $k_a$ clearance normalization and guarded by the bioavailable steady-state peak ceiling.
+  - Calculates bioavailable steady-state peak ($\sim 1.45 \times \text{dose}$, i.e., $14.5\text{ mg}$ on $10\text{ mg}$ weekly) and trough levels for weekly cycles.
 - **Visual Gauge & Metric Cards**:
   - **Estimated Active Drug**: Live readout of current circulating drug in mg equivalent.
-  - **Steady-State Peak**: Target peak concentration at $\sim 68$ hours post-injection.
+  - **Steady-State Peak**: Target peak concentration at $\sim 36\text{–}48$ hours post-injection.
   - **Cycle Retention %**: Percentage of peak level remaining in the system.
   - **Therapeutic Zone Bar**: Horizontal gradient bar visualizing progress from trough through the therapeutic window to peak activation.
   - **Clinical Phase Status Pill**: Dynamic badge and descriptive text indicating whether the user is in Launch & Absorbing, Climbing to Peak, Peak Therapeutic Window, Stable Cruise, or Pre-Shot Trough.

@@ -8,7 +8,7 @@
   const SEED_VER              = 3;  // bumped for 7.5mg shots
   const JOURNEY_START_WEIGHT  = 315; // lbs on Jan 29, 2026
 
-  const PK = { ka: 0.03, ke: 0.00578 };
+  const PK = { ka: 0.045, ke: Math.LN2 / 120 }; // ke = ln(2)/120 (5.0d / 120h half-life), ka = 0.045/hr (~36-48h peak)
 
   const PHASES = [
     { name:'Launch',      start:0,   end:12,  emoji:'💉', color:'#f59f00',
@@ -215,16 +215,29 @@
     localStorage.setItem('glp1_seed_v', String(SEED_VER));
   }
 
-  // ── PK math ───────────────────────────────────────────────────────────────
+  // ── PK math (1-compartment Bateman model) ─────────────────────────────────
+  function pkBateman(t) {
+    if (t < 0) return 0;
+    return (PK.ka / (PK.ka - PK.ke)) * (Math.exp(-PK.ke * t) - Math.exp(-PK.ka * t));
+  }
   function pkRaw(t) {
-    return (Math.exp(-PK.ke * t) - Math.exp(-PK.ka * t)) / (PK.ka - PK.ke);
+    return pkBateman(t);
   }
   function pkPeakT() {
     return Math.log(PK.ka / PK.ke) / (PK.ka - PK.ke);
   }
   function pkNorm(t) {
-    const max = pkRaw(pkPeakT());
-    return max > 0 ? Math.max(0, pkRaw(t) / max) : 0;
+    const max = pkBateman(pkPeakT());
+    return max > 0 ? Math.max(0, pkBateman(t) / max) : 0;
+  }
+  function pkDoseFraction(t) {
+    if (t < 0) return 0;
+    const BIOAVAILABILITY = 0.80; // Clinical subcutaneous bioavailability (~80%)
+    const bat = pkBateman(t);
+    const fMax = Math.exp(-PK.ke * pkPeakT());
+    const cycleHalfLives = 168 / 120;
+    const normDenom = BIOAVAILABILITY * (1 - (1 - fMax) * Math.exp(-cycleHalfLives * PK.ke * t));
+    return normDenom > 0 ? Math.max(0, bat / normDenom) : Math.max(0, bat);
   }
 
   function getLastShot() {
@@ -274,47 +287,49 @@
   let g1PkChart = null;
 
   // ── Pharmacokinetic Accumulation & Steady-State ───────────────────────────
-  function calculateActivePlasma() {
+  function calculateActivePlasma(nowOverride) {
     const shots = loadShots();
     if (!shots.length) return null;
 
-    const now = Date.now();
+    const BIOAVAILABILITY = 0.80; // Clinical subcutaneous bioavailability (~80%)
+    const now = typeof nowOverride === 'number' ? nowOverride : Date.now();
     let totalActiveMg = 0;
     const last = shots[shots.length - 1];
-    const lastElapsedH = getElapsedHours(last);
+    const lastElapsedH = Math.max(0, (now - new Date(last.date).getTime()) / 3600000);
 
-    // Multi-dose accumulation across last 30 days (~6 half-lives)
-    const recentShots = shots.filter(s => {
-      const h = (now - new Date(s.date).getTime()) / 3600000;
-      return h >= 0 && h <= 720;
-    });
-
-    recentShots.forEach(s => {
-      const h = (now - new Date(s.date).getTime()) / 3600000;
+    // Evaluate 1-compartment Bateman model across dose history (dt_i >= 0)
+    shots.forEach(s => {
+      const dt = (now - new Date(s.date).getTime()) / 3600000;
+      if (dt < 0 || isNaN(dt)) return;
       const doseMatch = (s.med || '').match(/(\d+(?:\.\d+)?)\s*mg/);
       const dose = doseMatch ? parseFloat(doseMatch[1]) : (s.dose || 5.0);
-      const frac = pkNorm(h);
-      totalActiveMg += dose * frac;
+      const frac = pkDoseFraction(dt);
+      totalActiveMg += dose * BIOAVAILABILITY * frac;
     });
 
     const curDoseMatch = (last.med || '').match(/(\d+(?:\.\d+)?)\s*mg/);
     const curDose = curDoseMatch ? parseFloat(curDoseMatch[1]) : (last.dose || 7.5);
 
-    // Steady-state factor R = 1 / (1 - exp(-ke * 168))
-    const accFactor = 1 / (1 - Math.exp(-PK.ke * 168));
-    const ssPeakMg = curDose * accFactor;
-    const ssTroughMg = curDose * (accFactor - 1);
-    const pctOfPeak = ssPeakMg > 0 ? Math.min(100, Math.round((totalActiveMg / ssPeakMg) * 100)) : 0;
+    // Bioavailable steady-state peak: (Dose * BIOAVAILABILITY) / (1 - 2^(-168 / 120)) with ka clearance normalization
+    const accFactor = 1 / (1 - Math.pow(2, -168 / 120));
+    const kaClearanceNorm = (PK.ka / (PK.ka - PK.ke)) * Math.exp(-PK.ke * 3.5);
+    const ssPeakMg = +((curDose * BIOAVAILABILITY) * accFactor * kaClearanceNorm).toFixed(1);
+    const ssTroughMg = +((curDose * BIOAVAILABILITY) * (accFactor - 1) * kaClearanceNorm).toFixed(1);
+
+    // Guardrail: current active circulating value can never exceed bioavailable steady-state peak ceiling
+    const activeMg = +Math.min(totalActiveMg, ssPeakMg).toFixed(1);
+    const pctOfPeak = ssPeakMg > 0 ? Math.min(100, Math.round((activeMg / ssPeakMg) * 100)) : 0;
 
     return {
-      activeMg: +totalActiveMg.toFixed(2),
-      ssPeakMg: +ssPeakMg.toFixed(1),
-      ssTroughMg: +ssTroughMg.toFixed(1),
+      activeMg,
+      ssPeakMg,
+      ssTroughMg,
       pctOfPeak,
       elapsedH: lastElapsedH,
       curDose,
     };
   }
+  window.calculateActivePlasma = calculateActivePlasma;
 
   function renderPlasmaGauge() {
     const cardEl = document.getElementById('g1-plasma-gauge-card');
@@ -327,17 +342,21 @@
     }
     cardEl.style.display = 'block';
 
-    const mgEl   = document.getElementById('g1-plasma-mg');
-    const peakEl = document.getElementById('g1-plasma-peak');
-    const pctEl  = document.getElementById('g1-plasma-pct');
-    const barEl  = document.getElementById('g1-plasma-bar');
-    const pillEl = document.getElementById('g1-plasma-status-pill');
-    const noteEl = document.getElementById('g1-plasma-note');
+    const mgEl      = document.getElementById('g1-plasma-mg');
+    const peakEl    = document.getElementById('g1-plasma-peak');
+    const pctEl     = document.getElementById('g1-plasma-pct');
+    const pctSubEl  = document.getElementById('g1-plasma-pct-sub');
+    const barEl     = document.getElementById('g1-plasma-bar');
+    const barPctEl  = document.getElementById('g1-plasma-bar-pct');
+    const pillEl    = document.getElementById('g1-plasma-status-pill');
+    const noteEl    = document.getElementById('g1-plasma-note');
 
-    if (mgEl)   mgEl.textContent = data.activeMg.toFixed(1);
-    if (peakEl) peakEl.textContent = data.ssPeakMg.toFixed(1);
-    if (pctEl)  pctEl.textContent = data.pctOfPeak + '%';
-    if (barEl)  barEl.style.width = Math.min(100, Math.max(5, data.pctOfPeak)) + '%';
+    if (mgEl)     mgEl.textContent = data.activeMg.toFixed(1);
+    if (peakEl)   peakEl.textContent = data.ssPeakMg.toFixed(1);
+    if (pctEl)    pctEl.textContent = data.pctOfPeak + '%';
+    if (pctSubEl) pctSubEl.textContent = `(${data.activeMg.toFixed(1)} / ${data.ssPeakMg.toFixed(1)} mg)`;
+    if (barEl)    barEl.style.width = Math.min(100, Math.max(5, data.pctOfPeak)) + '%';
+    if (barPctEl) barPctEl.textContent = `Active Level: ${data.pctOfPeak}% of Peak (${data.activeMg.toFixed(1)} / ${data.ssPeakMg.toFixed(1)} mg)`;
 
     const elapsed = data.elapsedH;
     const hInCycle = elapsed !== null ? ((elapsed % 168) + 168) % 168 : null;
@@ -345,20 +364,20 @@
     if (hInCycle !== null) {
       if (hInCycle < 12) {
         if (pillEl) { pillEl.textContent = '💉 Launch & Absorbing'; pillEl.style.background = '#fff9db'; pillEl.style.color = '#f59f00'; }
-        if (noteEl) noteEl.textContent = `Drug is absorbing subcutaneously. Climbing toward peak saturation in ~${Math.round(68 - hInCycle)}h.`;
+        if (noteEl) noteEl.textContent = `Drug is absorbing subcutaneously (${data.pctOfPeak}% of peak). Climbing toward peak saturation in ~${Math.max(1, Math.round(42 - hInCycle))}h.`;
       } else if (hInCycle < 36) {
         if (pillEl) { pillEl.textContent = '📈 Climbing to Peak'; pillEl.style.background = '#f0fdf4'; pillEl.style.color = '#2f9e44'; }
-        if (noteEl) noteEl.textContent = `Plasma levels rising rapidly toward maximum receptor saturation (~${data.ssPeakMg.toFixed(1)}mg peak).`;
+        if (noteEl) noteEl.textContent = `Plasma levels rising toward maximum receptor saturation (~${data.activeMg.toFixed(1)} mg active · ${data.pctOfPeak}% of ${data.ssPeakMg.toFixed(1)} mg steady-state peak).`;
       } else if (hInCycle <= 84) {
         if (pillEl) { pillEl.textContent = '⚡ Peak Therapeutic Window'; pillEl.style.background = '#f0eeff'; pillEl.style.color = '#534ab7'; }
-        if (noteEl) noteEl.textContent = `Maximum receptor activation. Full appetite suppression and peak glycemic control active (~${data.activeMg.toFixed(1)}mg active).`;
+        if (noteEl) noteEl.textContent = `Maximum receptor activation. Full appetite suppression and peak glycemic control active (~${data.activeMg.toFixed(1)} mg active · ${data.pctOfPeak}% of peak).`;
       } else if (hInCycle <= 132) {
         if (pillEl) { pillEl.textContent = '🛳️ Stable Cruise Phase'; pillEl.style.background = '#eff4ff'; pillEl.style.color = '#1971c2'; }
-        if (noteEl) noteEl.textContent = `Steady therapeutic clearance. Sustained appetite control with ~${data.activeMg.toFixed(1)}mg remaining in circulation.`;
+        if (noteEl) noteEl.textContent = `Steady therapeutic clearance. Sustained appetite control with ~${data.activeMg.toFixed(1)} mg remaining in circulation (${data.pctOfPeak}% of peak).`;
       } else {
         if (pillEl) { pillEl.textContent = '⏰ Pre-Shot Trough'; pillEl.style.background = '#fef2f2'; pillEl.style.color = '#c92a2a'; }
         const hLeft = Math.max(0, Math.round(168 - hInCycle));
-        if (noteEl) noteEl.textContent = `Approaching cycle trough (~${data.ssTroughMg.toFixed(1)}mg baseline). Next weekly dose due in ${hLeft}h.`;
+        if (noteEl) noteEl.textContent = `Approaching cycle trough (~${data.ssTroughMg.toFixed(1)} mg baseline · ${data.pctOfPeak}% of peak). Next weekly dose due in ${hLeft}h.`;
       }
     }
   }

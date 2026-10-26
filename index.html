@@ -80,7 +80,7 @@
   <script src="charts-tab.js?v=2" defer></script>
   <script src="dexa.js?v=2" defer></script>
   <script src="rate-analysis.js?v=7" defer></script>
-  <script src="medication.js?v=209" defer></script>
+  <script src="medication.js?v=211" defer></script>
   <script src="titration-utils.js?v=4" defer></script>
   <script src="events.js?v=2" defer></script>
   <script src="titration-trajectory.js?v=8" defer></script>
@@ -1169,12 +1169,12 @@
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
             <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">STEADY-STATE PEAK</span>
             <span id="g1-plasma-peak" style="font-size:1.35rem;font-weight:800;color:#2f9e44">—</span>
-            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">mg at ~68h</span>
+            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">mg at ~36–48h</span>
           </div>
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
             <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">CYCLE RETENTION</span>
             <span id="g1-plasma-pct" style="font-size:1.35rem;font-weight:800;color:#1971c2">—</span>
-            <span style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">% of cycle peak</span>
+            <span id="g1-plasma-pct-sub" style="font-size:0.7rem;color:#6d7a95;margin-left:0.15rem">of steady-state peak</span>
           </div>
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.6rem 0.75rem">
             <span style="font-size:0.68rem;font-weight:700;color:#6d7a95;display:block">HALF-LIFE REMAINING</span>
@@ -1186,8 +1186,8 @@
         <div style="margin-top:0.5rem">
           <div style="display:flex;justify-content:space-between;font-size:0.68rem;font-weight:700;margin-bottom:0.35rem">
             <span style="color:#c92a2a">Pre-Shot Trough</span>
-            <span style="color:#2f9e44">Optimal Therapeutic Zone</span>
-            <span style="color:#534ab7">Peak Activation (~68h)</span>
+            <span id="g1-plasma-bar-pct" style="color:#2f9e44">Optimal Therapeutic Zone</span>
+            <span style="color:#534ab7">Peak Activation (~36–48h)</span>
           </div>
           <div style="position:relative;height:14px;background:#e5e7eb;border-radius:7px;overflow:hidden">
             <div id="g1-plasma-bar" style="position:absolute;top:0;left:0;bottom:0;width:0%;background:linear-gradient(90deg, #f59f00 0%, #2f9e44 50%, #534ab7 100%);border-radius:7px;transition:width 0.6s ease-in-out"></div>
@@ -1647,11 +1647,11 @@
 
 <script>
   (function purgeStaleSwOnce() {
-    var KEY = 'wt_v2_sw_purge_v3_done';
+    var KEY = 'wt_v2_sw_purge_v4_done';
     if (localStorage.getItem(KEY) === '1') return;
     if ('caches' in window) {
       caches.keys().then(function (keys) {
-        keys.filter(function (k) { return k.indexOf('health-board-v2') === 0; })
+        keys.filter(function (k) { return k.indexOf('health-board-v') === 0; })
             .forEach(function (k) { caches.delete(k); });
       });
     }
