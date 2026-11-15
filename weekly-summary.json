@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-11-08T18:12:56.445802+00:00",
-  "week_ending": "2026-11-08",
-  "summary": "David is currently at 227.7 lbs, bringing his total progress to 87.3 lbs down from his starting weight. Activity remained strong with an average of 4,259 daily steps and 6.7 hours of nightly sleep supporting healthy recovery. Pacing is on track at 0.33 lbs/week\u2014continue prioritizing protein intake and hydration to protect lean muscle into the upcoming week.",
+  "generated_at": "2026-11-15T19:14:00.616475+00:00",
+  "week_ending": "2026-11-15",
+  "summary": "David is currently at 227.1 lbs, bringing his total progress to 87.9 lbs down from his starting weight. Activity remained strong with an average of 5,459 daily steps and 6.8 hours of nightly sleep supporting healthy recovery. Continue prioritizing consistent hydration, protein targets, and regular movement as the journey continues.",
   "stats": {
     "days_with_readings": 14,
-    "latest_weight": 227.7,
-    "total_lost_from_start": 87.3,
-    "change_last_14d": -0.7,
-    "rate_lbs_per_week": 0.33,
-    "avg_weight": 226.9,
-    "avg_steps_7d": 4259,
-    "avg_sleep_hrs_7d": 6.7,
-    "avg_resting_hr_7d": 65
+    "latest_weight": 227.1,
+    "total_lost_from_start": 87.9,
+    "change_last_14d": 0.7,
+    "rate_lbs_per_week": -0.34,
+    "avg_weight": 226.7,
+    "avg_steps_7d": 5459,
+    "avg_sleep_hrs_7d": 6.8,
+    "avg_resting_hr_7d": 66
   }
 }
