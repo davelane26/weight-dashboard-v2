@@ -41,7 +41,7 @@ const BMI_CATS = [
 // fetch pipeline -- flip back ON months later and the data is still
 // there, no re-wiring needed.
 const SHOW_GLUCOSE  = false;  // flip to true when tracking resumes
-const SHOW_WORKOUT  = false;  // flip to true when tracking resumes
+const SHOW_WORKOUT  = true;
 
 const ALL_TABS      = ['weight', 'charts', 'glucose', 'activity', 'workout', 'projector', 'medication', 'photos', 'health'];
 const HIDDEN_TABS   = new Set([

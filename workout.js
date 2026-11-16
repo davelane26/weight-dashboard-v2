@@ -1,11 +1,11 @@
 /* ════════════════════════════════════════════════════════════════════
    workout.js — Workout tab for the health dashboard.
 
-   David's 4-day Upper/Lower program (Wed-Sun), built for muscle
-   preservation during the Mounjaro cut. Renders into #tab-workout.
+   David's 4-day Upper/Lower program (Thu-Sun), built for muscle
+   preservation during the recomp cut. Renders into #tab-workout.
 
    Features:
-   - Auto-highlights TODAY's session based on the Wed-Sun schedule.
+   - Auto-highlights TODAY's session based on the Thu-Sun schedule.
    - Tap-able per-exercise checkboxes, saved to localStorage.
    - Progress bars per day; checkmarks auto-reset each new week.
    - Zero dependencies, dark-mode aware. No charts, no network.
@@ -15,75 +15,66 @@
   'use strict';
 
   // ── The program ────────────────────────────────────────────────────
-  // dow = JS getDay() index (0=Sun .. 6=Sat). Sunday's session is optional.
+  // dow = JS getDay() index (0=Sun .. 6=Sat). Mon-Wed are rest days.
   const PROGRAM = [
     {
-      id: 'upperA', dow: 3, name: 'Upper A',
+      id: 'upperA', dow: 4, name: 'Upper A',
       focus: 'Horizontal push / pull',
-      warmup: ['5 min easy cardio', '1-3 lighter prep sets before bench & rows'],
+      warmup: ['5 min easy cardio', '1-3 lighter prep sets before chest press & rows'],
+      walk: '15-20 min incline walk',
       exercises: [
-        { m: 'Machine Chest Press',              s: '4 x 6-8',  rir: '2 RIR' },
-        { m: 'Chest-Supported Machine Row',      s: '4 x 8-10', rir: '2 RIR' },
-        { m: 'Incline Machine Press',            s: '3 x 8-12', rir: '1-2 RIR' },
-        { m: 'Lat Pulldown (or Pull-up)',        s: '3 x 10-12', rir: '1-2 RIR' },
-        { m: 'Machine Lateral Raise',            s: '3 x 12-15', rir: '1 RIR' },
-        { m: 'Triceps Pushdown',                 s: '3 x 10-15', rir: '1 RIR' },
+        { m: 'Neutral-Grip Machine Chest Press',              s: '3 x 8-10 (60+ lb)',                 rir: '2 RIR' },
+        { m: 'Chest-Supported Machine Row',                  s: '3 x 8-12 (150 lb)',                 rir: '2 RIR' },
+        { m: 'Shallow-Incline Machine Chest Press (15–20°)', s: '3 x 8-12 (60+ lb)',                 rir: '2 RIR' },
+        { m: 'Neutral-Grip Lat Pulldown',                    s: '3 x 8-12 (145 lb)',                 rir: '2 RIR' },
+        { m: 'Cable Face Pulls (or Rear-Delt Fly)',          s: '3 x 12-15 (80 lb)',                 rir: '1-2 RIR' },
       ],
     },
     {
-      id: 'lowerA', dow: 4, name: 'Lower A',
-      focus: 'Knee-aware lower body',
-      warmup: ['5 min easy pain-free cardio', '1-3 lighter prep sets before squat/leg-press'],
-      knee: true,
-      exercises: [
-        { m: 'Leg Press',                        s: '3 x 5-8', rir: '2 RIR' },
-        { m: 'Machine Back Extension',           s: '2 x 10-15', rir: '1-2 RIR' },
-        { m: 'Seated Leg Curl',                  s: '3 x 8-12', rir: '1 RIR' },
-        { m: 'Standing Calf Raise',              s: '3 x 8-15', rir: '1 RIR' },
-        { m: 'Machine Crunch',                   s: '3 x 10-15', rir: '1 RIR' },
-      ],
-    },
-    {
-      id: 'upperB', dow: 5, name: 'Upper B',
-      focus: 'Vertical push / pull',
-      warmup: ['5 min easy cardio', '1-3 lighter prep sets before overhead press & pulldown'],
-      exercises: [
-        { m: 'Machine Shoulder Press',           s: '3 x 5-8',  rir: '1-3 RIR' },
-        { m: 'Neutral-grip Lat Pulldown',        s: '3 x 8-12', rir: '1-3 RIR' },
-        { m: 'Machine Chest Press',              s: '2 x 8-12', rir: '1-3 RIR' },
-        { m: 'Seated Cable Row',                 s: '2 x 8-12', rir: '1-3 RIR' },
-        { m: 'Rear-delt Fly',                    s: '2 x 12-20', rir: '1-3 RIR' },
-        { m: 'Machine Preacher Curl',            s: '2 x 10-15', rir: '1-3 RIR' },
-      ],
-    },
-    {
-      id: 'lowerB', dow: 6, name: 'Lower B',
+      id: 'lowerA', dow: 5, name: 'Lower A',
       focus: 'Knee-aware lower body',
       warmup: ['5 min easy pain-free cardio', '1-3 lighter prep sets before leg press'],
       knee: true,
       exercises: [
-        { m: 'Leg Press',                        s: '3 x 8-12', rir: '1-3 RIR' },
-        { m: 'Machine Back Extension',           s: '3 x 10-15', rir: '1-3 RIR' },
-        { m: 'Leg Extension (pain-free)',        s: '2 x 10-15', rir: '1-3 RIR' },
-        { m: 'Seated Leg Curl',                  s: '2 x 10-15', rir: '1-3 RIR' },
-        { m: 'Calf Raise',                       s: '3 x 10-15', rir: '1-3 RIR' },
+        { m: 'Leg Press',                                    s: '3 x 8-10 (140 lb)',                 rir: '2 RIR' },
+        { m: 'Machine Back Extension',                       s: '3 x 10-12 (160 lb)',                rir: '2 RIR' },
+        { m: 'Seated Leg Curl',                              s: '3 x 8-12 (80 lb)',                  rir: '1-2 RIR' },
+        { m: 'Seated Calf Extension',                        s: '3 x 10-15 (400 lb, 2-sec stretch pause)', rir: '1-2 RIR' },
+        { m: 'Machine Crunch',                               s: '3 x 10-15 (70 lb)',                 rir: '1-2 RIR' },
       ],
     },
     {
-      id: 'optional', dow: 0, name: 'Wing It (Sun)',
-      focus: 'Free day - your call',
+      id: 'upperB', dow: 6, name: 'Upper B',
+      focus: 'Vertical push / pull',
+      warmup: ['5 min easy cardio', '1-3 lighter prep sets before shoulder press & pulldown'],
+      walk: '15-20 min incline walk',
       exercises: [
-        { m: 'Chase a pump / hit a weak point (arms?)', s: 'Auto-regulate', rir: 'Your call' },
-        { m: 'OR longer incline walk',           s: '20-40 min',    rir: 'Easy' },
-        { m: 'OR full rest',                     s: '--',           rir: 'Recovery' },
+        { m: 'Machine Shoulder Press (or Overhead Press)',   s: '3 x 8-10',                          rir: '2 RIR' },
+        { m: 'Neutral-Grip Lat Pulldown',                    s: '3 x 8-12 (145 lb)',                 rir: '2 RIR' },
+        { m: 'One-Arm Cable Row',                            s: '2-3 x 10-12 per side (55 lb)',      rir: '2 RIR' },
+        { m: 'Machine or Cable Lateral Raise',               s: '3 x 12-15',                         rir: '1-2 RIR' },
+        { m: 'Rear-Delt Fly',                                s: '2-3 x 12-15 (80 lb)',               rir: '1-2 RIR' },
+      ],
+    },
+    {
+      id: 'lowerB', dow: 0, name: 'Lower B',
+      focus: 'Knee-aware lower body',
+      warmup: ['5 min easy pain-free cardio', '1-3 lighter prep sets before leg press'],
+      knee: true,
+      exercises: [
+        { m: 'Leg Press',                                    s: '3 x 8-10 (150 lb)',                 rir: '2 RIR' },
+        { m: 'Machine Back Extension',                       s: '3 x 10-12 (180 lb)',                rir: '2 RIR' },
+        { m: 'Leg Extension (pain-free range, 1-sec pause)', s: '2-3 x 10-15 (100 lb)',              rir: '1-2 RIR' },
+        { m: 'Seated Leg Curl',                              s: '3 x 8-12 (90 lb)',                  rir: '1-2 RIR' },
+        { m: 'Seated Calf Extension',                        s: '3 x 10-15 (400 lb, 2-sec stretch pause)', rir: '1-2 RIR' },
       ],
     },
   ];
 
   const KNEE_RULE = 'Knee rule: use a pain-free range & controlled tempo. Skip or swap any movement that aggravates the knee.';
 
-  // Every lifting day finishes with the incline walk.
-  const WALK = '15-20 min incline walk after lifting (skip before leg day).';
+  // Upper sessions finish with an incline walk.
+  const WALK = '15-20 min incline walk after lifting.';
 
   const DOW_LABEL = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
   const DOW_FULL  = { 0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
@@ -284,9 +275,9 @@
       : todayDay.name + ' - ' + todayDay.focus;
     const heroSub = isRestDay
       ? `Recover, hit your protein, easy walk if you like. Next up: ${esc(firstDay.name)} (${DOW_FULL[dowOf(firstDay)]}).`
-      : (todayDay.id === 'optional'
-          ? 'Optional day - train if fresh, otherwise walk or rest.'
-          : WALK);
+      : (todayDay.walk
+          ? `Finish with ${esc(todayDay.walk.toLowerCase())}.`
+          : 'Controlled tempo & pain-free range. Hit your protein.');
 
     const daySelectOptions = sel => [0, 1, 2, 3, 4, 5, 6].map(
       d => `<option value="${d}"${d === sel ? ' selected' : ''}>${DOW_FULL[d]}</option>`
@@ -346,9 +337,9 @@
           </div>`;
       });
 
-      const walkLine = (day.id === 'optional')
-        ? ''
-        : `<div class="wo-walk">Finish: ${esc(WALK)}</div>`;
+      const walkLine = day.walk
+        ? `<div class="wo-walk">Finish: ${esc(day.walk)}</div>`
+        : '';
 
       const warmupHtml = (day.warmup && day.warmup.length)
         ? `<div class="wo-warmup"><b>Warm-up</b>${
