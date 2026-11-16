@@ -851,12 +851,10 @@ main > [role="tabpanel"]:not([hidden]) {
   }
 }
 
-/* ── Paused Modules (SHOW_GLUCOSE=false, SHOW_WORKOUT=false) ─────── */
+/* ── Paused Modules (SHOW_GLUCOSE=false) ─────── */
 #snap-cell-glucose,
 #tab-btn-glucose,
-#tab-glucose,
-#tab-btn-workout,
-#tab-workout {
+#tab-glucose {
   display: none !important;
 }
 

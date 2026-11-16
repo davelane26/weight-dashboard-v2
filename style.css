@@ -88,9 +88,7 @@
 [hidden],
 #snap-cell-glucose,
 #tab-btn-glucose,
-#tab-glucose,
-#tab-btn-workout,
-#tab-workout { display: none !important; }
+#tab-glucose { display: none !important; }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;

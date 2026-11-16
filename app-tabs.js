@@ -66,28 +66,45 @@ const SNAP_CELL_BY_TAB = {
 };
 
 function applyHiddenModules() {
-  HIDDEN_TABS.forEach(name => {
+  ALL_TABS.forEach(name => {
+    const isHidden = HIDDEN_TABS.has(name);
     const desktopBtn = el('tab-btn-' + name);
     const panel      = el('tab-'     + name);
     const mobileBtn  = document.querySelector(`.mob-tab[data-tab="${name}"]`);
     if (desktopBtn) {
-      desktopBtn.hidden = true;
-      desktopBtn.style.setProperty('display', 'none', 'important');
+      desktopBtn.hidden = isHidden;
+      if (isHidden) {
+        desktopBtn.style.setProperty('display', 'none', 'important');
+      } else {
+        desktopBtn.style.removeProperty('display');
+      }
     }
     if (panel) {
-      panel.hidden = true;
-      panel.style.setProperty('display', 'none', 'important');
+      if (isHidden) {
+        panel.hidden = true;
+        panel.style.setProperty('display', 'none', 'important');
+      } else {
+        panel.style.removeProperty('display');
+      }
     }
     if (mobileBtn) {
-      mobileBtn.hidden = true;
-      mobileBtn.style.setProperty('display', 'none', 'important');
+      mobileBtn.hidden = isHidden;
+      if (isHidden) {
+        mobileBtn.style.setProperty('display', 'none', 'important');
+      } else {
+        mobileBtn.style.removeProperty('display');
+      }
     }
 
     const snapId = SNAP_CELL_BY_TAB[name];
     const cell = document.getElementById('snap-cell-' + name) || (snapId ? document.getElementById(snapId)?.closest('.snap-cell') : null);
     if (cell) {
-      cell.hidden = true;
-      cell.style.setProperty('display', 'none', 'important');
+      cell.hidden = isHidden;
+      if (isHidden) {
+        cell.style.setProperty('display', 'none', 'important');
+      } else {
+        cell.style.removeProperty('display');
+      }
     }
   });
 }
@@ -183,8 +200,25 @@ function restoreTabOrder() {
     if (!Array.isArray(saved) || !saved.length) return;
     const nav = document.querySelector('.tab-nav');
     if (!nav) return;
+    // If an enabled tab is missing from saved order (e.g. newly enabled module), insert it
+    const order = [...saved];
+    TABS.forEach(t => {
+      if (!order.includes(t)) {
+        const defaultIdx = ALL_TABS.indexOf(t);
+        let inserted = false;
+        for (let i = defaultIdx - 1; i >= 0; i--) {
+          const prevIdx = order.indexOf(ALL_TABS[i]);
+          if (prevIdx !== -1) {
+            order.splice(prevIdx + 1, 0, t);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) order.push(t);
+      }
+    });
     // appendChild moves existing nodes — cheap reorder with no cloning
-    saved.forEach(name => {
+    order.forEach(name => {
       const btn = document.getElementById('tab-btn-' + name);
       if (btn) nav.appendChild(btn);
     });

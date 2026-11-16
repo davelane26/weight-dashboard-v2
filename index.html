@@ -24,13 +24,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
   <link rel="stylesheet" href="activity_styles.css?v=13" />
   <link rel="stylesheet" href="polish.css?v=13" />
   <link rel="stylesheet" href="enhancements.css?v=13" />
   <link rel="stylesheet" href="tokens.css?v=13" />
   <link rel="stylesheet" href="a11y.css?v=13" />
-  <link rel="stylesheet" href="modern-ui.css?v=15" />
+  <link rel="stylesheet" href="modern-ui.css?v=16" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script>
@@ -57,9 +57,9 @@
   </script>
   <script type="module" src="auth.js?v=3"></script>
   <!-- Modular app split -->
-  <script src="app-config.js?v=2"   defer></script>
+  <script src="app-config.js?v=3"   defer></script>
   <script src="app-utils.js?v=7"    defer></script>
-  <script src="app-tabs.js?v=8"     defer></script>
+  <script src="app-tabs.js?v=9"     defer></script>
   <script src="app-kpis.js?v=9"     defer></script>
   <script src="app-charts.js?v=2"   defer></script>
   <script src="multi-window-trends.js?v=6" defer></script>
@@ -73,7 +73,7 @@
   <script src="healthcard.js?v=1" defer></script>
   <script src="glucose.js?v=105" defer></script>
   <script src="activity.js?v=102" defer></script>
-  <script src="workout.js?v=2" defer></script>
+  <script src="workout.js?v=3" defer></script>
   <script src="enhancements.js?v=6" defer></script>
   <script src="photos.js?v=3" defer></script>
   <script src="photo-picker.js?v=1" defer></script>
@@ -172,7 +172,7 @@
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
       <span>Activity</span>
     </button>
-    <button class="tab-btn" role="tab" id="tab-btn-workout" draggable="true" onclick="switchTab('workout')" aria-selected="false" aria-controls="tab-workout" hidden style="display:none !important;">
+    <button class="tab-btn" role="tab" id="tab-btn-workout" draggable="true" onclick="switchTab('workout')" aria-selected="false" aria-controls="tab-workout">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11"/><rect x="2" y="8" width="4" height="8" rx="1"/><rect x="18" y="8" width="4" height="8" rx="1"/><line x1="6" y1="12" x2="18" y2="12"/></svg>
       <span>Workout</span>
     </button>
